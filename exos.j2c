@@ -1,0 +1,164 @@
+package Decoder;
+my $Version = "0.02";
+__END__
+
+# EXOS json to config (j2x) decoder
+# Ensure that c2j encoder used was of same major version to ensure operating on same data schema
+
+################################################################################
+#                                    SYNTAX                                    #
+################################################################################
+# Special directives:
+# DEVICE_PORT_RANGE = x			# 0 = do not generate ranges; 1 = compact ranges (Baystack like : 1/1-24); 2 = VOSS ranges (less compact 1/1-1/24)
+# SLOT_PORT_SEPARATOR = "<char>"	# Set the character to separate slot/port; if not set will assume "/"; for EXOS nees to be set to ":"
+#
+# This file will need editing based on what config you want to generate from the json/yaml data.
+#
+# Provide the config lines for the features/functionalities you want to generate config for.
+# These config lines are in the target system CLI syntax, but yank back to the encoded data structure to fetch arguments and iterations.
+# These arguments are embedded as $variables, using a hash/array syntax to exactly point to the data in the encoded structure.
+# The encoded data structure is either the json or yaml output produced by the 'extract' encoder.
+# All of the following are valid variables pointing to values inside the data structure:
+#
+# $system{name}
+# $vlan{x}
+# $vlan{x}{name}
+# $dns{server}[x]
+# $ip{route}[x]{next-hop}
+# $x				# 1-based array index of any of above variables containing [x] 
+#
+# Where 'x' is placed inside curlies, {x}, the commands will be repeated as many times as there are instances of data for x as hash key.
+# Where 'x' is placed inside squares, [x], the commands will be repeated as many times as there are instances of data for x as array index.
+#
+# Note that a variable like $item{x}, where '{x}' is at the end of the variable, will result in keys of x being used. Which is the most intuitive
+# if we expect the values to be lower level hashes. For example $vlan{x} will be the vlan-id key and all the data for each vlan will be placed in
+# lower level hash keys like $vlan{x}{name}, etc..
+# If however the hash is flat, and the desired values are in the same hash, we can access those using $item{x:v}.
+#
+#
+# Example1:
+# vlan create $vlan{x} [name $vlan{x}{name}] type port-mstprstp $vlan{x}{instance}
+#
+# If we have this data in the encoded structure:
+#   "vlan" : {
+#      "1" : {
+#         "ports" : "1/1-8"
+#      },
+#      "2" : {
+#         "instance" : 0,
+#         "name" : "Grt-2",
+#         "ports" : "1/9",
+#         "pvid" : "1/9",
+#         "type" : "port",
+#         "voice-vlan" : false
+#      },
+#      "5" : {
+#         "instance" : 0,
+#         "type" : "port",
+#         "voice-vlan" : true
+#      }
+#   }
+#
+# Then the example1 line will produce this config output:
+# vlan create 2 name GRT-2 type port-mstprstp 0
+# vlan create 5  type port-mstprstp 0
+#
+# If the $variable includes an "x" index, then that index is allowed to iterate across all relevant values in the data structure.
+# Each command line can include optional sections. In the example above [name $vlan{x}{name}] is an optional section and is only
+# included in the output if there is a value for that variable in the data structure for the x iteration.
+# Whereas if there is no value for a $variable which is not part of an optional section, then the whole line is omitted; for example
+# we got no vlan creation command line for vlan 1, as there was no value for $vlan{x}{instance} with x = 1
+#
+#
+# Example2:
+# vlan create $vlan{x} [name $vlan{x}{name}] type port-mstprstp 0	&IF: $vlan{x} > 1
+#
+# In this case we might not care about mapping ERS STP instances over to the VOSS config, so we hard code the instance to 0.
+# But now we don't want to generate a config with a vlan 1 creation command. So we can apply constraints to commands to add to our
+# generated config file by appnding &IF: <condition-to-eval>.
+# The <condition-to-eval> is evaluated and only if the result is true then the line is added to the produced config.
+#
+#
+# Example3:
+# i-sid $vlan{x}{isid} elan
+#    c-vid $vlan{x} ports $vlan{x}{ports}
+# exit
+#
+# Indentation can be used to make inner context lines, dependant on the outer context.
+# If we have this data in the encoded structure:
+#   "vlan" : {
+#      "1" : {
+#         "ports" : "1/1-8"
+#      },
+#      "2" : {
+#         "instance" : 0,
+#         "name" : "Grt-2",
+#         "ports" : "1/9",
+#         "pvid" : "1/9",
+#         "type" : "port",
+#         "voice-vlan" : false
+#      },
+#      "210" : {
+#         "i-sid" : 2800210,
+#         "instance" : 0,
+#         "name" : "Green-210",
+#         "ports" : "1/10-11",
+#         "pvid" : "1/10-11",
+#         "type" : "port",
+#      },
+#      "211" : {
+#         "i-sid" : 2800211
+#      },
+#   }
+#
+# Then the example3 line will produce this config output:
+# i-sid 2800210 elan
+#    c-vid 210 ports 1/10-11
+# exit
+# i-sid 2800211 elan
+# exit
+#
+# Note that for the 2nd line (c-vid ...) does not appear for vlans 1 & 2, as these have no i-sid and hence did not create the 1st line either.
+# Also note not for vlan 211 as there are no ports.
+#
+#
+# Example4:
+# radius server host $radius{server}{ip} [acct-enable &IF: $radius{server}{accounting}] [timeout $radius{server}{timeout}]
+#
+# Here the optional acct-enable parameter is included based on the &IF: evaluation of $radius{server}{accounting}
+#
+# With this data:
+#   "radius" : {
+#      "server" : {
+#         "accounting" : true,
+#         "ip" : "10.8.255.17",
+#         "timeout" : 4
+#      }
+#
+# Produces this line:
+# radius server host 10.8.255.17 acct-enable timeout 4
+#
+#
+# Example5:
+# vlan ports $port{x} tagging $port{x}{tagging} [filter-untagged-frame $port{x}{filter-untagged-frame}%:enable,disable]
+#
+# Appending '%:<value1>,<value2>' to a vaiable will result in value1 being replaced if the variable is true and value2 otherwise
+#
+#
+################################################################################
+#                                  DEFINITIONS                                 #
+################################################################################
+
+DEVICE_PORT_RANGE = 1
+SLOT_PORT_SEPARATOR = ":"
+
+create vlan $vlan{x} [description $vlan{x}{name}]			&IF: $vlan{x} > 1
+configure vlan $vlan{x} add ports $vlan{x}{ports-untagged} untagged
+configure vlan $vlan{x} add ports $vlan{x}{ports-tagged} tagged
+configure vlan $vlan{x} add nsi $vlan{x}{i-sid}
+
+configure vlan $vlan{x} ipaddress $vlan{x}{ip} $vlan{x}{mask}
+
+configure bootprelay vlan $vlan{x}{name}				&IF: $vlan{x}{dhcp-relay}{enable}
+configure bootprelay add $vlan{x}{dhcp-relay}{server}			&IF: $vlan{x}{dhcp-relay}{enable} && $vlan{x}{dhcp-relay}{server}
+

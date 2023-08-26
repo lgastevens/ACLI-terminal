@@ -1,0 +1,31 @@
+# Version = 1.01
+# This file defines the XMC GraphQL query
+# You may add keys to it, under network/devices; but do not remove keys : sitePath, ip, sysName, profileName, deviceDisplayFamily
+# See also xmcacli.ini on how to display new keys into the GUI window
+{
+  network {
+    devices {
+      deviceDisplayFamily
+      sitePath
+      sysName
+      ip
+      firmware
+      sysLocation
+      sysUpTime
+      up
+      deviceData {
+        profileName
+        deviceDisplayType
+      }
+    }
+  }
+  administration {
+    profiles {
+      profileName
+      authCred {
+        userName
+        loginPassword
+      }
+    }
+  }
+}
