@@ -1,0 +1,47 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Customizing ACLI/ConsoleZ</Title>
+</HEAD>
+<BODY>
+<h1>Customizing ACLI/ConsoleZ</h1>
+
+<p>The ACLI terminal is a Perl program (acli.pl). The graphical windows application used by ACLI is ConsoleZ which is a freeware improved console window for Microsoft Windows. (Essentially ACLI uses ConsoleZ to invoke "perl.exe acli.pl", instead of cmd.exe)</p>
+<p>There are 4 predefined Tabs which can be launched:</p>
+<img src="../images/predefined-tabs.png" />
+<ul>
+	<li><b>ACLI</b>: this launches perl.exe onto acli.pl</li>
+	<li><b>ConsoleZ</b>: this launches a regular DOS box (cmd.exe)</li>
+	<li><b>ACLI Serial Port</b>: this launches a list of available serial ports to open ACLI against</li>
+	<li><b>ACLI Terminal Servers</b>: this launches a list of known terminal server connections to open ACLI against</li>
+</ul>
+<p>The ConsoleZ windows can be customized to add or modify tabs. This is done under Console menu Edit / Settings / Tabs:</p>
+<img src="../images/consolez-settings.png" />
+
+<p>For example, new tabs can be added to connect directly to a particular switch IP, by entering these values in a new tab definition:</p>
+<ul>
+	<li><b>Title: </b><i>My Switch</i></li>
+	<li><b>Shell: </b><i>"%ACLIDIR%\acli.bat" -l admin[:password] 192.168.10.1</i></li>
+</ul>
+<p>The above will start ACLI terminal in a new tab and will automatically connect and login to the switch IP provided. All the valid ACLI command line options can be used.</p>
+<p>It is also possible to launch other command line applications; for example PowerShell:</p>
+<ul>
+	<li><b>Title: </b><i>PowerShell</i></li>
+	<li><b>Shell: </b><i>powershell.exe</i></li>
+</ul>
+<p><b>NOTE:</b> It is recommended that under the Console menu Edit / Settings (shown above), you check the box "Save settings to user directory"; the ConsoleZ profile (which includes your tab configurations as well as any other ConsoleZ settings) will then be saved here: <i>C:\Users\&lt;username&gt;\AppData\Roaming\Console\console.xml</i>. If you do not do this, the ConsoleZ profile will be saved in the ACLI install directory, with these consequences:</p>
+<ul>
+	<li>If you installed ACLI "for me only": everything will work fine; but next time you install a new version of ACLI you will lose your profile settings</li>
+	<li>If you installed ACLI "for all users" and you have Admin rights: the profile will be saved and used by all users</li>
+	<li>If you installed ACLI "for all users" and you do not have Admin rights: you will not be able to make changes to the profile settings</li>
+</ul>
+<p>Finally, you can also make ConsoleZ automatically start with selected Tabs open (and hence automatically connect to those switches) by adding the Tab names in the Windows shortcut target using the ConsoleZ -t switch; for example:</p>
+<pre>
+	"C:\Program Files\ACLI\Console.exe" -w "ACLI" -t ACLI -t "My Switch"
+</pre>
+<p>This will start ConsoleZ with both the ACLI and the "My Switch" tabs open.</p>
+
+
+</BODY>
+</HTML>

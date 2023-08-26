@@ -1,0 +1,36 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Output Redirection</Title>
+</HEAD>
+<BODY>
+<h1>Output Redirection</h1>
+
+<p>The ACLI terminal supports output redirection in interactive mode. For any command (even embedded commands) the resulting output can be redirected to a file on the local file system where ACLI terminal is running simply by appending the command with <i>'>'</i> or <i>'>>'</i> and the destination filename (<i>'>'</i> and <i>'>>'</i> can also be used to capture output values into variables; in this case they are followed by a '$' variable and not a filename; this is covered in the variables section).</p>
+<p>In both cases the file will be created if it did not exist; if the file already existed, a <i>'>'</i> redirection will overwrite the file contents, while a <i>'>>'</i> will append. If a path was not specified on the filename then the file will be created in the working directory (which can be inspected with <i>@pwd</i> and set with <i>@cd</i> embedded commands)</p>
+<p>NOTE: This output redirection is NOT to the switch/device's own filesystem, but only to the file system of the end station where the ACLI Terminal is running</p>
+<p>The fact that redirection occurs to the local file system of ACLI, has a number of advantages. For a start, if a user wants to capture output of a command, he will most likely want to recover that output from the switch; so with ACLI there is no need to transfer the output file from the switch. Also, when driving/tie-ing many ACLI terminals together (using sockets) it is possible to capture the output of a command (e.g. the running-config) against all switches with one single command and have the output from all switches stored locally in the same directory.</p>
+<pre>
+	VSP-8284XSQ:1#% @pwd
+	
+	Working directory is:
+	C:\Users\lstevens\Scripts\acli\working-dir
+	
+	VSP-8284XSQ:1#% $$
+	
+	$$          = VSP-8284XSQ
+	
+	VSP-8284XSQ:1#% cfg > $$.cfg
+	          vars% cfg > VSP-8284XSQ.cfg
+	         alias% show running-config -ib > VSP-8284XSQ.cfg
+	
+	acli.pl: Saving output ..done
+	acli.pl: Output saved to:
+	C:\Users\lstevens\Scripts\acli\working-dir\VSP-8284XSQ.cfg
+	
+	VSP-8284XSQ:1#%
+</pre>
+
+</BODY>
+</HTML>

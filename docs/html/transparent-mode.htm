@@ -1,0 +1,19 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Transparent Mode</Title>
+</HEAD>
+<BODY>
+<h1>Transparent Mode</h1>
+
+<p>When in transparent mode, the ACLI terminal behaves exactly like any other SSH/Telnet/Serial port terminal and behaves like a character oriented terminal. Any characters entered by user on the keyboard are transparently sent to the connected device. And any characters/text received from the connected device is printed in the terminal output window.</p>
+<p>By default ACLI will try and auto-detect the device during connection; if a supported Extreme Networks device is detected then ACLI will enter interactive mode, if not it will enter transparent mode. (If you did not want the terminal to automatically attempt auto-discovery use the <i>-n</i> ACLI command line switch)</p>
+<p>Most of ACLI's advanced features will not work in transparent mode, with a few exceptions:</p>
+<ul>
+	<li>If username/password credentials are provided, login is automatically performed (for any of Telnet/SSH/Serial port)</li>
+	<li>ACLI terminals can still be tied together via sockets (to drive many terminals from one); but the socket commands to tie/listen need to be accessed via the ACLI control interface (hit CTRL-] to access)</li>
+</ul>
+
+</BODY>
+</HTML>

@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>XMC ACLI script</Title>
+</HEAD>
+<BODY>
+<h1>XMC ACLI script</h1>
+<p>This tool extracts all discovered devices from Extreme Management Center (XMC) using the GraphQl API and displays them all preserving the XMC Site hierarchy in a tabular output. The user can then browse or filter the entries, make a selection of devices he wishes to connect to with ACLI, then easily launch an ACLI session against all of the selections.</p>
+<p>Note that a minimum version of XMC 8.1.2 is required, as this is the first version where XMC added support for the GraphQl interface.</p>
+<p>A shortcut for XMC ACLI Launcher is included in the Start / ACLI shortcuts menu:</p>
+<img src="../images/acli-menu.png" />
+<p>The script can also be executed from any DOS box or from a ConsoleZ tab window:</p>
+<pre>
+	C:\>xmcacli -h
+	xmcacli.pl version 1.07
+	
+	Usage:
+	 xmcacli.pl [-fgimnpqstuw] [&lt;XMC server/IP[:port]&gt;]
+	
+	 &lt;XMC server/IP[:port]&gt;: Extreme Management Center IP address or hostname & port number
+	 -f &lt;site-wildcard&gt;    : Filter entries on Site wildcard
+	 -g &lt;record-grep&gt;      : Filter entries pattern match across any column data
+	 -h                    : Help and usage (this output)
+	 -i &lt;log-dir&gt;          : Path to use when logging to file
+	 -m &lt;script&gt;           : Once connected execute script (if no path included will use @run search paths)
+	 -n                    : Launch terminals in transparent mode (no auto-detect & interact)
+	 -p ssh|telnet         : Protocol to use; can be either SSH or Telnet (case insensitive)
+	 -q &lt;graphql-file&gt;     : Override of default xmcacli.graphql file; must be placed in same path
+	 -s &lt;sockets&gt;          : List of socket names for terminals to listen on
+	 -t &lt;window-title&gt;     : Sets the containing window title into which all connections will be opened
+	 -u user[:&lt;pwd&gt;]       : Specify XMC username[& password] to use
+	 -w &lt;work-dir&gt;         : Working directory to use
+</pre>
+<p>Once run, the script will present the following graphical interface:</p>
+<img src="../images/xmcacli-empty.png" />
+
+<p>To pull all the switch data from XMC, simply enter your XMC-IP:port, XMC username & password, then hit the <i>"Fetch Data"</i> button.</p>
+<p>The XMC server input box also has a pull down, which will present a list of past successful fetches from XMC servers (useful, if you are working with several XMC installations).</p>
+<p>To view the resulting output you may need to re-size the window in order to make the table fit.</p>
+<img src="../images/xmcacli-fetch.png" />
+
+<p>The table output can then be filtered down by using the <i>site filter</i> & <i>grep filter</i> text boxes.</p>
+<p>The former has a pull down, which is automatically populated with the XMC site names during fetch time, but remains a text box so any text can be type into it. The latter will do a match on any value in any of the columns; only records with at least a match will then be displayed.</p>
+<p>For example, we shall use the site filter pull down to select the XMC site named 'DataCenter':</p>
+<img src="../images/xmcacli-site-filter.png" />
+<p>Which will result in the following output:</p>
+<img src="../images/xmcacli-site-filter-output.png" />
+<p>Which, if we then wanted to filter down to just the VSP7200s, we can further filter by placing an appropriate matching string in the grep filter box:</p>
+<img src="../images/xmcacli-grep-filter-output.png" />
+
+<p>Clicking on a column header, will re-arrange all output based on that column; at every click, the sort order will toggle between ascending and descending.</p>
+<p>Double-clicking a site folder, auto-selects all entries within. Or you can manually select the entries using the appropriate check box.</p>
+<p>In the lower part of the window are some input dialogues:</p>
+<ul>
+	<li><b>Protocol</b>: Select either SSH or Telnet (default is SSH)</li>
+	<li><b>Transparent mode</b>: If set, the ACLI instances will not go into Interactive mode, but will remain in Transparent mode.</li>
+	<li><b>Containing Window</b>: If set, this will determine the title of the ACLI window where the ACLI sessions will be opened; if such a window is already open, the newly launched ACLI session tabs will appear in that window. If not set, the ACLI sessions will appear in a generic window named <i>"ACLI terminal launched sessions"</i>. This input box also has a pull-down, offering a history of values entered in this box.</li>
+	<li><b>Working Directory</b>: Working directory to set on ACLI sessions once they are launched</li>
+	<li><b>Logging Directory</b>: Logging directory to use on ACLI sessions once they are launched</li>
+	<li><b>Listen Socket Names</b>: Optional list of socket names the launched ACLI sessions should listen to</li>
+	<li><b>Run Script</b>: Optional run script to immediately execute against switch once the ACLI session is launched</li>
+</ul>
+<p>The above input dialogues can also be pre-set via the command line, in which case the fields will be pre-populated.</p>
+<p>Once the selection of switches is made, and any relevant input dialogues have been set, simply hit the <i>"Launch"</i> button to open the ACLI sessions.</p>
+<p>Note that there is no need to provide switch credentials, since XMC ACLI Launcher pulls this information from XMC (provided that the admin profile of the device had CLI credentials set).</p>
+<p>XMC ACLI Launcher can also be used to quickly launch an SSH/Telnet session against non-Extreme devices (or Extreme devices not yet fully supported in interactive mode with ACLI). What will then happen is that ACLI will still be able to connect and login, but the ACLI session will remain in transparent mode.</p>
+
+<p>There are two files used by XMC ACLI Launcher, which provide formatting of the output as well as the GraphQl query to issue against XMC.</p>
+<ul>
+	<li><b>xmcacli.graphql</b>: This file holds the GraphQl query which will be used against the XMC API.</li>
+	<li><b>xmcacli.ini</b>: This file holds some initialization paramters as well as the table layout where all the discovered switches will be displayed.</li>
+</ul>
+<p>Both files have comments within them with more information about editing them. Both files are located in the ACLI install directory, but note that both files are versioned, which means the ACLI update script may update them if the a newer version is available. If you wish to edit these files it is best to place the modified version under one of the following directories, which will always be inspected before loading the files from the ACLI install directory:</p>
+<ul>
+	<li>ENV path <i>%ACLI%</i> (if you defined it)</li>
+	<li>ENV path <i>$HOME/.acli</i> (on Unix systems)</li>
+	<li>ENV path <i>%USERPROFILE%\.acli</i> (on Windows)</li>
+</ul>
+<p>The <i>xmcacli.ini</i> file can be edited with the XMC IP/hostname, as well as XMC credentials, so that these fields are pre-populated when XMC ACLI is launched. A <i>historyDepth</i> setting also allows to set the depth of the XMC server IP history pull down (which by default is limited to 15 entries).</p>
+<p>Otherwise, the main reason for editing these files is to modify the formatting of the tabular display where the switches are displayed. By default the following fields are displayed: <i>Sysname, IP address, Software version, Location, Up time, Status, Device Model</i>. Yet, XMC offers a much larger range of information to choose from. You can browse the avaialble keys available by simply pointing your browser to the XMC GraphQl interface:</p>
+<pre>
+	https://&lt;XMC-IP&gt;:&lt;port-number&gt;/nbi/graphiql/index.html
+</pre>
+<p>The port number is the same port number normally used to access the XMC user interface. It is just the URL which changes.</p>
+<p>From this XMC interface, you can simply copy paste the GraphQl query to see what information XMC returns to XMC ACLI Launcher:</p>
+<img src="../images/xmc-graphql.png" />
+
+<p>By serching for key <i>device</i>, on the right hand side panel, it is possible to see all the other available keys; simply add new keys to the GraphQl query to see what information XMC returns. Note that a lot of extra information is found under the <i>extraData</i> key, which unfortunately has been renamed to <i>deviceData</i> as of XMC 8.2.0</p>
+<p>To add new columns to the XMC ACLI Luncher, it is simply a matter of modifying the <i>xmcacli.graphql</i> file to include the extra keys, so that this information will be pulled down from XMC, and to modify the <i>xmcacli.ini</i> file so that a new column entry is defined. Entries in the <i>xmcacli.ini</i> file need to be in the following format:</p>
+<pre>
+	[&lt;key-name&gt;]
+	display		= "&lt;name to use in column header&gt;"
+	type		= &lt;String | Time | Flag | YesNo | DotDecimal | Number&gt; ; indicates how to format the data
+</pre>
+<p>As an example, if we wanted to add a new colum to show the device's MAC address, we could add the XMC GraphQl key <i>'macAddress'</i> to the <i>xmcacli.graphql</i> file:</p>
+<pre>
+	{
+	  network {
+	    devices {
+	      deviceDisplayFamily
+	      sitePath
+	      sysName
+	      ip
+	      firmware
+	      sysLocation
+	      sysUpTime
+	      up
+	      extraData {
+	        profileName
+	        deviceDisplayType
+	        macAddress		&lt;======
+	      }
+	    }
+	  }
+	  administration {
+	    profiles {
+	      profileName
+	      authCred {
+	        userName
+	        loginPassword
+	      }
+	    }
+	  }
+	}
+</pre>
+<p>And then add the following entry into the <i>xmcacli.ini</i> file:</p>
+<pre>
+	[macAddress]
+	display		= MAC Address
+	type		= String
+</pre>
+<p>Note that the order in which the entries are placed in <i>xmcacli.ini</i>, also determines the order in which the table rows are displayed in XMC ACLI Launcher.</p>
+<p>Re-starting XMC ACLI and performing a new <i>'Fetch Data'</i> will now include the MAC address information:</p>
+<img src="../images/xmcacli-mac-address.png" />
+
+<p>Likewise, if one wanted to remove one of the columns which XMC ACLI Launcher shows by default, it is sufficient to delete (or comment out) the relevant entry in the <i>xmcacli.ini</i> file. You can also remove the relevant key from the <i>xmcacli.graphql</i> file, but there are some keys which must never be deleted, as these are vital for XMC ACLI Launcher's operation (even if you decide not to display them in the table; these are keys: <i>sitePath, ip, sysName, profileName, deviceDisplayFamily</i></p>
+
+<p>Another reason for editing the <i>xmcacli.graphql</i> file is that XMC's early GraphQl versions were a bit in flux initially with the structure of the data they offer. Some key names have changed between XMC 8.1.x and XMC 8.2, like for instance the <i>extraData</i> key becomes <i>deviceData</i> in 8.2 and the old key name is no longer recognized. Since that key is used by XMC ACLI Launcher, the <i>xmcacli.graphql</i> file cannot work for both versions, and the author sees no point in slowing down XMC ACLI in order to check the XMC version first, and then to have a dictionary of inconsistent GraphQl API calls against every XMC version. The default <i>xmcacli.graphql</i> file uses the newer <i>deviceData</i> key, but if you needed this tool to work with pre-8.2 versions of XMC you will get a similar error:</p>
+<img src="../images/xmcacli-error.png" />
+<p>You'll need to go and modify the <i>xmcacli.graphql</i> file and set the appropriate GraphQl keys used in your XMC version. In the case where XMC ACLI needs to work against both XMC 8.1.x and XMC 8.2.x, it is possible to create separate shortcuts and for each shortcut specify a different <i>xmcacli.graphql</i> file using the command line switch <i>-q &lt;graphql-file&gt;</i>.</p>
+<p>Note that when this tool spawns new ACLI terminal instances it will use the ACLI spawn file <i>acli.spawn</i>; see the manual entry for ACLI spawn file.</p>
+
+</BODY>
+</HTML>

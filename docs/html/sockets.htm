@@ -1,0 +1,736 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Tie-ing terminals together with sockets</Title>
+</HEAD>
+<BODY>
+<div class="section" id="Tie-ing terminals together with sockets">
+<h1>Tie-ing terminals together with sockets</h1>
+<p>Another major ACLI feature is the ability, from one ACLI session, to take control and tie to many other slave ACLI sessions, so that the user can configure multiple switches simultaneously. This is implemented by setting up UDP sockets on the loopback interface, using IP multicast, and is thus creatively named the socket functionality!</p>
+<p>Other terminal programs offer a similar capability but in a much cruder form where all the slave terminals are character based and take every single character that the user types in the driving terminal. The ACLI socket functionality is much more sophisticated when used in interactive mode as it is command based and not character based. However the ACLI socket functionality is also available in transparent mode and in this case becomes equivelent to competing offerings.</p>
+<p>The socket functionality is by default enabled in ACLI. Information about the feature can be viewed with the <i>'@socket info'</i> embedded command (or via <i>'socket info'</i> from the ACLI control interface).</p>
+<pre>
+	VSP-8284XSQ:1#% @socket info
+	
+	Socket settings:
+	        Socket functionality    : enable
+	        IP Multicast address    : 239.255.255.255
+	        IP TTL                  : 0
+	        Bind to IP interface    : 127.0.0.1
+	        Allowed source IPs      : 127.0.0.1
+	        Socket username         : lstevens
+	        Encode username         : enable
+	        Tied to socket          :
+	        Local Echo Mode         : error
+	        Listening to sockets    :
+	        Socket Name File        : C:\Users\lstevens\.acli\acli.sockets
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>The above socket information is what is set by default. Most of these settings, like the IP addresses, echo mode and socket name file will never need changing (these will be discussed further on). </p>
+<p>To get started it is sufficient to do just these two things:</p>
+<ol>
+	<li>On the slave ACLI sessions you will need to make the socket listen on at least one socket.</li>
+	<li>On the driving ACLI session you will need to "tie" to the socket of the slave terminals.</li>
+</ol>
+<p>The sockets in question are UDP sockets, which are numbers. But numbers are not nice to use, so instead of referring to the socket by number the ACLI socket feature allows the use of socket names. On a fresh ACLI installation, there will be only one socket name defined, the implicit 'all' which also happens to set the base socket number for all other socket names created (by default set to UDP port 50000; this can be changed in the acli.ini file if necessary).</p>
+<pre>
+	VSP-8284XSQ:1#% @socket names
+	
+	Known sockets:
+	        all             50000
+	VSP-8284XSQ:1#%
+</pre>
+<p>To see how the sockets work, it is handy to have a couple (if not more) of ACLI sessions, and to merge both ACLI tabs into a single tab. Open both ACLI sessions in their respective tabs, then select the first tab, then right click on the other tab and select "Merge Horizontally"</p>
+<p>
+<img src="../images/tab-merge.png" />
+</p>
+<p>You should now have both ACLI sessions using the same tab and the window split in two horizontally:</p>
+<p>
+<img src="../images/tabs-merged.png" />
+</p>
+<p>On the bottom session, we shall make the socket listen on the pre-defined socket name 'all':</p>
+<pre>
+	VSP8000-2:1#% @socket listen
+	Listening on sockets: all
+	
+	VSP8000-2:1#%
+</pre>
+<p>While on the top session, we shall tie the socket to the same pre-defined socket name 'all':</p>
+<pre>
+	VSP8000-1:1#% @socket tie
+	Tied to socket 'all'
+	
+	VSP8000-1:1#[all]%
+</pre>
+<p>Notice that the prompt on the top session, which is where we tied the socket, now includes the tied socket name in square brackets <i>'[all]'</i>. This is useful, as it allows us to keep track of which socket an ACLI session is tied to and it also tells us which socket name.</p>
+<p>Now, any command we enter on the top ACLI session, will get executed on the bottom session as well. In fact, the very moment the <i>'@socket tie'</i> was executed on the top session, a new CLI prompt appeared on the bottom session. This is because whenever a socket is tied, the driving ACLI session will immediately send an empty command (a carriage return) to all other ACLI sessions listening on the same socket name. The reason for doing this is that typically you will not have the ACLI sessions in a split screen display as we have now, but instead you will probably have more than just two ACLI sessions and each session will be in its dedicated tab. A nice feature of the ConsoleZ window is that whenever new output is appended to a tab which is not selected, then the tab itself flashes. So simply by executing <i>'@socket tie'</i> on one ACLI tab, we can see which other ACLI tabs are flashing.</p>
+<p>NOTE: If you want to just send a carriage return (and no command) to all listening terminals, without performing the <i>'@socket tie'</i> command again, simply hit the Return key multiple times in quick succession.</p>
+<p>Now, it is not easy to show this in screnshots, but the <i>'@socket info'</i> command was only executed on the top ACLI session, yet we see it was executed in both sessions.</p>
+<p>
+<img src="../images/tied-sessions.png" />
+</p>
+<p>Note that the top session is tied to socket 'all' while the bottom session is listening to socket 'all'.</p>
+<p>Only complete commands are sent to listening sockets in ACLI interactive mode. So in the driving tied ACLI session, expanding the command with tab or verifying the command syntax with '?' never need to be sent to listening terminals. Local more paging is also handled in such a way not to miss commands on listening sessions. If for example we empty the log file on the top ACLI session, with the terminal untied (so that we leave the log file untouched on the bottom ACLI session) and then dump the log file on both sessions from the tied top ACLI terminal, we'll end up with the bottom ACLI session left in the midst of dumping the log file, paused by a more prompt:</p>
+<p>
+<img src="../images/tied-more-handling.png" />
+</p>
+<p>We could of course go to the bottom ACLI session and either hit 'Q' to quit more paging or hit space enough times to complete the output. However, if we were not interested in doing so and just wished to execute a new CLI command from the top, tied and driving, ACLI session, we can do so as the socket feature will automatically come out of any paused more prompt when it receives a new command on one of its listening sockets.</p>
+<p>
+<img src="../images/tied-more-handling2.png" />
+</p>
+<p>Notice that the "show users" command executed in the top ACLI session, automatically bumped the paused more prompt on the bottom ACLI session, which allowed the command to be correctly executed here as well.</p>
+
+<p>In general, as long as ACLI is in interactive mode, whenever the driving ACLI terminal, which is tied to the socket, sends a command over the socket, the listening terminals will report back if they are not able to process a command. There can be many valid reasons why a listening terminal might not be able to process the command:</p>
+<ul>
+	<li>The CLI connection to the switch might have been lost</li>
+	<li>The listening terminal has been paused by entering ACLI control interface</li>
+	<li>The listening terminal is already processing a command executed locally (unlikely if tied & listening terminals are running on same PC; but not otherwise)</li>
+	<li>The listening terminal is not in interactive mode but in transparent mode</li>
+	<li>In general, the listening terminal is not already locked on a CLI prompt when the first command is received from the socket</li>
+</ul>
+<p>
+<img src="../images/tied-error-transparent.png" />
+</p>
+<p>In the example above, the bottom listening ACLI session was first toggled into transparent mode by hitting CTRL-T, then the 'show users' command was executed on the top tied ACLI session. Note that we are alerted on the top session that a listening terminal is not able to process the command.</p>
+<p>
+<img src="../images/tied-error-acli-control.png" />
+</p>
+<p>In the example above, first the ACLI control interface was invoked on the bottom listening ACLI session, then the 'show users' command was executed on the top tied ACLI session. Note that again we are alerted on the top session that a listening terminal is not able to process the command.</p>
+<p>
+<img src="../images/tied-error-midst-cmd.png" />
+</p>
+<p>In the example above, a command which requires user input ('config', without 'term' in this case) was first executed on the bottom listening ACLI session without hitting return a second time; then the 'show users' command was executed on the top tied ACLI session. Note that again we are alerted on the top session that a listening terminal is not able to process the command. It would be inconvenient if the listening ACLI terminals were not in the expected state when we begin pushing commands to them via the socket feature.</p>
+<p>
+<img src="../images/tied-error-no-connection.png" />
+</p>
+<p>Finally, in the example above, the connection of the bottom listening ACLI session was lost (in this case because we executed the 'logout' command on it); then the 'show users' command was executed on the top tied ACLI session. Note that again we are alerted on the top session that a listening terminal is not able to process the command because it has no connection.</p>
+<p>It is worth also noting that all the above protections only apply to full commands executed on the driving tied ACLI session, only in interactive mode. However, even the interactive mode is capable of operating as a character based terminal (like in transparent mode). In fact, this is what happens during the time which follows execution of the last command and before we receive the next switch CLI prompt to lock onto. So if for example on the driving tied ACLI session we decide to execute 'edit config.cfg', this will enter a vi-like editor which is provided on VOSS platforms, and we will not get back a CLI prompt from the switch until when we exit such editing mode. During this time, the ACLI interactive terminal is in a "paced" sending mode, where it will operate as a character based terminal. Hence, if there were listening terminals which also executed the 'edit config.cfg' command, then any editing key strokes executed in the tied driving terminal will also get processed in the listening terminals. It is therefore possible to edit config.cfg files across many terminals simultaneously; however extra care needs to be taken in this context.</p>
+
+<p>So, the basics of the socket functionlity have been covered in the above examples using just two ACLI sessions. However, if we had 15 (or more..) switches and we had set them all to socket listen on the 'all' socket name we could have configured them all at once from just one ACLI session. This is nice, but not always practical. Usually there will be groupings of switches which share a similar config (and which will all need updating if there is a need to change that config). These groupings will cut across the installed base in different ways. We might need to make changes to a pair of vIST switches; or we might need to make the change to every vIST switch in the network. We might want to make changes only on BEB nodes, or maybe on the BCB nodes, or maybe just nodes which are DVR Controllers. Or we might want to perform a software upgrade on all VSP4k switches, and later on just the VSP7200 series ones. The idea of tie-ing to socket names is that multiple names can be defined for these different communities of switches.</p>
+<p>Creating new socket names is as easy as simply configuring an ACLI session to listen to a new name. If the socket name is new, it will automtically get allocated the next available socket number (e.g. 50001). If the socket name is not new, then it will use whatever socket number that name was allocated when it was first assigned by socket listen. All instances of ACLI, lookup socket names in the same resolution file and therefore will always use the same socket number for the same socket name. The actual syntax for listening to a socket name is the following:</p>
+<pre>
+	@socket listen add &lt;comma separated list of socket names or numbers&gt;
+</pre>
+<p>In the examples above we used just <i>'@socket listen'</i> in its short form, which will add the pre-defined socket name 'all'. For any other socket name we need to use the full form.</p>
+<p>So if we take our bottom ACLI session to VSP8000-2, this is a VSP8k, is a BEB and maybe is running DVR. So we might want it to listen to all these socket names (Note: names are arbitrary; user gets to choose the names which make most sense to him):</p>
+<pre>
+	VSP8000-2:1#% @socket listen add v8,beb,dvr
+	Listening on sockets: all,beb,dvr,v8
+	
+	VSP8000-2:1#% @socket info
+	
+	Socket settings:
+	        Socket functionality    : enable
+	        IP Multicast address    : 239.255.255.255
+	        IP TTL                  : 0
+	        Bind to IP interface    : 127.0.0.1
+	        Allowed source IPs      : 127.0.0.1
+	        Socket username         : lstevens
+	        Encode username         : enable
+	        Tied to socket          :
+	        Local Echo Mode         : error
+	        Listening to sockets    : all(50000),beb(50034),dvr(50161),v8(50066)
+	        Socket Name File        : C:\Users\lstevens\.acli\acli.sockets
+	
+	VSP8000-2:1#%
+</pre>
+<p>Notice that our ACLI session is now listening to 4 separate sockets. If on any other ACLI session a <i>'@socket tie'</i> is made on any of these socket names, then this ACLI session will be receiving commands from it. The listening socket names will also show the actual socket number, though this is not of much importance (and in your case the numbers may well get allocated differently).</p>
+<p>So if we go back on our top ACLI session to VSP8000-1, we shall assume this is a BCB and a VSP8k, so we will let it listen to those socket names we allocated for these roles and we'll also add 'all' for good measure:</p>
+<pre>
+	VSP8000-1:1#[all]% @socket listen add bcb,v8,all
+	Listening on sockets: all,bcb,v8
+	
+	VSP8000-1:1#[all]% @socket info
+	
+	Socket settings:
+	        Socket functionality    : enable
+	        IP Multicast address    : 239.255.255.255
+	        IP TTL                  : 0
+	        Bind to IP interface    : 127.0.0.1
+	        Allowed source IPs      : 127.0.0.1
+	        Socket username         : lstevens
+	        Encode username         : enable
+	        Tied to socket          : all(50000)
+	        Local Echo Mode         : error
+	        Listening to sockets    : all(50000),bcb(50208),v8(50066)
+	        Socket Name File        : C:\Users\lstevens\.acli\acli.sockets
+	
+	VSP8000-1:1#[all]%
+</pre>
+<p>There a couple of things to notice here. For a start, the <i>'@socket listen'</i> command did not get executed on the bottom ACLI session, yet the top ACLI session is still tied to socket 'all' (as can be seen from the '[all]' on the VSP8000-1 prompt). Not all commands are sent to listening sockets, there are exceptions with some embedded commands. The <i>'@socket bind|echo|listen|ping|tie|untie'</i> and <i>'@acli'</i> embedded commands are never sent to listening ACLI sessions, otherwise these would make things messy!</p>
+<p>The other thing to notice is that the top ACLI session is both still tied (to socket name 'all') and listening to all of socket names 'all', 'bcb' and 'v8'. An ACLI session can only be tied to one socket at a time, but it can be listening on more than one socket name simultaneously. Also an ACLI session which is tied to a socket name can also be listening on the same socket name as well as other socket names.</p>
+
+<p>Let us now do some configuation work on our VSP8ks, and let us assume that we decide to do so from the bottom ACLI session to VSP8000-2, so we tie to the 'v8' socket name.</p>
+<p>
+<img src="../images/bottom-tie.png" />
+</p>
+<p>Notice that the top ACLI session, which was already tied to 'all', was also listening on socket name 'v8', which is now tied by the bottom ACLI session, therefore the 'all' tie of the top ACLI session was automaticaly bumped when <i>'@socket tie v8'</i> was executed on the bottom ACLI session.</p>
+<p>Finally, to relase the socket tie on an ACLI session tied to a socket name simply use the '<i>@socket untie</i>' embedded command.</p>
+<p>Whereas to stop listening on one or more socket names use one of the following:</p>
+<ul>
+	<li><i>@socket listen remove &lt;comma separated list of sockets&gt;</i> : Stops listening on specified sockets</li>
+	<li><i>@socket listen clear</i> : Stops listening on all sockets</li>
+</ul>
+</div>
+
+
+
+<div class="section" id="Socket echo modes">
+<h2>Socket echo modes</h2>
+<p>The socket functionality comes with three possible echo modes. The socket echo mode determines what level of feedback it is desired to receive, on the tied terminal, from the listening terminals.</p>
+<ul>
+	<li><b>error</b> : The error echo mode is what has been demonstrated above and is the default echo mode. When a command is executed on the tied terminal, this is also sent to listening terminals and, if there was no error condition on those listening terminals with processing the command, then nothing is reported back to the tied terminal. If instead one (or more) of the listening terminals was either not able to execute the command or it did execute the command but the connected switch complained (generated an error) about the command, then the error condition is notified back to the driving tied terminal to alert the user; furthermore, if the user had pasted many commands into the tied driving terminal (i.e. in scripting mode) then the script will also halt.</li>
+	<li><b>all</b> : In this mode, the error reporting of the error mode also applies. However, in addition to that, all output generated by listening terminals is also sent back to the driving tied termnial. This mode is useful if one wants to execute a show command and visualize the output from all listening terminals on the driving tied terminal.</li>
+	<li><b>none</b> : If the error mode is set to none, then no reporting (error conditions) and no output is fed back to the tied terminal from listening ones. This is not a particularly useful mode.</li>
+</ul>
+<p>The socket echo mode can be set globally with the following command:</p>
+<pre>
+	@socket echo all|error|none
+</pre>
+<p>Follows an example using the 'all' echo mode:</p>
+<pre>
+	VSP8000-1:1#% @socket echo all
+	VSP8000-1:1#% @socket tie
+	Tied to socket 'all'
+	
+	VSP8000-1:1#[all]% cpu
+	       alias[all]% show khi performance cpu
+	    Slot:1
+	         Current utilization: 0
+	         5-minute average utilization: 0
+	         5-minute high water mark: 15 (09/01/18 13:33:08)
+	
+	Output from VSP8000-2:
+	    Slot:1
+	         Current utilization: 0
+	         5-minute average utilization: 0
+	         5-minute high water mark: 9  (09/01/18 13:33:09)
+	VSP8000-1:1#[all]%
+</pre>
+<p>In this example we display the CPU utilization of the VOSS device connected to all the listening terminals and show all the outputs in the driving, tied, termnial.</p>
+</div>
+
+
+
+<div class="section" id="Socket ping">
+<h2>Socket ping</h2>
+<p>When using the socket functionality to tie together many ACLI sessions, it can become hard to keep track whether all the listening sessions are in synch. Of course you can see the the ConsoleZ tabs flash when you tie the driving terminal to the socket name, and you get errors when executing commands if some listening sessions are not ready. Yet, a more proactive method is desireable.</p>
+<p>The socket feature comes with a ping functionality which can make things a lot easier and allows the user to proactively check that all the listening ACLI sessions are ready to go, before even executing the first command. The socket ping can be executed with the following command:</p>
+<pre>
+	@socket ping [&lt;socket name&gt;]
+</pre>
+<p>The socket name is optional, if executed on an already tied ACLI session. If not specified, the ping is performed on the same socket name to which the ACLI session is already tied to.</p>
+<p>The socket name can be provided when it is desired to perform a socket ping on a different socket name from the one the session is already tied to, or to perform the socket ping on a non-tied ACLI session (i.e. the socket ping can be executed on listening terminals as well). On the ACLI session where the socket ping was executed, a response will be displayed for every ACLI terminal listening on the pinged socket name. A summary count of all responses is also displayed, so as to make it easier for the user to make sure all his sessions have responded.</p>
+
+<p>In this example, <i>@socket ping</i> is executed without a socket name on an ACLI terminal which was already tied to socket name <i>v86</i>:</p>
+<pre>
+	VSP8600-1:1#[v86]% @socket ping
+	Response from VSP8600-3
+	Response from VSP8600-2
+	Echo received from 2 terminals
+	VSP8600-1:1#[v86]%
+</pre>
+<p>In this example, <i>@socket ping</i> for socket <i>all</i> is executed on the same ACLI terminal which was already tied to socket name <i>v86</i>:</p>
+<pre>
+	VSP8600-1:1#[v86]% @socket ping all
+	Response from VSP7200-2
+	Response from VSP8400-3 [in midst of --more-- output paging]
+	Response from ERS5900-STK
+	Response from VSP7200-1 [tied: v72]
+	Response from ERS4900-STK
+	Response from VSP8400-1 [tied: v84] [in midst of --more-- output paging]
+	Response from VSP7200-4
+	Response from VSP8400-3 [in midst of --more-- output paging]
+	Response from VSP8400-2 [in midst of --more-- output paging]
+	Response from VSP7200-3
+	Response from VSP8600-3
+	Response from VSP8200-1
+	Response from VSP8600-2
+	Echo received from 13 terminals
+	VSP8600-1:1#[v86]%
+</pre>
+<p>Note that we see a bunch of other terminals, and some info is provided on whether these terminals are already tied or if they are in the midsts of a more paging prompt.</p>
+<pre>
+	VSP7200-4:1#% @socket ping v72
+	Response from VSP7200-2
+	Response from VSP7200-3
+	Response from VSP7200-1 [tied: v72]
+	Echo received from 3 terminals
+	VSP7200-4:1#%
+</pre>
+<p>In the above final example, <i>@socket ping</i> is performed on an ACLI session which is not tied.</p>
+</div>
+
+
+
+<div class="section" id="Socket pre-defined aliases">
+<h2>Socket pre-defined aliases</h2>
+<p>ACLI ships with some pre-defined aliases for simplifying the socket functionality (NOTE: ACLI aliases are not limited to switch CLI commands, aliases can also be defined for ACLI embedded commands beginning with '@')</p>
+<p>The first such alias is 'tie':</p>
+<pre>
+	tie [&lt;socket-name&gt;] [&lt;echo-mode: all|none&gt;]
+</pre>
+<p>Let's try and execute this:</p>
+<pre>
+	VSP8000-1:1#% tie v8
+	       alias% @socket tie v8; @socket echo error; @socket ping
+	VSP8000-1:1#% @socket tie v8
+	Tied to socket 'v8'
+	
+	VSP8000-1:1#[v8]% @socket echo error
+	VSP8000-1:1#[v8]% @socket ping
+	Response from VSP8000-2
+	Echo received from 1 terminals
+	VSP8000-1:1#[v8]%
+</pre>
+<p>As can be seen above, the <i>'tie'</i> alias executes three separate embedded commands:</p>
+<ol>
+	<li><i>@socket tie</i> : this ties the session (if no socket name was provided to the alias then the tie is to socket name 'all')</li>
+	<li><i>@socket echo &lt;mode&gt;</mode></i> : this sets the socket echo mode; if none was specified as argument to the 'tie' alias, then the more desireable default 'error' mode is always reset</li>
+	<li><i>@socket ping</i> : after tie-ing to a socket, it always makes sense to execute a socket ping to make sure we have the expected listening terminal online</li>
+</ol>
+
+<p>The next alias is <i>'listen'</i>:</p>
+<pre>
+	listen [&lt;socket-name&gt;] [&lt;if-string-match-against-name-or-model&gt;]
+</pre>
+<p>Let's try and execute this:</p>
+<pre>
+	VSP8000-2:1#% listen vist
+	       alias% @socket listen add vist
+	Listening on sockets: all,beb,dvr,v8,vist
+	
+	VSP8000-2:1#%
+</pre>
+<p>As can be seen above, the <i>'listen'</i> alias is simply a short hand for executing the <i>'@socket listen add</i> command.</p>
+<p>The second optional argument (which can only be supplied if the socket name was provided) allows a tied terminal to execute the <i>'@socket listen add'</i> command on selected listening terminals. Earlier in this document it was said that some embedded commands cannot be sent over the socket functionality, in order not to make a mess. The <i>'@socket listen'</i> command is one of those commands. It just happens that the check is only performed over individual commands entered in the tied driving ACLI terminal. If the alias dereferences to a string with multiple commands, concatenated with semi-colon ';' then the checks don't kick in, and it is possible to send these otherwise non-authorized embedded commands to the listening terminals. The <i>'listen'</i> alias takes advantage of this and embeds the <i>'@socket listen add'</i> in a little ACLI script which is sent as is to listening terminal to execute. The script allows listening terminals to verify whether their own CLI prompt or the switch model type of the connected host (e.g. VSP-8284-XSQ), matches the string which was provided by the user; only if there is a match, is the <i>'@socket listen add'</i> command executed by listening terminals.</p>
+<pre>
+	VSP8000-1:1#[all]% @alias show listen
+	
+	listen [$socknames] [$condition]
+	   IF $condition eq ''
+	      THEN:
+	         @socket listen [add $socknames]
+	
+	   ELSE:
+	         @if {$$ =~ /$condition/i || $_model =~ /$condition/i}
+	         @socket listen add $socknames
+	         @endif
+	
+	
+	VSP8000-1:1#[all]%
+</pre>
+<p>The ACLI author uses this, via a terminal tied to 'all', to conditional setup listening socket names on all other terminal (already listening on 'all'). See the following example:</p>
+<p>
+<img src="../images/tied-listen-alias.png" />
+</p>
+<p>Notice that the <i>'listen'</i> alias was invoked on the top ACLI session, and the alias dereferenced script was executed on both ACLI sessions. However the script ends up only executing the <i>'@socket listen add'</i> command on sessions where either the prompt ($$) matches the string provided or the switch model matches. In this example the <i>'@socket listen add'</i> only gets executed on the bottom, listening, ACLI terminal.</p>
+
+<p>To complete the socket aliases, we also have 'sping':</p>
+<pre>
+	sping [&lt;socket-name&gt;]
+</pre>
+<p>Which does:</p>
+<pre>
+	VSP8000-2:1#% sping v8
+	       alias% @socket ping v8
+	Response from VSP8000-1 [tied: v8]
+	Echo received from 1 terminals
+	VSP8000-2:1#%
+</pre>
+
+<p>While 'untie' does a <i>'@socket untie'</i>:</p>
+<pre>
+	VSP8000-1:1#[v8]% untie
+	       alias[v8]% @socket untie
+	VSP8000-1:1#%
+</pre>
+<p>And 'ignore' does <i>'@socket listen remove'</i>:</p>
+<pre>
+	ignore [&lt;socket-name&gt;] [&lt;if-string-match-against-name-or-model&gt;]
+</pre>
+<p>Which does:</p>
+<pre>
+	VSP8000-2:1#% ignore vist
+	       alias% @socket listen remove vist
+	Listening on sockets: all,beb,dvr,v8
+	
+	VSP8000-2:1#%
+</pre>
+<p>The <i>'ignore'</i> alias also features the optional <i>&lt;if-string-match-against-name-or-model&gt;</i> argument as already discussed for the <i>'listen'</i> alias.</p>
+</div>
+
+
+
+<div class="section" id="Socket send">
+<h2>Socket send</h2>
+<p>In all the socket examples used so far, a driving ACLI session is tied to a socket and then commands are executed on this terminal and also executed on listening terminals. However, in some cases (usually in conjunction with ACLI scripting) it might be desireable to execute a command against a socket name (and hence against any listening ACLI termnials) without executing that same command on the tied terminal. For these use cases the socket functionality includes the <i>'@socket send'</i> command:</p>
+<pre>
+	@socket send &lt;socket name&gt; [&lt;wait-time-secs&gt;] &lt;command&gt;
+</pre>
+<p>The first argument has to be the socket name. The optional wait time in seconds is useful if the socket echo mode is set to 'all' and some extra time is needed to retrieve the command output. The rest of the arguments are treated as the commnand to send. Note, use quotes if the command has leading or trailing space characters which need to be preserved. Follows an example:</p>
+<p>
+<img src="../images/socket-send.png" />
+</p>
+<p>Note that the <i>'@socket send'</i> command was executed on the top ACLI session, but the <i>'show users'</i> command was only executed on the bottom ACLI session, which happens to be listening on the 'v8' socket name.</p>
+</div>
+
+
+
+<div class="section" id="Socket names">
+<h2>Socket names</h2>
+<p>As already mentioned in the previous socket sections, socket names come into existence the very moment an ACLI terminal is instructed to listen on a new name. When this happens the never used before socket name gets allocated the next available UDP socket number (starting from whatever number is set for the pre-defined <i>'all'</i> name - by default that number being 50000, if not changed in the <i>acli.ini</i> file). The new socket name is then recorded to the socket names file, which is always placed in path <i>%USERPROFILE%\.acli\acli.sockets</i></p>
+<p>This can always be found (if already accessed) by looking at the output of either the embedded <i>'@socket info'</i> command or the equivalent <i>'socket info'</i> command under ACLI control interface:</p>
+<pre>
+	VSP8000-1:1#% @socket info
+	
+	Socket settings:
+	        Socket functionality    : enable
+	        IP for sockets          : 127.255.255.255
+	        Socket username         : lstevens
+	        Encode username         : enable
+	        Tied to socket          :
+	        Local Echo Mode         : error
+	        Listening to sockets    : all(50000),bcb(50208),test(50018),v8(50066)
+	        Socket Name File        : C:\Users\lstevens\.acli\acli.sockets
+	        Bind to IP interface    : 127.0.0.1
+	        Allowed source IPs      : 127.0.0.1
+	
+	VSP8000-1:1#%
+</pre>
+<p>Note that write access to the socket names file is protected via a lock, so only one ACLI instance is allowed to modify the file at any given time (performing a <i>'@socket listen add'</i> simultaneously on two or more ACLI instances for a brand new socket name can result in the operation temporarily failing on some instances).</p>
+<p>The already defined socket names can be viewed either via inspection of that file or by using the <i>'@socket names'</i> embedded command:</p>
+<pre>
+	@socket names [numbers]
+</pre>
+<p>Without the <i>'numbers'</i> argument an alphabetical list of the socket names is produced. With the <i>'numbers'</i> argument the list of socket names is by numerical order of the UDP port number. Follows the socket names which the ACLI author has used over time:</p>
+<pre>
+	VSP8000-1:1#% @socket names
+	
+	Known sockets:
+	        100g            50175
+	        1k              50082
+	        2nd             50005
+	        3k              50122
+	        3rd             50004
+	        4k              50020
+	        4kedge          50076
+	        4kist           50092
+	        5k              50049
+	        5k6             50089
+	        7k              50021
+	        7k12            50117
+	        7k34            50197
+	        7kb             50190
+	        7kdca           50080
+	        7ks             50191
+	        7ks1            50192
+	        7ks2            50193
+	        7kxt            50065
+	        8core           50007
+	        8edge           50011
+	        8k              50012
+	        8kdist          50059
+	        8ko             50061
+	        9core           50006
+	        9edge           50009
+	        9k              50013
+	        9kdut           50077
+	        9kpoc           50023
+	        acc             50086
+	        accdist         50038
+	        acepen          50010
+	        al              50054
+	        alag            50229
+	        alh             50207
+	        alh1            50228
+	        all             50000
+	        anex            50051
+	        annex           50052
+	        apls            50187
+	        arm             50195
+	        auh             50168
+	        auhc            50171
+	        auhl            50172
+	        bcb             50208
+	        beb             50034
+	        bebe            50163
+	        bgp             50039
+	        blue            50196
+	        bsedge          50068
+	        ce              50180
+	        cfm             50119
+	        ciena           50072
+	        cisco           50083
+	        clh             50205
+	        clh1            50227
+	        client          50042
+	        clp             50108
+	        cluster         50053
+	        cmp             50112
+	        core            50036
+	        dc              50041
+	        dc1             50114
+	        dc2             50113
+	        dcbeb           50107
+	        dhcp            50063
+	        dist            50194
+	        dlh             50206
+	        dta             50165
+	        dtb             50166
+	        dtb4            50150
+	        dtor            50149
+	        dvr             50161
+	        dvr4l           50160
+	        dvrc            50152
+	        dvrl            50153
+	        dvrl1           50243
+	        dvrl2           50244
+	        dxb             50167
+	        dxbc            50169
+	        dxbl            50170
+	        e3              50100
+	        e4              50099
+	        e4s             50102
+	        edge            50050
+	        ers             50177
+	        esx             50069
+	        f5              50016
+	        fa              50067
+	        fac             50132
+	        fas             50174
+	        fc              50179
+	        fe              50136
+	        felab           50154
+	        fex             50109
+	        fnnc            50140
+	        fnne            50141
+	        fnnf            50139
+	        fw              50087
+	        fwospf          50225
+	        fwstat          50224
+	        gns3            50199
+	        ha              50048
+	        hack            50138
+	        ipmc            50044
+	        ipv6            50091
+	        isis            50002
+	        ist             50056
+	        isw             50235
+	        ixia            50176
+	        jas7k           50033
+	        jas8k           50031
+	        jasedge         50032
+	        lab             50022
+	        lacp            50026
+	        lag             50226
+	        lall            50158
+	        ldvrl           50156
+	        legacy          50151
+	        lers            50173
+	        ludo            50145
+	        ludolab         50030
+	        lv4             50157
+	        lv8             50159
+	        lvcd            50201
+	        lvist           50188
+	        lvsp            50162
+	        ma              50178
+	        macsec          50078
+	        martin          50064
+	        mce             50181
+	        md              50182
+	        mdfc            50183
+	        mfc             50088
+	        mpls            50040
+	        msdp            50148
+	        msec            50135
+	        mux             50074
+	        myname          50123
+	        nlb             50015
+	        ona             50185
+	        oob             50084
+	        oob3k           50236
+	        oob4k           50237
+	        ospf            50001
+	        ospf2           50003
+	        ous             50203
+	        pair            50058
+	        pall            50204
+	        patch           50070
+	        peer            50164
+	        pim             50046
+	        pimedge         50047
+	        poc             50025
+	        pod             50071
+	        ppv8            50008
+	        qos             50024
+	        ring            50137
+	        rob             50130
+	        rv4             50200
+	        salh            50219
+	        sall            50216
+	        san             50233
+	        sb              50127
+	        sbcb            50215
+	        sclh            50214
+	        script          50198
+	        sdlh            50218
+	        serial          50055
+	        sers            50213
+	        setup           50231
+	        sfw             50223
+	        show            50186
+	        sim             50057
+	        sl              50155
+	        sln             50184
+	        smlt            50014
+	        sospf           50222
+	        sp              50189
+	        spb             50045
+	        srv             50234
+	        srvdist         50037
+	        srvedge         50019
+	        ss              50128
+	        sspb            50217
+	        ssw             50144
+	        st              50062
+	        stk             50081
+	        stk2            50118
+	        stks            50085
+	        stkspb          50111
+	        stp             50143
+	        svist           50220
+	        svrf            50221
+	        swb             50142
+	        tacacs          50230
+	        temp            50035
+	        test            50018
+	        test1           50017
+	        three           50126
+	        tmp             50093
+	        tor             50060
+	        torbor          50043
+	        toto            50131
+	        two             50125
+	        ubp             50095
+	        v12             50146
+	        v23             50147
+	        v4              50096
+	        v412            50098
+	        v434            50103
+	        v44             50211
+	        v4412           50245
+	        v456            50101
+	        v4567           50105
+	        v48             50212
+	        v4d             50097
+	        v4l             50124
+	        v7              50115
+	        v7-12           50028
+	        v7-34           50027
+	        v7-56           50029
+	        v72             50241
+	        v7212           50242
+	        v8              50066
+	        v82             50120
+	        v84             50121
+	        v8412           50239
+	        v86             50210
+	        v8612           50238
+	        v8l             50129
+	        v9              50116
+	        v912            50133
+	        v934            50134
+	        vist            50106
+	        voss            50104
+	        vrf             50209
+	        vrp             50090
+	        vrrp            50094
+	        vsp             50079
+	        vxg             50232
+	        wan             50075
+	        wc              50110
+	        x69             50240
+	        xos             50202
+	        xt              50073
+	
+	VSP8000-1:1#%
+</pre>
+
+<p>Under the ACLI control interface, some additional commands are available to manage the socket names file:</p>
+<pre>
+	ACLI> socket names ?
+	Syntax: socket names [clear|numbers|reload]
+</pre>
+<p>The <i>'clear'</i> argument will clear all user defined socket names. The <i>'reload'</i> argumet reloads the socket names file in memory; this would only be necessary if the <i>acli.sockets</i> file had been modified while ACLI instances were running.</p>
+</div>
+
+
+
+<div class="section" id="Socket numbers">
+<h2>Socket numbers</h2>
+<p>In the above sections sockets are always entered as names and ACLI automatically allocated a UDP port number (by default sequentially from port 50000) to the provided socket name(s). It is possible to also request a socket number, rather than a socket name. In versions of ACLI up to 5.07 it was sufficient to make the socket name a number and that number would be used as the UDP socket as well. So for example doing <i>"listen 5520"</i> would actually result in UDP port 5520 being used rather than a dynamically allocated port. This could result in undesireable consequences if for example ACLI was made to tie/listen on lower numbered ports reserved for other applications.</p>
+<p>Hence, starting in ACLI vertsion 5.08 any socket name entered as a number will also be treated as a string and get allocated a dynamic UDP port number. In order to force ACLI to actually open the socket on a user specified UDP port number it is now necessary to use the following syntax, where the number provided is preceded by the "%" character:</p>
+<pre>
+	VSP-8284XSQ:1#% @socket tie %20000
+	Tied to socket '%20000'
+
+	VSP-8284XSQ:1#[%20000]% @socket listen add %20001
+	Listening on sockets: %20001,all
+
+	VSP-8284XSQ:1#[%20000]% @socket inf
+	
+	Socket settings:
+	        Socket functionality    : enable
+	        IP Multicast address    : 239.255.255.255
+	        IP TTL                  : 0
+	        Bind to IP interface    : 127.0.0.1
+	        Allowed source IPs      : 127.0.0.1
+	        Socket username         : lstevens
+	        Encode username         : enable
+	        Tied to socket          : %20000(20000)
+	        Local Echo Mode         : error
+	        Listening to sockets    : %20001(20001),all(50000)
+	        Socket Name File        :
+</pre>
+
+
+
+<div class="section" id="Socket IP and username settings">
+<h2>Socket IP and username settings</h2>
+<p>The socket functionality is based on UDP sockets and, since the typical use case for using this functionality is where all ACLI instances are running on the same machine, the IP addresses used are always the system loopbacks. Furthermore, if using ACLI on a shared machine, by different users, it becomes necessary to encode the usernames into the messages sent over these socket otherwise one user might end up sending commands to ACLI sessions from a different user on the same machine. If looking at the output of <i>'@socket info'</i>:</p>
+<pre>
+	VSP8000-1:1#% @socket info
+	
+	Socket settings:
+	        Socket functionality    : enable
+	        IP Multicast address    : 239.255.255.255
+	        IP TTL                  : 0
+	        Bind to IP interface    : 127.0.0.1
+	        Allowed source IPs      : 127.0.0.1
+	        Socket username         : lstevens
+	        Encode username         : enable
+	        Tied to socket          :
+	        Local Echo Mode         : error
+	        Listening to sockets    : all(50000),bcb(50208),v8(50066)
+	        Socket Name File        : C:\Users\lstevens\.acli\acli.sockets
+	
+	VSP8000-1:1#%
+</pre>
+<p>We can see that, by default:</p>
+<ul>
+	<li>All sockets are bound to the loopback interface: 127.0.0.1</li>
+	<li>When a command is received by a listening socket, the source IP is inspected and the command is only processed if it was received from an IP listed under allowed source IPs; this list by default only has the loopback IP: 127.0.0.1</li>
+	<li>The destination IP used by a socket tied terminal to send socket messages is by default the IP multicast address: 239.255.255.255 (Older versions of ACLI used to use the loopback broadcast address 127.255.255.255 but this was changed as it only worked with Microsoft Windows and not with Unix based platforms)</li>
+	<li>The IP TTL is set to 0 as we are only using the internal loopback interface by default</li>
+	<li>The username is encoded in all messages sent over these sockets, using the user's username</li>
+</ul>
+<p>The username is obtained autimatically by ACLI, only the encoding of it in socket messages can be enabled or disabled.</p>
+<p>So, by default the ACLI socket functionality is pretty much locked down to operate only on the internal loopback address and for a single user.</p>
+<p>However, technically, any IP address could be used, and the ACLI implementation allows the user to go and change those default IP addresses. So one could reconfigure the ACLI socket functionality to take control of ACLI instances running on a different machine across the network using IP multicast. This does work and is amusing but not particularly useful. If anyone wants to play with this, be aware that the socket name to UDP port mappings may not be the same on different machined for different users. In this case specify socket UDP port numbers (preceded by "%", as explained in previous section) instead of names.</p>
+
+</BODY>
+</HTML>

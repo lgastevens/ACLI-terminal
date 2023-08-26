@@ -1,0 +1,305 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Alias Commands</Title>
+</HEAD>
+<BODY>
+<h1>Alias Commands</h1>
+<p>When working on a switch CLI, one typically uses a small bunch of commands 90% of the time. If these commands are long to type every time, this can get frustrating. Even more frustrating, when working on a setup comprising switches of different family types (e.g. VOSS, XOS, ERS...) is that to see the same information one has to enter a slightly different CLI command on each switch type. ACLI's alias capability solves these problems.</p>
+<p>ACLI aliases are stored in a text file which is loaded by ACLI on startup. The default alias file is <i>acli.alias</i> which is shipped by default with ACLI and contains a number of pre-defined aliases (used by the ACLI author); this file is contained in the ACLI install directory and is a versioned file, which means it is liable to get updated and replaced when the ACLI update script is run, if a newer version of it exists.</p>
+<p>If you wish to create your own aliases and do not care to use the pre-defined aliases then you should edit your own <i>acli.alias</i> file and place it under one of the following paths:</p>
+<ul>
+	<li>ENV path <i>%ACLI%</i> (if you defined it)</li>
+	<li>ENV path <i>$HOME/.acli</i> (on Unix systems)</li>
+	<li>ENV path <i>%USERPROFILE%\.acli</i> (on Windows)</li>
+</ul>
+<p>If instead you are happy to use the pre-defined aliases (and keep obtaining updates for them) and would like to simply define additional personal aliases to merge with the default supplied ones, then you should place your aliases in a file named <i>merge.alias</i> and place it in one of the same paths listed above.</p>
+<p>The alias file needs to be edited with a specific syntax.</p>
+<p>Lines commencing with '#' are comment lines and are ignored</p>
+<p>An alias definition begins with a line which starts with the alias command (no spaces or tab prepended). The alias definition can be specified in two ways</p>
+<ol>
+	<li>Simple form, in one line specify the alias name, optional variables, and the command the alias will substitute
+	<pre>
+	alias_command [$variable1] [$variable2] ... = &lt;de-reference for alias command&gt;
+	</pre></li>
+	<li>Conditional form; in a first line the alias name is specified, with optional variables:
+	<pre>
+	alias_command [$variable1] [$variable2] ...
+	</pre>
+	Then, on subsequent lines, specify a number of de-reference commands based on certain conditions. These lines must start with space or tab and have 2 fields (separated by '='), in one of these 2 formats:
+	<pre>
+	&lt;condition_field&gt; = &lt;de-reference for alias command if condition_field is true>
+	&lt;condition_field&gt; = &&lt;instruction&gt; [&lt;input based on instruction; can be in double quotes&gt;]
+	</pre>
+	<p>The condition field can contain any of Control::CLI:Extreme attributes in {} brackets. You can find available attributes here: <a href=https://metacpan.org/pod/Control::CLI::Extreme#Main-I/O-Object-Methods>https://metacpan.org/pod/Control::CLI::Extreme#Main-I/O-Object-Methods</a> see: attribute() - Return device attribute value.</p>
+	<p>The condition field can also contain the $variables entered by user after the <i>alias_command</i>. The condition field is evaluated as a Perl regular expression, after making the above <i>{attribute}</i> & <i>$variable</i> replacements. Condition fields are evaluated in order, until one evaluates to true. Once a condition field evaluates to true, the <i>alias_command</i> is de-referenced accordingly. If no condition field evaluates to true, then the alias will not resolve.</p>
+	</li>
+</ol>
+
+<p>The variables, if any, defined for the alias can be mandatory or optional. A mandatory variable is a variable which must always be specified with the given alias and is specified by simply adding it after the <i>alias_command</i>. An optional variable is a variable which may or may not be appended to the alias and is enclosed in square brackets '[]' when added after the <i>alias_command</i>. An alias can be defined with both mandatory and optional variables, on condition that the optional variables come after the mandatory ones.</p>
+<p>The de-reference for alias command is the actual command which ACLI will send to the switch if the first form (1) above is used or if the condition_field evaluates to true in the form (2). The optional or mandatory variables can of course be embedded in the command supplied here. If dealing with an optional variable this should again be enclosed in square brackets '[]' which can also include a portion of the final CLI command.</p>
+
+<p>In both the syntaxes above, you can chain multiple commands to send to the switch with semicolons (;) and you can also separate these commands over multiple lines provided that every line begins with one or more space/tab characters and the first non-space character is a semicolon (;) followed by a command.</p>
+<p>It is also possible to request alternative actions using the <i>&&lt;instruction&gt;</i> format. The following instructions are supported:</p>
+<ul>
+	<li><b>&print "text to print"</b> : The alias command will simply print out the text provided; useful for giving syntax</li>
+	<li><b>&noalias</b> : This will by bass aliasing all together; useful to avoid clashes with switch commands</li>
+</ul>
+<p>On an ACLI session, entering the alias followed by '?' will automatically provide basic syntax for the alias (if it exists). To make a more user friendly syntax for an alias you can also provide a syntax line starting with space or tab then '?:' like this, within the conditional form of the alias definition:</p>
+<pre>
+	?:"Alias syntax:\n	&lt;alias name&gt; [&lt;arg1&gt;] [&lt;arg2&gt;]\n"
+</pre>
+<p>Or alternatively you display the syntax using the <i>&print</i> instruction.</p>
+<p>A description of the alias can also be embedded in the definition so that when the alias is listed by the <i>'@alias list'</i> command it can be listed with a meaningful description. There are two ways to provide this description field. It can either be provided within the conditional form of the alias definition:</p>
+<pre>
+	~:"&lt;description of what alias does&gt;"
+</pre>
+<p>Or, for aliases defined using the simple one-liner declaration form it can be included as follows:</p>
+<pre>
+	alias_command [$variable1] [$variable2] ~:"&lt;description&gt;" = &lt;de-reference for alias command&gt;
+</pre>
+<p>A few examples. All these examples are part of the <i>acli.alias</i> file which ships with ACLI.</p>
+
+<p>A simple alias, with less to type.</p>
+<pre>
+	ism = show isis spb-mcast-summary
+</pre>
+<pre>
+	VSP-8284XSQ:1#% ism
+	         alias% show isis spb-mcast-summary
+	====================================================================================================
+	                            SPB Multicast - Summary
+	====================================================================================================
+	SCOPE    SOURCE           GROUP            DATA            LSP  HOST
+	I-SID    ADDRESS          ADDRESS          I-SID     BVID  FRAG NAME
+	----------------------------------------------------------------------------------------------------
+	There were no entries found.
+	VSP-8284XSQ:1#%
+</pre>
+<p>Notice that when an alias is invoked, ACLI will add an echo line immediately after indicating the full command that was replaced for the alias. Alias echoing is by default enabled but can be disabled using the <i>'@alias echo'</i> embedded command or the <i>'alias echo'</i> command under ACLI control interface.</p>
+
+<p>A simple alias with a mandatory variable:</p>
+<pre>
+	l2vsn $isid = show isis spbm i-sid all id $isid
+</pre>
+
+<p>A simple alias with an optional variable:</p>
+<pre>
+	dvrdb [$isid] = show dvr database [l3isid $isid]
+</pre>
+<p>Notice the difference on how the alias is dereferenced with or without the optional argument:</p>
+<pre>
+	VSP8400-1:1#% dvrdb
+	       alias% show dvr database
+	==================================================================================================================================
+	                                                           DVR DATABASE
+	==================================================================================================================================
+	                                NEXT                       L3VSN     L2VSN     OUTGOING             SPB  PREFIX
+	DEST            MASK            HOP                VRFID  ISID      ISID      INTERFACE            COST COST   AGE
+	----------------------------------------------------------------------------------------------------------------------------------
+	20.0.100.0      255.255.255.0   VSP8400-1          0      0         2800100   cpp                  10   1      39 day(s), 10:14:31
+	20.0.100.2      255.255.255.255 VSP8400-1          0      0         2800100   cpp                  10   1      39 day(s), 10:14:31
+	20.0.100.3      255.255.255.255 VSP8400-2          0      0         2800100   3/17                 10   1      39 day(s), 10:14:17
+	20.0.100.4      255.255.255.255 VSP8400-3          0      0         2800100   3/18                 10   1      39 day(s), 10:14:17
+	20.0.100.201    255.255.255.255 VSP8400-1          0      0         2800100   X690-1               10   1      0 day(s), 04:16:54
+	
+	[...]
+	
+	20.9.190.0      255.255.255.0   VSP8400-1          9      3800009   2800190   cpp                  10   1      39 day(s), 10:14:31
+	20.9.190.2      255.255.255.255 VSP8400-1          9      3800009   2800190   cpp                  10   1      39 day(s), 10:14:31
+	20.9.190.3      255.255.255.255 VSP8400-2          9      3800009   2800190   3/17                 10   1      39 day(s), 10:14:17
+	20.9.190.4      255.255.255.255 VSP8400-3          9      3800009   2800190   3/18                 10   1      39 day(s), 10:14:17
+	20.9.190.200    255.255.255.255 VSP7200-2          9      3800009   2800190   2/4                  10   1      21 day(s), 01:29:55
+	
+	34 out of 34 Total Num of DVR Database entries displayed
+	acli.pl: Displayed Record Count = 34
+	----------------------------------------------------------------------------------------------------------------------------------
+	VSP8400-1:1#%
+</pre>
+<pre>
+	VSP8400-1:1#% dvrdb 3800001
+	       alias% show dvr database l3isid 3800001
+	==================================================================================================================================
+	                                                           DVR DATABASE
+	==================================================================================================================================
+	                                NEXT                       L3VSN     L2VSN     OUTGOING             SPB  PREFIX
+	DEST            MASK            HOP                VRFID  ISID      ISID      INTERFACE            COST COST   AGE
+	----------------------------------------------------------------------------------------------------------------------------------
+	20.1.110.0      255.255.255.0   VSP8400-1          1      3800001   2800110   cpp                  10   1      39 day(s), 10:14:50
+	20.1.110.2      255.255.255.255 VSP8400-1          1      3800001   2800110   cpp                  10   1      39 day(s), 10:14:50
+	20.1.110.3      255.255.255.255 VSP8400-2          1      3800001   2800110   3/17                 10   1      39 day(s), 10:14:37
+	20.1.110.4      255.255.255.255 VSP8400-3          1      3800001   2800110   3/18                 10   1      39 day(s), 10:14:37
+	
+	4 out of 34 Total Num of DVR Database entries displayed
+	acli.pl: Displayed Record Count = 4
+	----------------------------------------------------------------------------------------------------------------------------------
+	VSP8400-1:1#%
+</pre>
+
+<p>A simple alias which executes more than one CLI command (commands separated with semi-colon ';'):</p>
+<pre>
+	slamrtp $ip $dscp = config term; application; slamon rtp $ip $dscp; exit; end
+</pre>
+
+<p>A conditional alias which shows ethernet ports with link up only:</p>
+<pre>
+	ifup
+		{family_type} eq 'PassportERS' && {is_acli}			= show interfaces gigabitEthernet interface ||up\s+up
+		{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'	= show port inf interface ||up\s+up
+		{family_type} eq 'BaystackERS'					= show interfaces ||up
+		{is_xos}							= show ports information ||active
+		{is_isw}							= do show interface * status !!Down
+</pre>
+
+<p>A handy alias to save the config on any switch type:</p>
+<pre>
+	sv [$file]
+		{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'	= save config [file $file]
+		{family_type} eq 'BaystackERS' && $file				= show nvram block |False > $'%1'; copy config nvram block $ name $file
+		{family_type} eq 'BaystackERS'					= copy config nvram
+		{family_type} eq 'SecureRouter'					= save local [file $file]
+		{family_type} eq 'WLAN9100'					= save [$file]
+		{is_xos}							= save configuration -y
+		{is_isw} && length($file)					= do copy running-config flash:$file
+		{is_isw}							= do copy running-config startup-config
+</pre>
+<p>If we check the syntax for any of the alias examples so far, we get to see the alias and its input variables (if any):</p>
+<pre>
+	VSP-8284XSQ:1#% sv ?
+	         alias% sv [$file]
+	VSP-8284XSQ:1#%
+</pre>
+
+<p>An alias which provides more customized syntax help for the user:</p>
+<pre>
+	tie [$sockname] [$mode]
+		?:"Alias syntax:\n	tie [&lt;socket-name&gt;] [&lt;echo-mode: all|none&gt;]\n"
+		$mode eq ''					= @socket tie [$sockname]; @socket echo error; @sleep 2; @socket ping
+		1						= @socket tie [$sockname]; @socket echo $mode; @sleep 2; @socket ping
+</pre>
+<p>Which gives:</p>
+<pre>
+	VSP-8284XSQ:1#% tie ?
+	Alias syntax:
+	        tie [&lt;socket-name&gt;] [&lt;echo-mode: all|none&gt;]
+	
+	VSP-8284XSQ:1#%
+</pre>
+
+
+<p>A more advanced alias which uses semi-colon separated commands over multiple lines and a different way to show the alias syntax if executed with no argument:</p>
+<pre>
+	ersupl [$upl]
+		$upl eq ''	= &print "Alias syntax:\n	ersupl <uplink-port>\n"
+		1		= fa extended-logging
+				; vlan configcontrol automatic
+				; mlt 1 enable member $upl learning disable
+				; mlt 1 loadbalance advance
+				; vlacp macaddress 01:80:c2:00:00:0f
+				; interface Ethernet $upl
+				;  vlacp timeout short
+				;  vlacp timeout-scale 5
+				;  vlacp enable
+				; exit
+				; vlacp enable
+</pre>
+
+<p>Finally an alias which makes use of the <i>&noalias</i> instruction:</p>
+<pre>
+	tgz [$delete]
+		!{is_voss}			= &noalias
+		$delete eq '?'			= &print "Alias syntax:\n	tgz [delete]\n"
+		$delete eq 'delete'		= delete *.tgz -y
+		$delete eq ''			= ls *.tgz
+</pre>
+<p>If the above alias is executed on a session with a device which is not a VOSS switch, the <i>tgz</i> command is not deemed an alias (and the <i>tgz</i> command will be sent to the connected host switch as is).</p>
+<p>You may also refer to the <i>acli.alias</i> file shipped with ACLI, which contains comments on its syntax and plenty of other examples to play with.</p>
+<p>Note: Care should be taken to choose <i>alias_names</i> which do not conflict with a switch command. If there is a conflict, the alias command will override the switch command. If this happens, it is possible to force a command to the switch (without de-aliasing) by appending ';' to the command. Alternatively include a condition match to avoid the clash using the <i>&noalias</i> instruction.</p>
+<p>The alias functionality can be disabled/enabled using the following command:</p>
+<pre>
+	@alias disable|enable
+</pre>
+<p>The alias files, <i>acli.alias</i> + <i>merge.alias</i> (if it exists) are always loaded when ACLI is launched. You can edit the alias files while ACLI sessions are running, but each ACLI session will keep running with the aliases that it loaded on startup. To reload the alias files on already running ACLI sessions, you can use the embedded <i>'@alias reload'</i> command or the <i>'alias reload'</i> command under the ACLI control interface. The same <i>'@alias'</i> embedded command and <i>'alias'</i> command under ACLI control interface also offer commands to show the loaded aliases.</p>
+<pre>
+	VSP-8284XSQ:1#% @alias ?
+	Syntax: @alias disable|echo|enable|info|list|reload|show
+	
+	VSP-8284XSQ:1#% @alias reload
+	Loading alias file: C:\Users\lstevens\Scripts\acli\acli.alias
+	Merging alias file: C:\Users\lstevens\.acli\merge.alias
+	Successfully re-loaded default & merge alias files
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>Available alias commands can be listed using either of these embedded commands:</p>
+<pre>
+	@alias list [&lt;description-search-pattern&gt;]
+	@alias show [&lt;pattern&gt;]
+</pre>
+<p>The <i>'@alias list'</i> will produce a compact list of all available aliases with a description of what they do. A search pattern can be provided on the command itself or one can also use ACLI's regular grep capability.</p>
+<pre>
+	VSP-8284XSQ:1#% @alias list spb
+	
+	dropstat [$ports]                : Dump SPB ISIS drop-stats (ERS8k/VSP9k only)
+	dvr                              : Show SPB DVR global info
+	dvrbh [$isid]                    : Show SPB DVR backbone
+	dvrbm                            : Show SPB DVR backbone members
+	dvrdb [$isid]                    : Show SPB DVR database
+	dvrh [$vrf]                      : Show SPB DVR hosts
+	dvri [$vrf]                      : Show SPB DVR interfaces
+	dvrm                             : Show SPB DVR domain members
+	dvrr [$vrf]                      : Show SPB DVR routes
+	fibi6                            : Dump SPB ISIS IPv6 routes installed
+	fibip [$isid]                    : Dump SPB ISIS IP routes installed
+	fibm [$arg1] [$arg2] [$arg3]     : Dump SPB's multicast forwarding database (fdb)
+	fibu [$arg1] [$arg2]             : Dump SPB's unicast forwarding database (fdb)
+	isa                              : Show SPB ISIS interface authentication
+	isdb                             : Show SPB ISIS LSDB
+	isi                              : Show SPB ISIS interfaces
+	isj                              : Show SPB ISIS adjacencies
+	ism                              : Show SPB fabric known IP Multicast sources
+	ismd [$vlanvrf]                  : Show SPB fabric IP Multicast streams for given VSN
+	isname [$id] [$name]             : Re-configure SPB system name without having to modify the nick-name (requires id derived nick-name)
+	nick                             : Show all SPB nodes in fabric
+	nni $ports [$speed]              : Configure SPB NNI ports and set metric according to port speed
+	nnimetric $ports $speed          : Modify SPB NNI ports metric according to port speed
+	spb                              : Show SPB global info
+	spgf [$vrf]                      : Show SPB PIM Gateway PIM side sources for given VRF or GRT
+	spgi [$vrf]                      : Show SPB PIM Gateway interfaces for given VRF or GRT
+	spgn [$vrf]                      : Show SPB PIM Gateway neighbours for given VRF or GRT
+	spgr [$vrf]                      : Show SPB PIM Gateway multicast routes for given VRF or GRT
+	spgs [$vrf]                      : Show SPB PIM Gateway fabric side sources for given VRF or GRT
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>The <i>'@alias show'</i> command will give a more detailed description of the what the evaluation logic of the alias is.</p>
+<pre>
+	VSP-8284XSQ:1#% @alias show ifup
+	
+	ifup
+	   IF {family_type} eq 'PassportERS' && {is_acli}
+	      THEN:
+	         show interfaces gigabitEthernet interface ||up\s+up
+	
+	   IF {family_type} eq 'PassportERS' || {family_type} eq 'Accelar'
+	      THEN:
+	         show port inf interface ||up\s+up
+	
+	   IF {family_type} eq 'BaystackERS'
+	      THEN:
+	         show interfaces ||up
+	
+	   IF {is_xos}
+	      THEN:
+	         show ports information ||active
+	
+	   IF {is_isw}
+	      THEN:
+	         do show interface * status !!Down
+	
+	
+	VSP-8284XSQ:1#%
+</pre>
+</BODY>
+</HTML>

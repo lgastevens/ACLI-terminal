@@ -1,0 +1,541 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Scripting</Title>
+</HEAD>
+<BODY>
+<h1>Scripting</h1>
+<p>As explained in the Interactive mode section of this manual, the ACLI terminal, in interactive mode, operates in the fashion of a command based terminal (i.e. it is not character based, like other terminals, or indeed transparent mode). This means that ACLI, in interactive mode, has the ability to lock onto the device's CLI prompt, and henceforth execute discrete commands only. This architecture comes in very handy for writing CLI scripts, which can pretty much be as simple as a bunch of CLI commands.</p>
+<p>Within the interactive mode, ACLI actually can operate in two sub-modes:</p>
+<ul>
+	<li><b>User input mode</b>: In this mode, the user types commands from STDIN (terminal keyboard) and only when the user hits Carriage Return does the ACLI terminal send the appropariate command to the host device. Then ACLI waits to lock onto the next CLI prompt to lock onto (in the interim, the terminal is in paced-sending mode, which is character based, and allows user to interact with the device in the event no CLI prompt is seen).</li>
+	<li><b>Scripting mode</b>: In this mode, the ACLI terminal has cached multiple commands to push to the host device, and will proceed, without any user intervention, to send each command as soon as it can lock onto the next CLI prompt.</li>
+</ul>
+<p>In this chapter we shall only cover the scripting mode.</p>
+<p>There are actually several ways which will result in ACLI entering scripting mode:</p>
+<ol>
+	<li>User copy-pastes a bunch of commands into the ACLI terminal</li>
+	<li>User executes a script file, which is an external text file containing the CLI script commands</li>
+	<li>User executes a run script</li>
+	<li>User executes a repeating command (using either the <i>@&lt;interval-seconds&gt;</i> or <i>&&lt;values-list-or-range&gt;</i> notations)</li>
+	<li>User executes a semi-colon fragmented command (i.e. multiple commands on same line, separated by ';')</li>
+</ol>
+<p>(4) and (5) are already covered in separate sections of this manual.</p>
+
+
+
+<div class="section" id="Pasting commands into the ACLI session">
+<h2>Pasting commands into the ACLI session</h2>
+<p>This is the easiest way to get a script going. Simply copy-paste your script or bunch of CLI commands into the ACLI terminal. The ACLI terminal is capable of making a difference between a user typing characters at the input keyboard and him pasting a whole bunch of text. In the latter case, the pasted text is immediately read into a script buffer, where it is chopped up into individual commands (the carraige return character identifies the end of a command) and is then processed as a script, one command at a time, and each command will wait in turn for the next device's CLI prompt. This is in stark contrast to what happens when you copy-paste multiple commands into a traditional character based terminal, which will simply regurgitate the entire text towards the host device in one shot; one is then at the mercy of the limited receive buffers of the host device, which if overrun will result in only a portion of the pasted text getting processed; the result is also usually messy as it becomes hard to follow how the connected device processed the commands and becomes hairy if one of the early commands generated an error!</p>
+<p>With the ACLI approach, there is no limit to the size of the CLI script which is pasted into the session. A script of several hundred lines or more can be safely copy pasted into an interactive ACLI session.</p>
+</div>
+
+
+
+<div class="section" id="Sourcing a script file">
+<h2>Sourcing a script file</h2>
+<p>This is a more conventional approach, in that the user has prepared an offline text file which contains the CLI script. The ACLI embedded <i>@source</i> command can be used to load up the contents of that file and place it directly into the script buffer. There are a number of possible syntaxes:</p>
+<pre>
+	@source &lt;filename&gt; [$1, $2, ...args]
+	@source &lt;.ext&gt; [$1, $2, ...args]
+	[&lt;CLI command&gt;] &lt; &lt;filename&gt; [$1, $2, ...args]
+	[&lt;CLI command&gt;] &lt; &lt;.ext&gt; [$1, $2, ...args]
+</pre>
+<p>If the script filename provided is just a file name with no path, the file will be searched for in the ACLI's working directory (which can be inspected with <i>@pwd</i> and changed with <i>@cd</i> embedded commands). Alternatively the script file can be specified with its path name and can then be located anywhere on the local machine file system.</p>
+<p>In the second and last syntax forms, if only a dot extension is provided, e.g. <i>'.src'</i> then the filename which will be searched for will be <i>&lt;switch-name&gt;</i>. The last two syntax forms allow the use of the <i>'&lt;'</i> character and can be placed directly after a CLI command. Not hugely useful, but syntactically allows the following:</p>
+<pre>
+	config term < myscript.src
+</pre>
+<p>What happens here, is that first the <i>'config term'</i> CLI command is executed and then the script takes over from there.</p>
+<p>Optional arguments can be provided on the command line, and these arguments will then be available to the ACLI script, once running, by simply invoking variables:</p>
+<ul>
+	<li><b>$&lt;number&gt;</b> : $1 will hold first argument; $2 the second argument; and so on...; arguments are separated by white space characters or enclosed in quotes</li>
+	<li><b>$*</b> : This variable will hold a string containing all the text entered as variables</li>
+</ul>
+</div>
+
+
+
+<div class="section" id="Run scripts">
+<h2>Run scripts</h2>
+<p>Run scripts are a more convenient way of sourcing a script file, within a nicer framework. A run script is executed via the <i>@run</i> embedded command:</p>
+<pre>
+	@run &lt;runscript&gt; [$1, $2, ...args]
+</pre>
+<p>The syntax for <i>@run</i> is identical to the syntax for <i>@source</i> in that the file can be a filename with or without a path and the optional arguments are processed in exactly the same way as for the <i>@source</i> command.</p>
+<p>The first difference of a run script is that if the <i>&lt;runscript&gt;</i> filename has no path, then ACLI will not look for the run script in the current working directory, but instead will look for the script in the following paths, in the following order:</p>
+<ul>
+	<li>ENV path <i>%ACLI%</i> (if you defined it)</li>
+	<li>ENV path <i>$HOME/.acli</i> (on Unix systems)</li>
+	<li>ENV path <i>%USERPROFILE%\.acli</i> (on Windows)</li>
+	<li>ENV path <i>%ACLIDIR%</i> (the ACLI install directory)</li>
+</ul>
+<p>The paths under which run scripts will be looked for can be viewed using the <i>@run path</i> embedded command:</p>
+<pre>
+	PSEUDO#% @run path
+	
+	Paths for Run Scripts:
+	
+	   Origin    Path
+	   ------    ----
+	   private   C:\Users\lstevens\.acli
+	   package   C:\Users\lstevens\Scripts\acli
+	
+	PSEUDO#%
+</pre>
+<p>The second difference is that if a filename with no extension was provided, then ACLI will look for a file with the <i>'.run'</i> extension, since this is the conventional extension for ACLI run scripts.</p>
+<p>The third difference is that ACLI maintains an easy list of available run scripts and performs version reporting against them. This informaton can be easily viewed using the <i>'@run list'</i> embedded command:</p>
+<pre>
+	PSEUDO#% @run list
+	Available Run Scripts:
+	
+	   Name         Origin    Vers  Description
+	   ----         ------    ----  -----------
+	   2500fw       private   1.00  Manages ERS2500 ACL FW rules in Ludo's HomeLab
+	   atf-pwd      private   1.00  Change device passwords, for demo events
+	   ctc-mgmt     private   1.02  Setup SNMP, Syslog & SSH on the switch for Valbonne POC setup
+	   ers-default  private    n/a  Create a rwa/rwa account to match Modulars
+	   fe           package   1.00  Setup Fabric Extend on the switch
+	   patch        private   1.00  Patches clients in Ludo's HomeLab
+	   poc-nms      private   1.01  Setup SNMP, Syslog & SSH on the switch for Valbonne POC setup
+	   poc-snmp     private   1.01  Setup SNMP on the switch for Valbonne POC setup
+	   poc-ssh      private   1.00  Setup SSH on the switch for Valbonne POC setup
+	   snmp         package   1.03  Setup SNMP on the switch
+	   test         private    n/a  Sandbox test run script
+	
+	PSEUDO#%
+</pre>
+<p>Run scripts are categorized as either:</p>
+<ul>
+	<li><b>Package</b>: These are run scripts located under the ACLI install directory; typically these are run scripts which are shipped with ACLI, and can be updated whenever the ACLI update script is executed, if a more recent version of the script is available.</li>
+	<li><b>Private</b>: These are run scripts located in the user's private path (either <i>%USERPROFILE%\.acli</i> or <i>$HOME/.acli</i> or <i>%ACLI%</i> if it was defined); this is where the user should place his or her run scripts.</li>
+</ul>
+<p>The <i>'@run list'</i> command also extracts the script version, if included (script should simply contain a line like <i>'# Version = &lt;version&gt;'</i>), and a description of the script (this needs to be the first commented line inside the run script file). If you have many run scripts, this becomes a neat way for keeping track of them all!</p>
+<p>Note: given the <i>@run</i> command syntax, there can never be a run script called either <i>'list'</i> or <i>'path'</i> !:</p>
+<pre>
+	VSP-8284XSQ:1#% @run ?
+	Syntax: @run <runscript> [$1, $2, ...args]
+	        @run list|path
+	
+	VSP-8284XSQ:1#% @run
+</pre>
+<p>Currently the <i>snmp</i> run script is the only package script distributed by ACLI; it is provided more as a showcase of how ACLI scripting can be used:</p>
+<pre>
+	VSP-8284XSQ:1(config)#% @run snmp
+	
+	VSP-8284XSQ:1(config)#% @echo off output off
+	
+	This script will help you setup SNMP on the switch
+	Hit Enter to continue (CTRL-C to quit) :
+</pre>
+<p>Note that we execute <i>'@run snmp'</i> but the actual script filename is <i>snmp.run</i>.</p>
+</div>
+
+
+
+<div class="section" id="Error detection">
+<h2>Error detection</h2>
+<p>A common challenge when writing CLI scripts is to get the script right. Often this is a trial and error process, to get the right switch CLI commands, with the right syntax and in the right order. What usually happens is that somewhere in the middle of the CLI script, the host device throws an error on a CLI command, and does not execute it. If the CLI script does not detect that error, and continues to send subsequent CLI commands, the chances are that most subsequent commands will also produce errors and once the script has happily finished sending all the CLI commands, the user is left with a tangled mess of error messages and no clue which commands correctly executed and which commands did not. Recovering from these situation is painful and time consuming.</p>
+<p>ACLI scripting solves this problem, because it is capable of detecting error messages from the connected device. An ACLI script sends one command at a time, and waits for the next CLI prompt before sending the next CLI command. If an error message is detected from the connected device, then ACLI automatically halts script execution. This is ideal, since the user can easily inspect the command which was not accepted and make the necessary alterations, without having to work through a trail of error messages. As an example, consider the following CLI script to create a VLAN on a VOSS device:</p>
+<pre>
+	config term
+	vlan create 666 type port-rstp 0
+	vlan members add 666 1/6
+	ifv 666
+	   ip address 10.10.10.10/24
+	exit
+	end
+</pre>
+<p>There is an intentional error in the vlan create command. If we run that script in ACLI we get the following:</p>
+<pre>
+	VSP-8284XSQ:1#% config term
+	Enter configuration commands, one per line.  End with CNTL/Z.
+	VSP-8284XSQ:1(config)#% vlan create 666 type port-rstp 0
+	                                                  ^
+	% Invalid input detected at '^' marker.
+	VSP-8284XSQ:1(config)#%
+</pre>
+<p>Notice that the script stops at the command where an error was received.</p>
+<p>Even better, once the problem is resolved, the user can even chose to resume the script execution from where it left using the <i>@resume</i> embedded command (this is covered in the 'Resume buffer' section below)</p>
+<p>Error detection is actually configurable. By default it is enabled, but the user, or indeed the script itself, can decide to disable error detection using the <i>@error enable|disable</i> embedded command.</p>
+<pre>
+	VSP-8284XSQ:1#% @error ?
+	Syntax: @error disable|enable|info|level
+	
+	VSP-8284XSQ:1#% @error info
+	
+	Host error detection       : enable
+	Host error level detection : error
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>If error detection is disabled, then ACLI will not halt script execution if the connected device produces an error message, and will keep running. There are reasons where it is useful to disable error detection:</p>
+<ol>
+	<li>The ACLI script is just a bunch of show commands, to collect switch data and debug information for offline processing. On the VOSS platforms, there is a 'show full-tech' command which attempts to dump a number of switch show commands, but often some of these dumps includes an error message. In this case it is not useful for the ACLI script to stop execution, so the CLI script simply needs to start with a <i>'@error disable'</i> statement.</li>
+	<li>Sometimes, the script needs to check whether or not a certain CLI command exists on the connected device, and to act accordingly. In this case, having the script halt if the CLI command is not accepted, is not useful.So the ACLI script can itself disable error detection temporarily by including the <i>@error disable|enable</i> commands before and after trying out the CLI command. In this use case, the <i>$@</i> reserved variable can be used to check if a command did in fact produce an error message or not.</li>
+</ol>
+<p>The following example illustrates point (2) above:</p>
+<pre>
+	#
+	# Create on ERS stackable an rwa/rwa account to match VOSS VSPs
+	#
+	@print "Creating rwa/rwa user ..."
+	no password security
+	@error disable
+		username add rwa role-name RW password // rwa // rwa
+	@error enable
+	@if $@
+		@print "WARNING: Old switch software, cannot create rwa user"
+	@endif
+	# Script execution continues in either case..
+</pre>
+<p>The script sequence tries to create an rwa/rwa user account on an ERS stackable switch. The <i>'username add'</i> CLI command is supported on recent ERS models, but not on older ERS models. We could have written the script to verify the ERS model, and work out on which models the CLI command is present and on which models it is not, but in this case it simply easier to try the command and see what happens. Because we don't want the script to halt execution in case the CLI command is not accepted, we sandwitch the CLI command in between an <i>@error disable</i> and <i>@error enable</i> lines. We then check the reserved variable <i>$@</i> (which will hold the actual error message of the last CLI command executed against the switch) and if it is set, then script notifies the user that the username could not be set. Either way, the script execution is not halted and the script continues execution.</p>
+<p>ACLI scripting error detection can be set to two levels: error and warning:</p>
+<pre>
+	@error level error|warning
+</pre>
+<ul>
+	<li><b>error</b>  : ACLI script execution will stop only at error messages. An error message indicates that the CLI command was not executed, for some reason.</li>
+	<li><b>warning</b>: ACLI script execution will stop at error messages but also warning messages. A warning message indicates an anomaly, but the CLI command which generated it did actually execute. Note, the warning level is not fully implemented and may not catch all warning messages.</li>
+</ul>
+</div>
+
+
+
+<div class="section" id="User interaction during script execution">
+<h2>User interaction during script execution</h2>
+<p>So an ACLI script will automatically halt execution if it encounters an error. There is however another way to halt script execution, and that is when the user interferes with the script execution. Imagine you've launched a large script, and while it is executing you hesitate and decide that no, you do not want the script to run and instead you want to stop it! To stop the script, it is sufficient to hit any key on the keyboard on the ACLI session which is runnnig the script. I.e. simply hit the Return key to halt the script.</p>
+<p>The user can then reflect on the greater wisdom of his script, see how far it executed, and can also inspect the remaining portion of the script which has not executed via the <i>'@resume buffer'</i> embedded command (this is covered in the 'Resume buffer' section below). And if the users decides that after all the script is safe to run, he can resume it from where it was halted simply by executing the <i>@resume</i> command!</p>
+</div>
+
+
+
+<div class="section" id="Resume buffer">
+<h2>Resume buffer</h2>
+<p>In the preceding sections it was already mentioned that when an ACLI script is halted, either because an error was encountered or because the user interfered with the script execution, its execution can be resumed.</p>
+<p>Let us revisit the same example where the CLI script to create a VLAN is halted, because of an invalid command. The script:</p>
+<pre>
+	config term
+	vlan create 666 type port-rstp 0
+	vlan members add 666 1/6
+	ifv 666
+	   ip address 10.10.10.10/24
+	exit
+	end
+</pre>
+<p>And it's execution:</p>
+<pre>
+	VSP-8284XSQ:1#% config term
+	Enter configuration commands, one per line.  End with CNTL/Z.
+	VSP-8284XSQ:1(config)#% vlan create 666 type port-rstp 0
+	                                                  ^
+	% Invalid input detected at '^' marker.
+	VSP-8284XSQ:1(config)#%
+</pre>
+<p>The ACLI <i>@resume</i> embedded command has the following syntax:</p>
+<pre>
+	@resume [buffer]
+</pre>
+<p>Issuing the command <i>'@resume buffer'</i> will dump the ACLI script buffer, where we can see the remaining part of the script which did not execute:</p>
+<pre>
+	VSP-8284XSQ:1(config)#% @resume buffer
+	
+	------ STDIN pasted buffer ------
+	vlan members add 666 1/6
+	ifv 666
+	   ip address 10.10.10.10/24
+	exit
+	end
+	------ End of resume buffer -----
+	VSP-8284XSQ:1(config)#%
+</pre>
+<p>The script buffer will also provide information on the origin of the script in the buffer. In this case the CLI script was simply copy-pasted into the ACLI session.</p>
+<p>If we wanted to resume the script execution, after having corrected the <i>'vlan create'</i> command, we simply need to execute the <i>@resume</i> command:</p>
+<pre>
+	VSP-8284XSQ:1(config)#% vlan create 666 type port-mstprstp 0
+	VSP-8284XSQ:1(config)#% @resume
+	VSP-8284XSQ:1(config)#% vlan members add 666 1/6
+	VSP-8284XSQ:1(config)#% ifv 666
+	                 alias% interface vlan 666
+	VSP-8284XSQ:1(config-if)#%    ip address 10.10.10.10/24
+	VSP-8284XSQ:1(config-if)#% exit
+	VSP-8284XSQ:1(config)#% end
+	VSP-8284XSQ:1#%
+</pre>
+<p>Note that in the above output, the user only typed the commands on the first two lines. The rest was executed by the ACLI script once its execution had resumed.</p>
+</div>
+
+
+
+<div class="section" id="Embedding scripts">
+<h2>Embedding scripts</h2>
+<p>ACLI scripting allows embedded scripts, provided the nested scripts come from a different source. A simple example:</p>
+<pre>
+	config term
+	vlan create 666 type port 0
+	vlan members add 666 1/6
+	@sleep 2; ifv 666; ip address 10.10.10.10/24; exit
+	vlan create 777 type port 0
+	vlan members add 777 1/7
+	ifv 777; @sleep 2; ip address 77.77.77.10/24; exit
+	end
+</pre>
+<p>We simply copy paste the above CLI script into our ACLI session, and when script execution reaches the <i>'@sleep 2'</i> statement, we interrupt the script by hitting the carriage return key. We then inspect the script buffer via the <i>'@resume buffer'</i> command:</p>
+<pre>
+	VSP-8284XSQ:1#% config term
+	Enter configuration commands, one per line.  End with CNTL/Z.
+	VSP-8284XSQ:1(config)#% vlan create 666 type port 0
+	VSP-8284XSQ:1(config)#% vlan members add 666 1/6
+	VSP-8284XSQ:1(config)#% @sleep 2; ifv 666; ip address 10.10.10.10/24; exit
+	VSP-8284XSQ:1(config)#% @sleep 2
+	VSP-8284XSQ:1(config)#%
+	VSP-8284XSQ:1(config)#%
+	VSP-8284XSQ:1(config)#% @resume buffer
+	
+	------ Expanded cmd buffer ------
+	ifv 666
+	ip address 10.10.10.10/24
+	exit
+	------ STDIN pasted buffer ------
+	vlan create 777 type port 0
+	vlan members add 777 1/7
+	ifv 777; @sleep 2; ip address 77.77.77.10/24; exit
+	end
+	------ End of resume buffer -----
+	VSP-8284XSQ:1(config)#%
+</pre>
+<p>We see that when we hit the line which contains multiple commands which are smicolon ';' fragmented, a new script buffer is loaded with these commands and is inserted into the script execution.</p>
+<p>The same is true when sourcing script files. For example a run script (or a sourced script) could contain a <i>@source</i> command. Which will result in a separate script file being loaded, and nested, within the first script file. There is no limit to the amount of script nesting which can be done this way. In theory this could allow a main ACLI script to run other child scripts as if they were subroutines. There is only one limitation, and that is that a sources script (or a run script) is not allowed to run itself recursively (otherwise this would end up in a infinite scripting loop, until memory is exhausted!)</p>
+</div>
+
+
+
+<div class="section" id="Auto-responding to CLI command confirmation prompts">
+<h2>Auto-responding to CLI command confirmation prompts</h2>
+<p>One of the challenges of scripting the CLI, is that some CLI commands ask for user confirmation. Usually with a prompt down the lines: "Are you sure ? (y/n):". If you are trying to script the CLI, this is very annoying as you'd have to check for such a prompt, and feed a <i>'y'</i> character to it, or else know in advance which commands are likely to produce such a confirmation prompt and insert an extra line in the CLI script, with a single <i>'y'</i> character followed by carriage return. For some of these commands, some switches allow the user to append a trailing <i>-y</i> to the command, and then the switch does not ask for confirmation. However, support for this is not consistent.</p>
+<p>The ACLI terminal also implements the <i>-y</i> switch, which means that even if the switch does not have an option to supress the confirmation prompt, then ACLI can suppress it instead. In this case what actually happens is that if the switch sends the confirmation prompt, ACLI intercepts it and automatically feeds a <i>'y'</i> + carriage return to the switch. None of this is actually visible to the ACLI user, as ACLI does it in the background and the confirmation prompt is not printed on the ACLI session (see also chapter on 'CLI augmented switches'). So, using the <i>-y</i> switch is one way of solving the problem. However one has to remember to place the <i>-y</i> switch on the commands which need it.</p>
+<p>So ACLI scripting makes things even more simple. Once in ACLI scripting mode, it is not necessary to place the <i>-y</i> switch on any CLI command. This is because, in scripting mode (and only in scripting mode), if ACLI does see a confirmation prompt, it will always automatically feed a <i>'y'</i> + carriage return to the switch. This achieves the desired behaviour when doing CLI scripting. There is one exception however. If the confirmation prompt contains either the <i>'reset'</i> or <i>'reboot'</i> keywords, then ACLI will not automatically respond yes and the confirmation prompt is not intercepted but is presented to the user; script execution will also pause, as no CLI prompt is received. This is because, if the switch resets, then the connection is lost, and in any case the ACLI script will halt. In this scenario the user would then have to manually enter <i>'y'</i> for the script to resume (and for the switch to reboot presumably..). If the intention is really for the ACLI script to actually reboot the switch, and one did not want the confirmation prompt to halt the script, then simply append <i>-y</i> to the reset command and in this case the script will carry ahead with the switch reboot command.</p>
+</div>
+
+
+
+<div class="section" id="Feeding data to a CLI command's own prompts">
+<h2>Feeding data to a CLI command's own prompts</h2>
+<p>Another challenge faced when scripting the CLI is that some commands interactively ask the user for some data input. A typical example is the CLI commands where the login or snmp credentials are set or changed. These commands usually do not allow the new passwords to be specified on the command line; instead they prompt the user to enter the old password, then ask the user to enter the new password, and then again to confirm the new password a second time. Scripting these commands becomes tricky.</p>
+<p>Not with ACLI though. ACLI is able to detect if the last executed CLI command is asking for some user input, and ACLI allows the user to specify a CLI command upfront with all the information it might need. This is achieved with the following syntax, which allows any number of inputs to be fed to a given CLI command:</p>
+<pre>
+	&lt;CLI command&gt; [-hf] // [&lt;input&gt;]
+	&lt;CLI command&gt; [-hf] // &lt;input1&gt; // &lt;input2&gt; ...
+</pre>
+<p>As an example, the following command creates a new user on ERS stackable platforms:</p>
+<pre>
+	username add admin role-name RW password // P@ssw0rd // P@ssw0rd
+</pre>
+<p>In the background, the switch will prompt for the new admin password twice, but ACLI will automatically feed <i>'P@ssw0rd'</i> both times.</p>
+<p>The optional <i>-h</i> or <i>-f</i> switches allow the input data to be cached for future invocation of the same command on the same device or same family type device respectively.</p>
+<p>Note that the above syntax can also be used to make ACLI simply skip the prompt without providing any data.</p>
+<pre>
+	&lt;CLI command&gt; //
+</pre>
+<p>For example, the following command:</p>
+<pre>
+	VSP-8284XSQ:1#% config //
+	Configuring from terminal or network [terminal]?
+	Enter configuration commands, one per line.  End with CNTL/Z.
+	VSP-8284XSQ:1(config)#%
+</pre>
+<p>The above <i>'config //'</i> command achieved the same result as if we had entered <i>'config term'</i>.</p>
+</div>
+
+
+
+<div class="section" id="Using Control structures with ACLI scripts">
+<h2>Using Control structures with ACLI scripts</h2>
+<p>Creating CLI scripts can be as simple as just a list of CLI commands, which are sequentially executed against the connected switch. However, for more complex scripts, it is necessary to have some control structures.</p>
+<p>ACLI offers a set of basic but essential control structures, in the form of the following embedded commands:</p>
+<pre>
+	@if &lt;cond&gt;, @elsif &lt;cond&gt;, @else, @endif            if / elsif / else conditional operators
+	@while &lt;cond&gt;, @endloop                             while loop construct
+	@loop, @until &lt;cond&gt;                                loop until construct
+	@for &lt;$var&gt; &&lt;start&gt;..&lt;end&gt;[:&lt;step&gt;], @endfor       for loop construct using range input
+	@for &lt;$var&gt; &[']&lt;comma-separated-list&gt;, @endfor     for loop construct using list input (set ' to expand ranges)
+	@next [if &lt;cond&gt;]                                   jump to next value in a for loop construct
+	@last [if &lt;cond&gt;]                                   break out of a while, until or for loop construct
+	@exit [if &lt;cond&gt;]                                   break out of sourced script
+	@stop ["stop-message"]                              break out of sourced script and halts sourcing mode
+</pre>
+<p>The following script snippet shows how these structures can be used:</p>
+<pre>
+	#
+	# Create DNS Name server
+	#
+	$name_servers = 20.9.190.160,20.9.190.159,20.9.190.158
+	$domain_name = reading.ctc.local
+	@print "Setting DNS name servers ..."
+	$_ = 1
+	@for $srv &$name_servers
+		@if $_ eq 1
+			ip name-server primary $srv
+		@elsif $_ eq 2
+			ip name-server secondary $srv
+		@elsif $_ eq 3
+			ip name-server tertiary $srv
+		@endif
+		$ = {$ + 1}
+	@endfor
+	ip domain-name $domain_name
+</pre>
+<p>All the ACLI control structures can be nested. There is no limit to the amount of nesting possible (or rather, the limit is the memory on your machine!).</p>
+<p>Note that the above control structures are all implemented using ACLI embedded commands, but these commands will only work in ACLI scripting mode. So if you want to play with them, you will need to either copy-paste your script snippet into an ACLI session, or else place your script into a run file and execute it with <i>@run</i> or place it into any text file and execute it with <i>@source</i>.</p>
+<p>The difference between <i>@exit</i> and <i>@stop</i> is that both will terminate the currently running script but if each script was executed by dereferencing an alias or a dictionary command, of which many were pasted or sourced from file, then <i>@exit</i> will not prevent the next alias or dictionary command from being processed, while <i>@stop</i> will halt all sourcing of those pasted/sourced commands, as if an error had been encountered. After <i>@stop</i> execution can be resumed with <i>@resume</i>.</p>
+</div>
+
+
+
+<div class="section" id="Controlling ACLI output during script execution">
+<h2>Controlling ACLI output during script execution</h2>
+<p>ACLI scripts can become quite sofisticated. They can be made to prompt the user for input (see 'Querying user to set variable' in the 'Variables' section), they can be written with <i>if/elsif/else</i> control structures, they can perform <i>for</i> loops, <i>while</i> loops and <i>until</i> loops and they can easily execute any CLI command against the connected host device.</p>
+<p>But sending many commands to the host device will still create a lot of output on the ACLI window which might be interesting for debugging the script initially, but becomes just undesireable output if the script executes well without any errors.</p>
+<p>The idea of writing an ACLI script, in particular a run script, is to automate some series of CLI commnds, maybe perform configuration of some complex feature by simply asking the user for the necessary input and then executing the necessary commands. If the script is successful and all commands execute without any errors, it would be sufficient to show the user a single line saying that the configuration is successful, without printing out any of the commands executed and their output.</p>
+<p>The ACLI terminal offers this capability via the <i>@echo</i> embedded command, which has the following syntax:</p>
+<pre>
+	@echo off [output off|on]
+	@echo on
+	@echo sent
+</pre>
+<p>When a CLI command is executed, there are two parts of the output seen on the terminal window. There is the command itself, which is printed next to a CLI prompt, the output of the command (if it generated any output), and a new CLI prompt.</p>
+<p>When running in scripting mode, it is possible to control whether or not an executed CLI command is to produce any output on the terminal screen. By default <i>@echo</i> is on, and any command will be displayed in full.</p>
+<pre>
+	VSP-8284XSQ:1#% @echo info
+	
+	Echo of commands & prompts : on
+	Echo of command output     : on
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>If we execute <i>'@echo off output off'</i> in a script, then any subsequent CLI commands sent to the connected device by the ACLI script will not produce any output on the terminal window. Let us consider the following script:</p>
+<pre>
+	@echo off output off
+	config term
+	vlan create 666 type port-mstprstp 0
+	vlan members add 666 1/6
+	ifv 666
+	   ip address 10.10.10.10/24
+	exit
+	end
+	@print "VLAN 666 was successfully created!"
+</pre>
+<p>If we copy-paste the above into an ACLI session (to a VOSS device) we will get the following output:</p>
+<pre>
+	VSP-8284XSQ:1#% @echo off output off
+	VLAN 666 was successfully created!
+	VSP-8284XSQ:1#%
+</pre>
+<p>Notice that after the <i>'@echo off output off'</i> command, we do not see any of the output from the rest of the CLI commands in the script file. Yet these commands did execute, and the VLAN was created. Only the output of the embedded <i>@print</i> command is seen, as this output is never suppressed by the <i>'@echo off output off'</i> action.</p>
+<p>If instead one wanted to display the output of some CLI command, but still hide the command itself and the prompt line, then one can use <i>'@echo off output on'</i>. Consider this script:</p>
+<pre>
+	@echo off output on
+	@print "Thie time is:"
+	show clock
+</pre>
+<p>When pasted into an ACLI session we get:</p>
+<pre>
+	VSP-8284XSQ:1#% @echo off output on
+	Thie time is:
+	
+	Sun Sep 23 08:37:19 2018 UTC
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>Notice that we get the output of the <i>'show clock'</i> CLI command, but we managed to suppress the CLI prompts and the <i>'show clock'</i> command from the output.</p>
+<p>The <i>@echo sent</i> option is a variant where embedded commands are suppressed, but commands actually sent to the connected device are not. This mode was added for the ACLI dictionary functionality. See the <i>"Dictionaries"</i> section for more information.</p>
+<p>By default <i>@echo</i> is enabled for both command & prompts and for the output. Simply executing <i>'@echo off'</i> will disable it just for the command & prompts, but not for the output; so in the above example we could have just used <i>'@echo off'</i>. Echo settings can be changed either in scripting mode or in non scripting mode; in non-scripting mode you will get a warning if you do so:</p>
+<pre>
+	VSP-8284XSQ:1#% @echo off
+	Note: turning off echo only has an effect when sourcing/pasting commands
+	
+	VSP-8284XSQ:1#% @echo info
+	
+	Echo of commands & prompts : off
+	Echo of command output     : on
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>Another important point to keep in mind, is if the echo modes are changed within the ACLI scripting mode, then when the script completes, the echo settings are automatically reset to on. That is not the case if the echo settings were set outside of scripting mode.</p>
+<p>Hiding the CLI commands and their output is handy, except when there is a problem with the script and maybe the connected switch did not like one of the CLI commands. Then one would be left clueless as to what happened. To avoid such scenarios, the ACLI echo functionality will not suppress output on CLI commands which generate an error. Consider the following example:</p>
+<pre>
+	@echo off output off
+	config term
+	vlan create 666 type port-mstprstp 0
+	vlan members add 666 1/6
+	ifv 777
+	   ip address 10.10.10.10/24
+	exit
+	end
+	@print "VLAN 666 was successfully created!"
+</pre>
+<p>There is an intentional mistake in the above script; the <i>'ifv'</i> alias command (which resolves to <i>'interface vlan'</i>) is pointing to the wrong vlan id (777 instead of 666). If we execute the above script we get:</p>
+<pre>
+	VSP-8284XSQ:1#% @echo off output off
+	
+	VSP-8284XSQ:1(config)#% ifv 777
+	                 alias% interface vlan 777
+	% Vlan 777 does not exist% Vlan 777 does not exist
+	
+	VSP-8284XSQ:1(config)#%
+</pre>
+<p>Notice that the <i>@echo</i> statement had disabled command & prompts as well as output; yet, because we hit an error on the <i>'ifv'</i> alias command, then we get to see the offending command and the error message which it generated. The script obviously halted at this very command. Inspection of the resume buffer confirms this:</p>
+<pre>
+	VSP-8284XSQ:1(config)#% @resume buffer
+	
+	------ STDIN pasted buffer ------
+	   ip address 10.10.10.10/24
+	exit
+	end
+	@print "VLAN 666 was successfully created!"
+	------ End of resume buffer -----
+	VSP-8284XSQ:1(config)#%
+</pre>
+<p>So all is good!</p>
+</div>
+
+
+
+<div class="section" id="Sending raw text to connected host">
+<h2>Sending raw text to connected host</h2>
+<p>Sending a CLI command is as easy as simply including a CLI command line in the script file. However there may be a need to send raw text to the connected host, without necessarily expecting a new prompt. In this case, if no prompt is seen coming back, the ACLI script will not continue execution. For these scenarios, the embedded <i>@send</i> command can be used to send raw text or raw characters to the connected host.</p>
+<pre>
+	@send brk|char|ctrl|line|string
+
+	@send brk
+	@send char &lt;ASCII character number&gt;
+	@send ctrl '^&lt;char&gt;'
+	@send line &lt;line to send (carriage return will be added)&gt;
+	@send string &lt;string of text&gt;	
+</pre>
+<p><i>'@send brk'</i> will send the break signal (see chapter on sending the break signal)</p>
+<p><i>'@send char'</i> will send any character corresponding to the decimal character number provided; handy for sending characters which are non-printable.</p>
+<p><i>'@send ctrl'</i> will send a CTRL+&lt;character&gt; sequence</p>
+<p><i>'@send line'</i> will send a line of text, to which the a newline will automatically be added</p>
+<p><i>'@send string'</i> will send a string of text; newlines can be included in the text by specifying <i>"\n"</i></p>
+<p>Examples of where these can come in useful are for example when entering the debug shell of a device (which will not present a normal CLI prompt) and navigating within such interface. Also if one wanted to reboot the switch from the ACLI script, it would be safer to do:</p>
+<pre>
+	@send line "reset -y"
+</pre>
+<p>As there might not be a CLI prompt coming back; then again, the connection will be lost if the switch is rebooted and the script will halt anyway (expect enhancements here to let the script carry on after the reboot...)</p>
+</div>
+
+
+
+<div class="section" id="Launching a script with socket tied terminals">
+<h2>Launching a script with socket tied terminals</h2>
+<p>ACLI scripting in conjunction with ACLI sockets is possible. The most common use would be to execute a script on the socket tied terminal and have the same script be executed on all the socket listening terminals. This is easily done, either with copy-pasting the script into the tied session or by using <i>@run</i> or <i>@source</i>. There is however a significant difference between the two approaches.</p>
+<p>If we take the same CLI script example for creating our VLAN 666, and we paste that into the socket tied terminal, what will happen is that each and every command will get executed on the tied terminal and will also be sent to the listening terminals. So far so good. However, while the tied terminal is operating in scripting mode, the listening ones are not, because they are simply being fed one command at a time. So if the script being pasted into the tied terminal contains embedded commands which only operate in scripting mode (such as the control structures: <i>@if, @else, @while, @for, @loop, etc..</i>) then these will not get processed on the listening terminals; in other words this won't work properly. It will mostly work properly if your script is just a simple list of switch CLI commands. However, even in this case, if an error is encountered on one of the CLI commands, either in the tied terminal, or in any of the listening terminals, then the script execution will halt in the tied terminal and hence will peter out across all listening terminals as well.</p>
+<p>The safe way of executing the same ACLI script from a socket tied terminal and have it executed across all listening terminals is to have that script as a run file or a script file and to execute it using the either the <i>@run</i> or <i>@source</i> embedded commands; or else to associate it to an alias as a semi-colon fragmented command and execute that alias. In this case what happens is that only the <i>@run</i> or <i>@source</i> or alias command gets sent to the listening terminals, which then effectively run the script independently. Now, if an error occurs in one of the terminals, script execution will only be halted in that terminal (if the socket echo mode is set to error and the error occurs in a listening terminal, then the tied terminal will also get to see the error and will halt). The tied terminal will also run the script, but once the script was executed in this manner, then the tied terminal will stop sending commands to the listening terminals, until the script execution has completed.</p>
+<p>In some scripting applications it can be useful if the script can be executed on one terminal instance only, and then that script initiates "@socket tie" and "@socket echo all" and then can decide exactly which commands to execute locally + over the socket. For this purpose a '-o' switch can be appended to any CLI or embedded command and will ensure it gets sent over the socket in scripting mode. The same switch will ensure that the command is sent with socket echo mode "all", even if the globally set echo mode is "none" or "error". The -o switch can only be applied on the command before any redirection (to file or variable) and before any repeat option; any variables in the command will also be dereferenced before the command is sent to the socket. The -o switch can also be immediately followed by a number which will add a delay time to wait for output from the sockets: -o[N]</p>
+<p>If instead the intention is for the script to send CLI commands only to listening sockets (without executing them locally), this can be done using the <i>'@socket send'</i> embedded command (refer to the socket section). It is also possible to spawn new connections from a script using the <i>@launch</i> embedded command, which will create new ACLI instances which can be made to listen on specific socket names. I.e. from a script it is possible to spin up a new connection with <i>@launch</i> and then drive it with <i>@socket send</i>; this is all a bit experimental though (i.e. might be buggy!).</p>
+</div>
+
+</BODY>
+</HTML>

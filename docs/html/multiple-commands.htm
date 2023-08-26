@@ -1,0 +1,27 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Multiple Commands per line</Title>
+</HEAD>
+<BODY>
+<h1>Multiple Commands per line</h1>
+
+<p>On some historical Extreme Networks products (PassportERS native Passport/Accelar CLI) it was possible to enter and execute multiple commands on the same line, separated by semi-colon ';'. This is a useful feature to quickly execute a set of commands and easily recall them using the history cursor keys or !&lt;n&gt;</p>
+<p>The ACLI terminal in interactive mode replicates this behaviour across all supported Extreme Networks products. This capability becomes essential in supporting the alias function where it may be desirable for an alias to execute more than one command as well as the command repeat functions when it is desired to repeat not just a single command but a bunch of commands. Simply concatenate the commands using the semi-colon ';' character. ACLI will then execute each command in turn, in scripting mode. The commands will all be executed at the next switch CLI prompt.</p>
+<pre>
+VSP-8284XSQ:1#% config term; vlan create 666 type port 0; interface vlan 666; ip address 10.0.66.1/24; end
+VSP-8284XSQ:1#% config term
+Enter configuration commands, one per line.  End with CNTL/Z.
+VSP-8284XSQ:1(config)#% vlan create 666 type port 0
+VSP-8284XSQ:1(config)#% interface vlan 666
+VSP-8284XSQ:1(config-if)#% ip address 10.0.66.1/24
+VSP-8284XSQ:1(config-if)#% end
+VSP-8284XSQ:1#%
+</pre>
+<p>Note that in the above example, only the first line was entered; all the other lines were executed from the first line.</p>
+<p>ACLI will do this even on devices which support this feature natively. If it is desired to use the semi-colon ';' natively on the switch, this character will need to be backslahed in ACLI.</p>
+
+
+</BODY>
+</HTML>

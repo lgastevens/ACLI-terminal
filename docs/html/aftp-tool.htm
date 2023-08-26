@@ -1,0 +1,94 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>AFTP script</Title>
+</HEAD>
+<BODY>
+<h1>AFTP script</h1>
+<p>The AFTP script allows transferring a file to or from many hosts simultaneously using either FTP or SFTP. It can be used to pull the config file from many VOSS switches simultaneously. As the filename will be the same across all the switches, the files will be prepended with the hostname so all obtained files can be stored in the same directory, where they can be edited and modified, and all uploaded back to the same switch again. The script can also be used to push the tgz upgrade software image file to many switches.</p>
+<p>The script can be executed from any DOS box or from a ConsoleZ tab window:</p>
+<pre>
+	C:\>aftp
+	aftp.pl version 1.04
+	
+	 Simultaneously transfers files to/from 1 or more devices using either FTP or SFTP
+	 When GETting the same file from many devices, prepends device hostname/IP to filename
+	 When PUTting the same file back to many devices, only specify the file without prepend
+	
+	Usage:
+	 aftp.pl [-l &lt;user&gt;] [-p &lt;path&gt;] &lt;host/IP/list&gt; [&lt;ftp|sftp&gt;] &lt;get|put&gt; &lt;file-list/glob&gt;
+	
+	 aftp.pl -f &lt;hostfile&gt; [-l &lt;user&gt;] [-p &lt;path&gt;] [&lt;ftp|sftp&gt;] &lt;get|put&gt; &lt;file-list/glob&gt;
+	
+	 -f &lt;hostfile&gt;    : File containing a list of hostnames/IPs to connect to
+	 -l &lt;user&gt;        : Use non-default credentials; password will be prompted
+	 -p &lt;path&gt;        : Path on device
+	 &lt;host/IP/list&gt;   : Hostname or IP address or list of IP addresses to connect to
+	 &lt;ftp|sftp&gt;       : Protocol to use; if omitted will default to FTP
+	 &lt;get|put&gt;        : Whether we get files from device, or we put files to it
+	 &lt;file-list/glob&gt; : Filename or glob matching multiple files or space separated list
+</pre>
+
+<p>For example, to recover the config.cfg file from several switches you can do:</p>
+
+<pre>
+	C:\>aftp 10.134.169.91-92,81-84,171-172 ftp get config.cfg
+	Connecting to hosts:
+	  1 - 10.134.169.91
+	  2 - 10.134.169.92
+	  3 - 10.134.169.81
+	  4 - 10.134.169.82
+	  5 - 10.134.169.83
+	  6 - 10.134.169.84
+	  7 - 10.134.169.171
+	  8 - 10.134.169.172
+	
+	Copying files ...............<5>.<6>.......<8>....<3>.......<1>.<7>.<4>..........<2>
+	
+	
+	C:\>dir *.cfg
+	 Volume in drive C is Avaya eSOE
+	 Volume Serial Number is C87E-793B
+	
+	 Directory of C:\Users\ludovicostev\Downloads
+	
+	28/04/2016  22:29            14,796 10.134.169.171_config.cfg
+	28/04/2016  22:29            14,223 10.134.169.172_config.cfg
+	28/04/2016  22:29            19,348 10.134.169.81_config.cfg
+	28/04/2016  22:29            18,347 10.134.169.82_config.cfg
+	28/04/2016  22:29            18,463 10.134.169.83_config.cfg
+	28/04/2016  22:29            16,649 10.134.169.84_config.cfg
+	28/04/2016  22:29            29,930 10.134.169.91_config.cfg
+	28/04/2016  22:29            37,833 10.134.169.92_config.cfg
+	10/02/2016  17:06               477 default.cfg
+	               9 File(s)        170,066 bytes
+	               0 Dir(s)  367,696,596,992 bytes free
+</pre>
+	
+<p>Note that if the same file is fetched from more than one switch, then the switch IP address is pre-pended to the file recovered, as shown above. Now you can edit all the above files using your preferred text editor. Once done, you can push the updated files back to their originating switch in one shot like this:</p>
+
+<pre>
+	C:\>aftp 10.134.169.91-92,81-84,171-172 ftp put config.cfg
+	Connecting to hosts:
+	  1 - 10.134.169.91
+	  2 - 10.134.169.92
+	  3 - 10.134.169.81
+	  4 - 10.134.169.82
+	  5 - 10.134.169.83
+	  6 - 10.134.169.84
+	  7 - 10.134.169.171
+	  8 - 10.134.169.172
+	
+	Copying files ..................<4>..<6><8>......<5>.<3><7><2><1>
+	
+	
+	C:\>
+</pre>
+
+
+
+
+
+</BODY>
+</HTML>

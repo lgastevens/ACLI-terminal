@@ -1,0 +1,628 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Alias Commands</Title>
+</HEAD>
+<BODY>
+<h1>Dictionary</h1>
+<p>The ACLI dictionary funtionality allows input commands to be accepted in the form of a different CLI syntax from the syntax of the connected switch. This works by loading a dictionary file where the input commands in one CLI lingo can be translated into other CLI flavours, of which the ACLI terminal will select the desitnation flavor based on what switch type it is connected to. Initially an ERS dictionary file is provided, which translates a selection of the most used BaystackERS commands into either PassportERS VOSS commands or ExtremeXOS commands. The ERS dictionary file can be easily extended to cover more commands and additional dictionary files can be added.</p>
+
+<p>Dictionary functionality introduces a new <i>@dictionary</i> embedded command as well as a <i>'dictionary'</i> command under the ACLI control interface:</p>
+<pre>
+	VSP-8284XSQ:1#% @dictionary ?
+	Syntax: @dictionary echo|info|list|load|path|port-range|reload|unload
+</pre>
+
+
+
+<div class="section" id="Loading Dictionary Files">
+<h2>Loading Dictionary Files</h2>
+
+<p>Dictionary files should always have a <i>.dict</i> extension and should be located under one of the following paths:</p>
+<ul>
+	<li>ENV path <i>%ACLI%</i> (if you defined it)</li>
+	<li>ENV path <i>$HOME/.acli</i> (on Unix systems)</li>
+	<li>ENV path <i>%USERPROFILE%\.acli</i> (on Windows)</li>
+	<li>Same directory where acli.pl resides (ENV path %ACLIDIR%)</li>
+</ul>
+
+<p>The available paths under which dictionary files will be looked for can be viewed using the <i>@dictionary path</i> embedded command:</p>
+<pre>
+	VSP-8284XSQ:1#% @dictionary path
+	
+	Paths for Dictionary files:
+	
+	   Origin    Path
+	   ------    ----
+	   private   C:\Users\lstevens\.acli
+	   package   C:\Users\lstevens\Scripts\acli
+	
+	VSP-8284XSQ:1#%
+</pre>
+
+<p>Available dictionary files can be listed using the <i>@dictionary list</i> embedded command:</p>
+<pre>
+	VSP-8284XSQ:1#% @dictionary list
+	Available Dictionaries:
+	
+	   Name         Origin    Vers  Description
+	   ----         ------    ----  -----------
+	   ERS          package   0.03  BOSS/ERS Dictionary file
+	
+	VSP-8284XSQ:1#%
+</pre>
+
+<p>Dictionary files are categorized as either:</p>
+<ul>
+	<li><b>Package</b>: These are dictionary files located under the ACLI install directory; typically these are dictionaries which are shipped with ACLI, and can be updated whenever the ACLI update script is executed, if a more recent version of the dictionary is available.</li>
+	<li><b>Private</b>: These are dictionary files located in the user's private path (either <i>%USERPROFILE%\.acli</i> or <i>$HOME/.acli</i> or <i>%ACLI%</i> if it was defined); this is where the user should place his or her dictionaries.</li>
+</ul>
+<p>The <i>@dictionary list</i> command also extracts the dictionary version, if included (dictionary file should simply contain a line like <i>'# Version = &lt;version&gt;'</i>), and a description of the dictionary (this needs to be the first commented line inside the dictionary file). If you have many dictionary files, this becomes a neat way for keeping track of them all!</p>
+
+<p>To load a dictionary file, simply use the <i>@dictionary load &lt;name&gt;</i> embedded command, where <i>&lt;name&gt;</i> is the name of the dictionary as displayed by the <i>@dictionary list</i> command (the <i>'.dict'</i> extension is implied and does not need to be specified). In this example the suplied ERS dictionary file is loaded:</p>
+<pre>
+	VSP-8284XSQ:1#% @dictionary load ers
+	Loading dictionary file: C:\Users\lstevens\Scripts\acli\ers.dict
+	
+	VSP-8284XSQ:1#{ERS}% @echo off output off
+	Sourcing ERS Dictionary script
+	
+	Which VSP UNI config will apply for dictionary translations; CVLAN-UNI (1) or Switched-UNI (2) ? Enter 1 or 2 : 1
+	VSP-8284XSQ:1#{ERS}%
+</pre>
+<p>Dictionary files can include an embedded script, which will get executed when the dictionary file is loaded. This will be detailed further down.</p>
+<p>To be noticed, once a dictionary file is loaded, the ACLI intercative prompt will include the loaded dictionary name in curly brackets, here <i>{ERS}</i></p>
+<p>Information about loaded dicrionary can also be inspected via the <i>@dictionary info</i> embedded command:</p>
+<pre>
+	VSP-8284XSQ:1#{ERS}% @dictionary info
+	
+	Dictionary settings:
+	        Loaded dictionary : ERS
+	        Dictionary echoing: single
+	        Dictionary file   : C:\Users\lstevens\Scripts\acli\ers.dict
+	        Input Port Range  :
+	        Mapped Host Ports :
+	
+	VSP-8284XSQ:1#{ERS}%
+</pre>
+
+<p>A reload option is also available:</p>
+<pre>
+	VSP-8284XSQ:1#{ERS}% @dictionary reload
+	Loading dictionary file: C:\Users\lstevens\Scripts\acli\ERS.dict
+	
+	Sourcing ERS Dictionary script
+	
+	VSP-8284XSQ:1#{ERS}%
+</pre>
+<p>The reload option will re-read the dictionary file. This is handy if translations have been edited in the dictionary file and it is desired to simply update those definitions in the ACLI session. The dictionary script will also get re-executed, but the script itself can be written so as to decide what to do, or not to do, upon reload. Note that dictionary variables will not be cleared by a reload.</p>
+<p>To completely unload a dictionary file, and clear out all dictionary variables use the <i>@dictionary unload</i> embedded command:</p>
+<pre>
+	VSP-8284XSQ:1#{ERS}% @dictionary unload
+	VSP-8284XSQ:1#%
+</pre>
+
+
+
+<div class="section" id="Dictionary File Structure">
+<h2>Dictionary File Structure</h2>
+
+<p>Dictionary files need to be edited with a specific structure and syntax. Much of the dictionary functionality was built re-using the ACLI alias functionality, so in many respects the syntax of dictionary files is similar to that of an alias file. Much of what documented in this section can also be found in the actual dictionary files shipped with ACLI.</p>
+<p>Lines commencing with '#' are comment lines and are ignored. In dictionary files, comments can also be placed at the end of valid lines.</p>
+<p>There are four parts to a dictionary file:</p>
+<ol>
+	<li><b>Description:</b> This should be the very first commented line; this line will show when executing <i>@dictionary list</i></li>
+	<li><b>Dictionary version:</b> This should follow the first line providing a version for the dictionary file in format: <i># Version = &lt;version&gt;</i>. The version number is shown when executing <i>@dictionary list</i> and, if the file was shipped with ACLI, used by the ACLI update script to determine if a newer version of this file exists</li>
+	<li><b>Script section:</b> Used to declare dictionary varialble scope and to execute an arbitrary script upon loading the dictionary file. This section will include all non-commented lines before line <b>DICT_BEGIN</b></li>
+	<li><b>Dictionary section:</b> Section where every dictionary command is defined with its possible translations. This section will include all non-commented lines after line <b>DICT_BEGIN</b></li>
+</ol>
+
+<p>The script section can contain an ACLI script which will get executed when the dictionary file is first loaded and also when reloaded. The dictionary functionality sets aside a dedicated scope of ACLI variables which are needed to remember and store configuration information which cannot be immediately translated on the target lingo until subsequent input commands are entered. Also in some cases there are different ways to translate certain commands, depending on the desired target configuration. The dictionary script can thus both examine the connected device as well as take input from the user (when the dictionary file is loaded) and set any necessary dictionary variables to ensure proper translation of dictionary commands. Dictionary variables will be discussed in a section below.</p>
+
+<p>The Dictionary section syntax will consits of a series of:</p>
+<ul>
+	<li>Line with no spaces or tab prepended; this line is where a dictionary command is defined with all of its valid input syntax</li>
+	<li>Then, on subsequent lines, a number of translation commands based on certain conditions. These translation lines must start with space or tab (i.e. indentation)</li>
+</ul>
+<p>Additionally a special line <i>DICT_COMMENT_LINE = "&lt;single-character&gt;"</i> can be included to identify what character is used by the dictionary device to designate comment lines. As you might be pasting/sourcing config files from that device, we need the dictionary to know how to ignore comment lines.</p>
+<p>If an invalid syntax is detected, ACLI will throw an error when trying to load the dictionary.</p>
+
+<p>Dictionary command syntax:</p>
+<ul>
+	<li>Enter dictionary command fully expanded and with all mandatory and optional sections listed in the right order. The defined syntax should cover the config lines as produced by the original device in its own generated config file and can also cover other config variants if the dictionary is expected to help interactively with processing them.</li>
+	<li>Optional sections can be enclosed in square brackets []</li>
+	<li>Arguments can be enclosed in &lt:&gt; by including the argument name inside &lt:&gt; and followed by valid argument syntax after ":". Example (must not start with any spaces):</li>
+</ul>
+<pre>
+	vlan ports &lt;ports&gt; pvid &lt;pvid:1-4094&gt; [filter-untagged-frame &lt;filtUntag:enable,disable&gt;]
+</pre>
+<p>Dictionary command argument syntax:</p>
+<ul>
+	<li><b>&lt;name&gt;:</b> Argument variable which will accepts any string</li>
+	<li><b>&lt;name:1-10&gt;:</b> Argument variable which will accept a number between 1 and 10</li>
+	<li><b>&lt;name:1-10,&gt;:</b> Argument variable which will accept a list and/or range of numbers where all numbers must be between 1 and 10</li>
+	<li><b>&lt;name:value1,value2,etc&gt;:</b> Argument variable which will accept only discrete values: "value1" or "value2" or ect..</li>
+	<li><b>&lt;port&gt;:</b> When name = 'port', the argument variable only accepts a single valid port for the connected host (or in the defined input port range)</li>
+	<li><b>&lt;ports&gt;:</b> When name = 'ports', the argument variable accepts a list and/or range of valid ports for the connected host (or in the defined input port range)</li>
+</ul>
+
+<p>Translation lines must follow each dictionary command, and must be indented (start with space or tab). These lines always have 2 fields, in one of these 2 formats:</p>
+<ul>
+	<li>&lt;condition_field&gt; = &lt;translation for dictionary command if condition_field is true&gt;</li>
+	<li>&lt;condition_field&gt; = &&lt;instruction&gt; [&lt;input based on instruction; can be in double quotes&gt;]</li>
+</ul>
+<p>The condition field can contain any of Control::CLI:Extreme attributes in {} brackets. You can find available attributes here: <a href=https://metacpan.org/pod/Control::CLI::Extreme#Main-I/O-Object-Methods>https://metacpan.org/pod/Control::CLI::Extreme#Main-I/O-Object-Methods</a> see: attribute() - Return device attribute value.</p>
+<p>The condition field can also contain the &lt;argument&gt; values entered by user in the dictionary command. The condition field is evaluated as a regular perl expression, after making the above {attribute} & &lt;argument&gt; replacements. Condition fields are evaluated in order, until one evaluates to true. Once a condition field evaluates to true, the dictionary command is translated accordingly. If no condition field evaluates to true, then you get a message on the terminal indicating no translation was found for the command.</p>
+<p>The translation command is the actual command which ACLI will send to the connected switch if the condition_field evaluates to true. The &lt;argument&gt; values can of course be embedded in the command supplied here. If dealing with an optional &lt;argument&gt; this should again be encloded in square brackets '[]' which can also include a portion of the final CLI command. Also, if using logical operators to verify the setting of an optional &lt;argument&gt; it is best to first assign the &lt;argument&gt; to a variable and then use that variable in the logical operators; this is because an empty variable will be replaced with empty quotes (''), whereas a non-set &lt;argument&gt; will be replaced with nothing.</p>
+<p>In the first syntax above, you can chain multiple commands to send to the switch with semicolons (;) and you can also separate these commands over multiple lines provided that every line begins with one or more space/tab characters and the first non-space character is a semicolon (;) followed by a command.</p>
+<p>It is also possible to request alternative actions using the &&lt;instruction&gt; format. The following instructions are supported:</p>
+<ul>
+	<li><b>&ignore ["optional text to print"] : </b>Do not send the command to the connected host; optionally print a message instead</li>
+	<li><b>&error ["optional text to print"] : </b>Stop sourcing and optionally print a message to alert user to a problem</li>
+	<li><b>&same : </b>For some target product families, the command is the same and requires no translation. This instruction can also be part of a larger translation script, i.e. within a semicolon list of commands supplied in the first syntax above.</li>
+</ul>
+
+
+
+<div class="section" id="Dictionary Variables">
+<h2>Dictionary Variables</h2>
+
+<p>ACLI reserves a special context for dictionary variables. Any variable set inside the dictionary file script, or set by any translation of a dictionary command will be saved in the dictionary scope. These variables can easily be inspected using the new <i>@vars show dictionary</i> embedded command (but will remain hidden and not visible when invoking <i>@vars</i>, <i>@vars show</i> or <i>@$</i>):</p>
+<pre>
+	VSP-8284XSQ:1#{ERS}% @vars show dictionary
+	
+	$dct_DefaultVlan   = 4048
+	$dct_UniMode       = 1
+	
+	VSP-8284XSQ:1#{ERS}%
+</pre>
+<p>These variables can be used like any other ACLI variable, but will typically only be used and called by dictionary translation commands.</p>
+<p>The same global name space is however used for all ACLI variables. Which means a variable name is unique and can be "tagged" as used by the dictionary functionality or not.</p>
+<p>In order to clearly distinguish dictionary variables (from regular variables), it is best to give them a well defined prefix. For this reason a <i>@my &lt;prefix&gt;</i> can be included in the script section of the dictionary file itself. The supplied ERS dictionary file has this statement:</p>
+<pre>
+	@my $dct_*
+</pre>
+<p>If a <i>@my</i> scope was defined in the dictionary file, then dictionary variables can be written inside the dictionary file using the shorthand notation <i>$*name</i>. When the dictionary file is parsed and loaded, any variables in that format will automatically be converted to <i>$&lt;my-prefix&gt;name</i>. Hence our <i>$*name</i> variable will become <i>$dct_name</i>.</p>
+
+
+
+<div class="section" id="Using Dictionary Files">
+<h2>Using Dictionary Files</h2>
+
+<p>In this section we are going to see how dictionary files can be used in practice. We will use the ERS dictionary supplied with ACLI.</p>
+<p>We will use an ACLI connection into the VOSS VM, which emulates a VSP8242XSQ. When the ERS dictionary file is first loaded we will get the following:</p>
+<pre>
+	VSP-8284XSQ:1#% @dictionary load ers
+	Loading dictionary file: C:\Users\lstevens\Scripts\acli\ers.dict
+	
+	Sourcing ERS Dictionary script
+	
+	Which VSP UNI config will apply for dictionary translations; CVLAN-UNI (1) or Switched-UNI (2) ? Enter 1 or 2 : 1
+	VSP-8284XSQ:1#{ERS}%
+</pre>
+<p>There is a huge difference on how VLANs are configured on VOSS ports between CVLAN-UNI and Flex-UNI Switched-UNI. The script embedded in the ERS dictionary file gets executed when the dictionary file is loaded. Currently that script checks to see whether the connected VOSS switch is a DVR Leaf, and if so, then will automatically assume the mode to use will be Switched-UNI. However if the switch is not a DVR Leaf, there is no way to know which mode should be used, hence the user is asked to choose. In these examples we shall choose the simpler CVLAN-UNI option.</p>
+<pre>
+	VSP-8284XSQ:1#{ERS}% @vars show dictionary
+	
+	$dct_DefaultVlan   = 4048
+	$dct_UniMode       = 1
+	
+	VSP-8284XSQ:1#{ERS}%
+</pre>
+<p>Inspection of the dictionary variables after loading the ERS dictionary will show that a couple of variables have been set. The UNI mode, detected or selected by the user, has been stored in one variable. And another variable has been set with whatever default VLAN is in use on the connected VSP (this could be 1 or 4048, depending on which default mode the VSP was booted into).</p>
+<p>In parallel we will also use a pseudo terminal emulating an XOS switch:</p>
+<pre>
+	PSEUDO#% @pseudo list
+	Available Saved Pseudo Terminals:
+	
+	   Name                   Origin    Family Type  Port Range
+	   --------------------   -------   -----------  ----------
+	   5520-48W-VIM-EXOS      private   ExtremeXOS   1-52
+	   5520-48W-VIM-VOSS      private   PassportERS  1/1-1/48,2/1-2/4
+	   X460G2                 private   ExtremeXOS
+	
+	PSEUDO#% @pseudo load 5520-48W-VIM-EXOS
+	Loading var file C:\Users\lstevens\.acli\.vars\pseudo.5520-48W-VIM-EXOS.vars
+	
+	5520-48W-EXOS#% @pseudo info
+	
+	        Pseudo Terminal     : enabled
+	        Pseudo Name/Id      : 5520-48W-VIM-EXOS
+	        Pseudo Prompt       : 5520-48W-EXOS#
+	        Pseudo Command Echo : disabled
+	        Pseudo Family Type  : ExtremeXOS
+	        Pseudo ACLI/NNCLI   : No
+	        Pseudo Port Range   : 1-52
+	
+	5520-48W-EXOS#%
+</pre>
+<p>Note, there is no switch connected in pseudo mode, so using the dictionary functionality here will result in an offline translation without any validation of the correctness of it.</p>
+<p>The pseudo port-range is set to match the valid ports of the emulated XOS device and this port range will be enforced when entering dictionary commands with the &lt;port&gt; and &lt;ports&gt; arguments.</p>
+<pre>
+	5520-48W-EXOS#% @dictionary load ers
+	Loading dictionary file: C:\Users\lstevens\Scripts\acli\ers.dict
+	
+	5520-48W-EXOS#{ERS}% @echo off output off
+	Sourcing ERS Dictionary script
+	
+	5520-48W-EXOS#{ERS}%	
+</pre>
+<p>When the same ERS dictionary file is loaded for an XOS switch, the same embedded script will not request any user input, as on XOS there is no ambiguity on how VLANs can be configured on ports.</p>
+
+<p>We shall now create a couple of VLANs, set the tagging mode on a test port and then set those VLANs on that test port, all done using the same commands which would be used if we were connected to an ERS switch.</p>
+<p>We shall first enter configuration context:</p>
+<p>
+<img src="../images/dict-config-vsp.png" />
+</p>
+<p>
+<img src="../images/dict-config-xos.png" />
+</p>
+<p>Notice that when partially entering commands and hitting the question mark (?) if the syntax is found valid under the loaded dictionary command, this syntax will be shown and will precede whatever syntax the attached switch might accept. The dictionary syntax is highlighted, to be better visible. In the pseudo terminal case there is no connected switch, so only the dictionary syntax will be offered, if applicable. Hitting the Tab key will also result in the command getting expanded to match avaialble dictionary or connected switch commands. Note that if a valid dictionary command is found, this will trump any equivalent command on the connected switch.</p>
+<p>Let us inspect the relevant dictionary translation in the ERS dictionary file:</p>
+<pre>
+	configure terminal
+		{is_voss}	= &same		# This definition can also be omitted..
+		{is_xos}	= &ignore
+</pre>
+<p>On a VOSS system, the same command will be passed along, hence the <i>&same</i> instruction. Note how the VSP did enter configuration context.</p>
+<p>Whereas on an XOS switch there is no configuration context, hence the <i>&ignore</i> instruction. So on the XOS switch the command is simply ignored (if a real XOS switch was connected, i.e. not pseudo terminal, then nothing would have been sent to the switch).</p>
+<p>The ERS dictionary files can also be used by simply copy-pasting a full ERS config, so any ERS command will need a translation, even for commands which do not map to anything on the connected switch.</p>
+
+<p>Next we shall create a couple of VLANs, using the ERS command syntax:</p>
+<pre>
+VSP-8284XSQ:1(config)#{ERS}% vlan create ?
+	ERS dictionary available syntax
+	  &lt;vids:2-4094,&gt;
+	
+	VSP-8284XSQ:1(config)#{ERS}% vlan create ?
+	  &lt;2-4059&gt;           Vlan id
+	VSP-8284XSQ:1(config)#{ERS}% vlan create
+</pre>
+<p>Note the 'vlan create' syntax exists on both the ERS dictionary and the connected VSP, alas the former can take a list/range of VLAN ids, whereas the VSP can only take a single VLAN id. Let's enter a VLAN list:</p>
+<pre>
+VSP-8284XSQ:1(config)#{ERS}% vlan create 10,11 ?
+	ERS dictionary available syntax
+	  type
+	
+	VSP-8284XSQ:1(config)#{ERS}% vlan create 10,11 ?
+	                                         ^
+	% Invalid input detected at '^' marker.
+	VSP-8284XSQ:1(config)#{ERS}% vlan create 10,11
+</pre>
+<p>Note that the connected VSP is not happy anymore with the syntax of what we have entered on the prompt. But the syntax remains valid for the ERS dictionary, so we can continue entering the command (and hitting Tab key to automatically expand command options):</p>
+<pre>
+VSP-8284XSQ:1(config)#{ERS}% vlan create 10,11 type port ?
+	ERS dictionary available syntax
+	  &lt;cr&gt;
+	  cist
+	  &lt;inst:1-8&gt;
+	  &lt;vvln:voice-vlan&gt;
+	
+	VSP-8284XSQ:1(config)#{ERS}% vlan create 10,11 type port ?
+	                                         ^
+	% Invalid input detected at '^' marker.
+	VSP-8284XSQ:1(config)#{ERS}% vlan create 10,11 type port
+	VSP-8284XSQ:1(config)#{ERS}% vlan create %s type port-mstprstp 0 &'10,11
+	VSP-8284XSQ:1(config)#{ERS}% vlan create 10 type port-mstprstp 0
+	VSP-8284XSQ:1(config)#{ERS}% vlan create 11 type port-mstprstp 0
+	VSP-8284XSQ:1(config)#{ERS}%
+</pre>
+<p>We entered the command <i>'vlan create 10,11 type port'</i> and the resulting dictionary translation provided the necessary command (or script) to create our VLAN list.</p>
+<p>Likewise on our XOS pseudo terminal:</p>
+<pre>
+	5520-48W-EXOS#{ERS}% vlan create 10,11 type port ?
+	ERS dictionary available syntax
+	  &lt;cr&gt;
+	  cist
+	  &lt;vvln:voice-vlan&gt;
+	  &lt;inst:1-8&gt;
+	
+	5520-48W-EXOS#{ERS}% vlan create 10,11 type port
+	          dict{ERS}% create vlan %s &'10,11
+	5520-48W-EXOS#{ERS}% create vlan 10
+	5520-48W-EXOS#{ERS}% create vlan 11
+	5520-48W-EXOS#{ERS}%
+</pre>
+<p>And if we look at the relevant command in the ERS dictionary file:</p>
+<pre>
+	vlan create &lt;vids:2-4094,&gt; type port [cist] [&lt;inst:1-8&gt;] [&lt;vvln:voice-vlan&gt;]	# We throw &lt;inst&gt; away as we don't care
+		{is_voss}	= @if $*UniMode eq "1"
+				; 	vlan create %s type port-mstprstp 0 &'&lt;vids&gt;
+				; @endif
+				; @if "&lt;vvln&gt;"; $*VoiceVlan = &lt;vids&gt;; @endif	# &lt;vids&gt; single value if voice-vlan
+		{is_xos}	= create vlan %s &'&lt;vids&gt;
+</pre>
+
+<p>Next we shall set a port a tagged:</p>
+<pre>
+	VSP-8284XSQ:1(config)#{ERS}% vlan ports 1/1 tagging tagAll ?
+	ERS dictionary available syntax
+	  <cr>
+	  filter-untagged-frame
+	
+	VSP-8284XSQ:1(config)#{ERS}% vlan ports 1/1 tagging tagAll ?
+	  <cr>
+	
+	VSP-8284XSQ:1(config)#{ERS}% vlan ports 1/1 tagging tagAll
+	VSP-8284XSQ:1(config)#{ERS}% vlan ports 1/1 tagging tagAll
+	VSP-8284XSQ:1(config)#{ERS}%
+</pre>
+<pre>
+	5520-48W-EXOS#{ERS}% vlan ports 1/1 tagging tagAll
+	
+	$dct_PortTag{1}    = tagged
+	
+	5520-48W-EXOS#{ERS}%
+</pre>
+<p>The same command entered seems to get executed a second time on the VSP. Whereas a variable is simply set on XOS. Let us look at the relevant dictionary entry:</p>
+<pre>
+	vlan ports <ports> tagging tagAll
+		{is_voss}	= @if $*UniMode eq "1"  # CVLAN-UNI
+				; 	&same		# VOSS has this ERS command
+				; @else  # SW-UNI
+				; 	@for $*port &'<ports>
+				; 		$*PortTag{$*port} = tagged
+				; 	@endfor
+				; 	vlan members remove $*DefaultVlan <ports>
+				; 	interface gigabitEthernet <ports>
+				; 	   no private-vlan
+				;	   @error disable
+				; 	   flex-uni enable
+				;	   @error enable
+				; 	exit
+				; @endif
+		{is_xos}	= @for $*port &'<ports>
+				; 	$*PortTag{$*port} = tagged
+				; @endfor
+</pre>
+<p>In the VSP case, the <i>&same</i> instruction results in the same ERS dictionary command being re-used, since VOSS has the same syntax available. In the XOS case, there is no way to configure an XOS port for Q-tagging. Only when VLANs are added to an XOS port is the tagging mode set. So we simply have to remember that when adding to this port we will have to tag those VLANs, so we set a variable to remember that.</p>
+
+<p>And so we shall add our VLANs 10 & 11 onto our tagged port 1/1:</p>
+<pre>
+	VSP-8284XSQ:1(config)#{ERS}% vlan members add 10,11 1/1
+	VSP-8284XSQ:1(config)#{ERS}% vlan members remove $dct_DefaultVlan 1/1
+	                  vars{ERS}% vlan members remove 4048 1/1
+	VSP-8284XSQ:1(config)#{ERS}% interface gigabitEthernet 1/1
+	VSP-8284XSQ:1(config-if)#{ERS}% no private-vlan
+	VSP-8284XSQ:1(config-if)#{ERS}% exit
+	VSP-8284XSQ:1(config)#{ERS}% vlan members add %s 1/1 &'10,11
+	VSP-8284XSQ:1(config)#{ERS}% vlan members add 10 1/1
+	VSP-8284XSQ:1(config)#{ERS}% vlan members add 11 1/1
+	VSP-8284XSQ:1(config)#{ERS}%
+</pre>
+<pre>
+	5520-48W-EXOS#{ERS}% vlan members add 10,11 1/1
+	5520-48W-EXOS#{ERS}% configure vlan $dct_vlan add ports $dct_port tagged
+	          vars{ERS}% configure vlan 10 add ports 1 tagged
+	5520-48W-EXOS#{ERS}% configure vlan $dct_vlan add ports $dct_port tagged
+	          vars{ERS}% configure vlan 11 add ports 1 tagged
+	5520-48W-EXOS#{ERS}%
+</pre>
+<p>The first command was entered, the following commands happened on their own (dictionary command translated to a script). In the XOS case note how both VLANs are added as 'tagged' on our port 1/1. This is correct since we configured that port earlier as a 'tagAll' port.</p>
+<p>The relevant dictionary entry (partially trimmed) follows:</p>
+<pre>
+	vlan members [add] <vids:1-4094,> <ports>
+		{is_voss}	= @if $*UniMode eq "1"  # CVLAN-UNI
+				; 	@if $*DefaultVlan == 4048
+				; 		vlan members remove $*DefaultVlan <ports>
+				; 		interface gigabitEthernet <ports>
+				; 		   no private-vlan
+				; 		exit
+				; 	@endif
+				; 	vlan members add %s <ports> &'<vids>
+				; @else  # SW-UNI
+					[...omitted...]
+				; @endif
+		{is_xos}	= @for $*vlan &'<vids>
+				; 	@for $*port &'<ports>
+				; 		@if $*PortTag{$*port} eq 'tagged'
+				; 			configure vlan $*vlan add ports $*port tagged
+				; 		@elsif $*PortTag{$*port} eq 'untagPvid'
+				; 			@for $*port &'<ports>
+				; 				@if !$*PortPvid{$*port}
+				; 					@printf "Please configure port %s PVID before the vlan port members", $*port
+				; 					@exit
+				; 				@endif
+				; 				@if $*PortPvid{$*port} eq $*vlan
+				; 					configure vlan $*vlan add ports $*port untagged
+				; 				@else
+				; 					configure vlan $*vlan add ports $*port tagged
+				; 				@endif
+				; 			@endfor
+				; 		@else  # We assume 'untagged' even if this was not set
+				; 			configure vlan $*vlan add ports $*port untagged
+				; 		@endif
+				; 	@endfor
+				; @endfor
+	
+</pre>
+<p>There are a couple of points to note here. For both VOSS and XOS the translation is an ACLI script. However when we executed the commands above, the only commands which became visible were the actual config commands sent to the switch (or pseudo terminal); the <i>@if</i>, <i>@else</i>, <i>@endif</i>, etc.. embedded commands were not echoed at all, which helps reduce the output clutter and gives a better idea of what the translation actually is. This behaviour is achieved via two settings.</p>
+<p>The first one is the dictionary echo mode, which by default is set to <i>'single'</i>:</p>
+<pre>
+	VSP-8284XSQ:1(config)#{ERS}% @dictionary echo ?
+	Syntax: @dictionary echo always|disable|single
+</pre>
+<p>Other ACLI functions, such as alias, variables, history, also have an echo mode, but this is either <i>'enable'</i> or <i>'disable'</i>. For dictionary echo mode we have:</p>
+<ul>
+	<li><b>always:</b> Dictionary command translation is always echoed</li>
+	<li><b>disable:</b> Dictionary command translation is never echoed</li>
+	<li><b>single:</b> Dictionary command translation is only echoed if the translation is a single command; it is not echoed if the translation is a semicolon fragmented list of commands (i.e. a script, which would be quite lengthy to print out and would wrap over several lines)</li>
+</ul>
+<p>The second one is a new setting for the <i>@echo</i> embedded command: <i>@echo sent</i></p>
+<pre>
+	VSP-8284XSQ:1(config)#{ERS}% @echo ?
+	Syntax: @echo info|off|on|sent
+	
+	VSP-8284XSQ:1(config)#{ERS}% @echo info
+	
+	Echo of commands & prompts : sent
+	Echo of command output     : on
+	
+	VSP-8284XSQ:1(config)#{ERS}%
+</pre>
+<p>When the <i>@echo</i> mode is off, and ACLI is in scripting/sourcing mode, then commads sent are not echoed to the terminal. In the new <i>'sent'</i> mode, a distinction is made between real commands which get sent to the connected device (these are echoed) whereas embedded commands (like flow control embedded commands <i>@if</i>, <i>@else</i>, <i>@endif</i>, etc..) are not echoed. The ERS dictionary file embedded script will automatically enable <i>@echo sent</i></p>
+
+
+
+<div class="section" id="Dictionary Port-ranges">
+<h2>Dictionary Port-ranges</h2>
+
+<p>In the previous section we have seen how the ERS dictionary allows us to accept and translate ERS config commands on either a VSP or an XOS. However when entering commands which configure ports, the port number supplied was always a valid port number on the connected VOSS or XOS device. This becomes a challenge if one wants to simply copy-paste a configuration snippet from an ERS switch (which will not have slot-based port numbers) or a stack (which could have port numbers across slots 1 to 8, depending on stack size), since the ERS port numbers might not directly map to the target VSP or XOS switch.</p>
+<p>For this reason it is possible to configure the dictionary functionality with the accepted input port-range to use with dictionary translations, using the <i>@dictionary port-range</i> embedded command.</p>
+<p>For example, imagine we wanted to convert an ERS4950GTS standalone config and we know that such an ERS has 1-48 copper ports and 49-50 as SFP+ ports.</p>
+<pre>
+	VSP-8284XSQ:1(config)#{ERS}% @dictionary port-range input 1-50
+	
+	Input Port Range  : 1-50 (50 ports)
+	Mapped Host Ports : 1/1-1/42,2/1-2/8 (50 ports)
+	Unused Host Ports : 2/9-2/42 (34 ports)
+	
+	VSP-8284XSQ:1(config)#{ERS}%
+</pre>
+<p>On our VSP, setting an input port-range to 1-50, immediately maps those ports to the 1st 50 ports available on the connected VSP. In this case we are using the VOSS VM, which is a VSP8284XSQ which has 42 ports acrosss 2 slots. The actual port mapping can be displayed with <i>@dictionary port-range info</i>:</p>
+<pre>
+	VSP-8284XSQ:1(config)#{ERS}% @dictionary port-range info
+	
+	Input Port Range  : 1-50 (50 ports)
+	Mapped Host Ports : 1/1-1/42,2/1-2/8 (50 ports)
+	Unused Host Ports : 2/9-2/42 (34 ports)
+	Mapping detail    :
+	                     1 => 1/1
+	                     2 => 1/2
+	                     3 => 1/3
+	                     4 => 1/4
+	                     5 => 1/5
+	                     6 => 1/6
+	[...]
+	                    40 => 1/40
+	                    41 => 1/41
+	                    42 => 1/42
+	                    43 => 2/1
+	                    44 => 2/2
+	                    45 => 2/3
+	                    46 => 2/4
+	                    47 => 2/5
+	                    48 => 2/6
+	                    49 => 2/7
+	                    50 => 2/8
+	
+	VSP-8284XSQ:1(config)#{ERS}%
+</pre>
+<p>Now, if we were to paste an ERS config command, with the ERS original port numbers, we would get this:</p>
+<pre>
+	VSP-8284XSQ:1(config)#{ERS}% vlan ports 43 tagging tagAll
+	VSP-8284XSQ:1(config)#{ERS}% vlan ports 2/1 tagging tagAll
+	VSP-8284XSQ:1(config)#{ERS}%
+</pre>
+<p>Notice how port 43 was automatically converted to 2/1.</p>
+<p>In the case of an ERS stack, let us imagine we have an ERS stack of 4 config. So we can modify our XOS pseude terminal to build an equivalent stack of 4 5520 units:</p>
+<pre>
+	5520-48W-EXOS#{ERS}% @pseudo port-range 1/1-52,2/1-52,3/1-52,4/1-52
+	
+	Port Range: 1:1-52,2:1-52,3:1-52,4:1-52
+	
+	5520-48W-EXOS#{ERS}% @pseudo info
+	
+	        Pseudo Terminal     : enabled
+	        Pseudo Name/Id      : 5520-48W-VIM-EXOS
+	        Pseudo Prompt       : 5520-48W-EXOS#
+	        Pseudo Command Echo : disabled
+	        Pseudo Family Type  : ExtremeXOS
+	        Pseudo ACLI/NNCLI   : No
+	        Pseudo Port Range   : 1:1-52,2:1-52,3:1-52,4:1-52
+	
+	5520-48W-EXOS#{ERS}%
+</pre>
+<p>Now, we can simply map in the ERS 4 unit stack port-range:</p>
+<pre>
+	5520-48W-EXOS#{ERS}% @dictionary port-range input 1/1-50,2/1-50,3/1-50,4/1-50
+	
+	Input Port Range  : 1:1-50,2:1-50,3:1-50,4:1-50 (200 ports)
+	Mapped Host Ports : 1:1-52,2:1-52,3:1-52,4:1-44 (200 ports)
+	Unused Host Ports : 4:45-52 (8 ports)
+	
+	5520-48W-EXOS#{ERS}%
+</pre>
+<p>But the default mapping is not in synch, because an ERS4950 has 48+2 ports whereas a 5520+VIM has 48+4. So assuming we would want the ERS uplink ports 49&50 to be in sych with the 5520 last 2 VIM ports, we now have to rejig the dictionary output mapping port-range like this:</p>
+<pre>
+	5520-48W-EXOS#{ERS}% @dictionary port-range mapping 1:1-48,1:51-52,2:1-48,2:51-52,3:1-48,3:51-52,4:1-48,4:51-52
+	
+	Input Port Range  : 1:1-50,2:1-50,3:1-50,4:1-50 (200 ports)
+	Mapped Host Ports : 1:1-48,1:51-52,2:1-48,2:51-52,3:1-48,3:51-52,4:1-48,4:51-52 (200 ports)
+	Unused Host Ports : 1:49-50,2:49-50,3:49-50,4:49-50 (8 ports)
+	
+	5520-48W-EXOS#{ERS}%
+</pre>
+<p>The above approach works ok on XOS, which does support stacks like the ERS did. However it won't help if the ERS stack config needs to be converted to XOS smaller stacks or standalone switch, or to VOSS which simply cannot satck. In this case the approach to use is to parse the same ERS stack config several times, once for every subset of ports we need to convert. For example, lets assume we still have an ERS4950 4-unit stack config, and we want to convert this to 4 separate 5520 running VOSS.</p>
+<p>We here use a pseudo terminal set to a 5520 in VOSS mode with a 4-port VIM fitted:</p>
+<pre>
+	5520-24W#% @pseudo info
+	
+	        Pseudo Terminal     : enabled
+	        Pseudo Name/Id      : 5520-48W-VIM-VOSS
+	        Pseudo Prompt       : 5520-24W#
+	        Pseudo Command Echo : disabled
+	        Pseudo Family Type  : PassportERS
+	        Pseudo ACLI/NNCLI   : Yes
+	        Pseudo Port Range   : 1/1-1/48,2/1-2/4
+	
+	5520-24W#%
+</pre>
+<p>Let's assume that we will start by mapping ERS unit 4 ports to start with:</p>
+<pre>
+	5520-24W#{ERS}% @dictionary port-range input 4/1-50
+	
+	Input Port Range  : 4/1-4/50 (50 ports)
+	Mapped Host Ports : 1/1-1/48,2/1-2/2 (50 ports)
+	Unused Host Ports : 2/3-2/4 (2 ports)
+	
+	5520-24W#{ERS}%
+</pre>
+<p>So we start copy-pasting the ERS port config snippet into the ACLI terminal and we will get only a translation for those slot 4 ports:</p>
+<pre>
+	5520-24W#{ERS}% vlan ports 1/49-50,4/49-50 tagging tagAll
+	5520-24W#{ERS}% vlan ports 2/1-2/2 tagging tagAll
+	5520-24W#{ERS}%
+</pre>
+<p>Notice how only the slot 4 ports get converted. And if we did have some commands which configure ports completely outside of the accepted input port-range, those commads wil lbe simply ignored (with a warning message):</p>
+<pre>
+	5520-24W#{ERS}% vlan ports 1/1-5,2/1-5 tagging unTagPvidOnly
+	Ignoring dictionary command due to empty <port(s)> after applying dictionary input port-range
+	5520-24W#{ERS}%
+</pre>
+<p>So we basically will have to paste the same ERS port config snippet, 4 times, one for every slot we need to convert, each time specifying the appropriate input port-range to map.</p>
+
+
+
+<div class="section" id="Converting configs with a loaded Dictionary">
+<h2>Converting configs with a loaded Dictionary</h2>
+
+<p>The ACLI dictionaries can be used by entering input ERS commands one at a time. But can also be used to convert larger config snippets in one shot, and then recovering the translated commands. There are two ways to source the input configs: either using the embedded <i>@source</i> command or simply copy-pasting the sections to translate into the ACLI terminal.</p>
+<p>If any errors are encountered during the translation, the ACLI sourcing mode will immediately pause, as usual. This will allow you to correct/adjust the failed command and then <i>@resume</i> execution from exactly where it had stopped. If using a pseudo terminal, no errors will be seen with the conversions (as no real switch is connected to validate the translated commands). However, if a dictionary file is loaded and sourcing commands, the pseudo terminal will halt execution if it reaches a command which did not have any translation in the dictionary file. This can help spot commands not covered by the dictionary file, even if in pseudo mode.</p>
+<p>So the general approach will be the following:</p>
+<ol>
+	<li>Load the dictionary file: <i>@dictionary load &lt;name&gt;</i></li>
+	<li>Set the valid input port-range to convert: <i>@dictionary port-range</i></li>
+	<li>Clear the no errors history: <i>@history clear no-error-device</i></li>
+	<li>Either <i>@source</i> the config file, or copy-paste the snippets to convert directly into ACLI</li>
+	<li>If errors are encountered, the sourcing will immediately stop; in this case correct the errors and <i>@resume</i> the sourcing</li>
+	<li>Once all commands have been converted, capture to file the translated config using: <i>@history no-error-device > &lt;filename&gt;</i>, as in example below</li>
+</ol>
+<pre>
+	5520-24W#{ERS}% @pwd
+	
+	Working directory is:
+	C:\Users\lstevens\Scripts\acli\working-dir
+	
+	5520-24W#{ERS}% @history no-error-device > converted.cfg
+	
+	acli-dev.pl: Saving output .done
+	acli-dev.pl: Output saved to:
+	C:\Users\lstevens\Scripts\acli\working-dir\converted.cfg
+	
+	5520-24W#{ERS}%
+</pre>
+
+</BODY>
+</HTML>
