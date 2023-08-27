@@ -31,4 +31,4 @@ The main features are:
 * Ability to cache and automatically re-use device passwords which might be required everytime one access debug/shell; passwords can be cached per device or per family type
 * ACLI Session Manager application, by Marlon Scheid, is included in the ACLI Windows installer
 
-ACLI Terminal is written in Perl and is distributed with ConsoleZ (FreeWare) which is an improved DOS box window for use on Microsoft Windows.
+ACLI Terminal is written in Perl. The Windows installer includes [ConsoleZ](https://github.com/cbucher/console) which is an improved DOS box window for use on Microsoft Windows.
