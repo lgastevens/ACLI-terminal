@@ -35,6 +35,8 @@ ACLI Terminal is written in Perl. The Windows installer includes [ConsoleZ](http
 
 # Change Log
 
+[Change log](https://github.com/lgastevens/ACLI-terminal/blob/main/Changes)
+
 1.00_019
 * Stackable message "Failed retries since last login" now shows on login
 * Command line -o switch was appending instead of over-writing
