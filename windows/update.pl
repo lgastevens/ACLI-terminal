@@ -42,7 +42,8 @@ my $Version = "1.21";
 # 1.18	Changed order of update servers; Internet link is tried first now.
 # 1.19	Updated AcliPm module file versions were incorrectly deducted from the Perl dist digests which was making the update impossible
 # 1.20	Updated to be able to read the version of a Visual Basic .vbs file, where the comment character is single quote "'"
-# 1.21	Added new Github URL and fixed HTTPS retrieval of updates
+# 1.21	Added new Github URL, removed old URLs, fixed HTTPS retrieval of updates, modified intaller download url for Github
+
 
 
 #############################
@@ -329,7 +330,14 @@ sub getFile {
 	}
 	elsif ($zipDown) {
 		my $url = $server; 
-		$url =~ s/\/updates\/?/\/downloads/;
+		if ($url =~ /github\.com/) { # New link for github
+			return unless $file =~ /(\d)(\d+)\.exe/;
+			my $ver = "v" . $1 . "." . $2;
+			$url =~ s/\/updates\/?/\/$ver/;
+		}
+		else { # As usual
+			$url =~ s/\/updates\/?/\/downloads/;
+		}
 		print "Trying $url/$file\nDownloading to folder $savePath\n";
 		return ftpGet($url, $file, $savePath) if $prot eq 'ftp';
 		return httpGet($url, $file, $savePath) if $prot eq 'http';
@@ -692,7 +700,7 @@ MAIN:{
 		}
 		print "  (R) - Rollback and reverse last update performed\n" if $rollbackFlag;
 		print "  (M) - Provide alternative URL where to pull updates\n";
-		print "  (D) - Download latest zip installation file\n" if $downloadFlag && $zipFilename;
+		print "  (D) - Download latest installer\n" if $downloadFlag && $zipFilename;
 		print "  (Q) - Quit\n\n";
 
 		my $validKeys = 'SMQ' . ($updateFlag ? 'U':'') . ($rollbackFlag ? 'R':'') . ($downloadFlag && $zipFilename ? 'D':'');
