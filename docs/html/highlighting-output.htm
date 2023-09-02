@@ -1,0 +1,34 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Highlighting Output</Title>
+</HEAD>
+<BODY>
+<h1>Highlighting Output</h1>
+<p>It is often hard to spot relevant information when a CLI command produces a lot of output. Of course grep can be used to filter out only lines matching a desired pattern, but in some cases lines preceding and/or following a given pattern can be equally valuable. A good example is when dumping the device's log file for a specific event and any other events leading up to it, or deriving from it.</p>
+<p>The ACLI terminal, in interactive mode, is capable of highlighting text in the output. To do so simply append to any command the <i>'^'</i> character followed by the patterns to match and highlight: <i>^ &lt;pattern&gt;</i></p>
+<p>
+<img src="../images/highlight.png" />
+</p>
+<p>Regular expressions can of course be used as the match pattern.</p>
+<p>By default the highlight is bright red. It can be customized to other standard ANSI colours using the embedded <i>@highlight</i> command or the <i>'highlight'</i> command under the ACLI control interface. Brightness, background, reverse and underline can also be customized.</p>
+<p>
+<img src="../images/highlight-knobs.png" />
+</p>
+<p>All these settings can also be modified in the acli.ini file using keys:</p>
+<ul>
+	<li><i>highlight_fg_colour_str</i></li>
+	<li><i>highlight_bg_colour_str</i></li>
+	<li><i>highlight_text_bright_flg</i></li>
+	<li><i>highlight_text_underline_flg</i></li>
+	<li><i>highlight_text_reverse_flg</i></li>
+</ul>
+
+<p>Note that if, under ConsoleZ Edit / Settings / Appearance / Font, you enable a "Custom color", the ACLI highlight capability will appear to not work anymore. This is because ConsoleZ is now re-colouring all output in the window to the new custom colour you have set there. If you want to change your default font colour, you should do this under the setting of your system's cmd window settings instead. To do this run a "cmd" regular DOS box, then right-click the window banner and select properties; select the colours tab and set the "screen text" colour here (ConsoleZ will then use that as default font colour and the highlighting feature will still work).</p>
+<p>
+<img src="../images/cmd-font-color.png" />
+</p>
+
+</BODY>
+</HTML>

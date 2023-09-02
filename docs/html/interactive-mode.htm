@@ -1,0 +1,112 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Interactive Mode</Title>
+</HEAD>
+<BODY>
+<h1>Interactive Mode</h1>
+
+<p>The value of the ACLI terminal is mostly in its interactive mode of operation, which is only available with a number of Extreme devices.</p>
+<p>To understand the ACLI interactive mode it is necessary to understand how a CLI terminal normally works.</p>
+<p>A terminal receives user input from the keyboard. The input consists of raw characters which are simply transferred to the connected host. The terminal also displays user output to the screen (terminal window) however any character that the user inputs is not directly displayed on the screen. The terminal will only display on the screen character/text output received from the connected host. What the user types on the keyboard input is only seen on the screen output because the connected host echoes back every character which is sent to it. This is true whether the connection is run over Telnet, SSH or Serial port.</p>
+<p>When ACLI connects to a device, it attempts to discover whether the host device is a supported Extreme Networks device. If so the terminal does a brief device discovery and enters interactive mode. (If you did not want the terminal to automatically attempt auto-discovery use the <i>-n</i> ACLI command line switch).</p>
+<p>The auto-discovery is necessary to detect the device's base MAC address and available ports as well as some other device attributes; among these is the device family type, CLI prompt and more prompt. Some of these settings are displayed on the terminal window during device discovery:</p>
+<pre>
+	EXTREME NETWORKS VOSS COMMAND LINE INTERFACE
+	
+	Login: rwa
+	Password: ***
+	
+	acli.pl: Detected an Extreme Networks device -> using terminal interactive mode
+	VSP-8284XSQ:1>% enable
+	acli.pl: Detecting device ...
+	acli.pl: Detected VSP-8284-XSQ (00-51-00-ca-e0-00) Single CPU system, 2 slots 84 ports
+	acli.pl: Use '^T' to toggle between interactive & transparent modes
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>Other settings can be viewed under the ACLI control interface using the <i>'terminal info'</i> command:</p>
+<pre>
+	ACLI> terminal info
+	acli.pl operational settings:
+	        AutoDetect Host Type    : enable
+	        Terminal Mode           : interact
+	        Host Capability Mode    : interact
+	        Host Type               : PassportERS
+	        Host Model              : VSP-8284-XSQ
+	        ACLI(NNCLI)             : yes
+	        Prompt Match            : 'VSP-8284XSQ:[12356](?:\((.+?)\))?[>#]'
+	        More Prompt Match       : '\n\x0d?--More-- \(q = quit\) |--More--'
+	        Suffix Prompt %         : enable
+	        Toggle CTRL character   : ^T
+	        Config indentation      : 3 space characters
+	        Host Error detection    : enable
+	        Host Error level        : error
+	        Keep Alive Timer        : 4 minutes
+	        Session Timeout         : 10 hours
+	        Connection Timeout      : 25 seconds
+	        Login Timeout           : 30 seconds
+	        Interact Timeout        : 15 seconds
+	        Newline sequence        : Carriage Return (CR)
+	        Negotiate Terminal Type : vt100
+	        Negotiate Window Size   : 132 x 24 (width/height)
+</pre>
+<p>Once in interactive mode the device's prompt is displayed with an appended '%' character and the ACLI terminal now operates as a command based terminal instead of a traditional character based terminal. In this mode, once the terminal has locked on a valid device prompt, any character typed by the user is not sent to the host, but is instead displayed on the terminal output/screen. Only once the user hits the enter key, the entered command is examined and then a decision is made as to what command is actually sent to the connected host. This is essentially the linchpin of many of the ACLI features and capabilities. For example, if the user specified some grep patterns on the submitted command, these are recorded but removed from the command before it is sent to the host (when the device output comes back, it can be processed to filter out only the output that matches the grep string); if any variables were embedded in the command, these can be replaced with the values they hold, before sending the command to the connected host; if the command matches a defined alias, then the appropriate command becomes whatever the alias refers to; and if the command is an embedded command (begins with '@') then the command is processed locally and nothing is sent to the connected host.</p>
+<p>Hitting the return key is not the only time that the ACLI terminal will send/interact with the connected device. Hitting the TAB key or the '?' key will also trigger the same on the underlying device; this integration is fairly complex as ACLI needs to do tab expansion or syntax checking against the connected device and, depending on output, update its local command buffers in a seamless way.</p>
+<p>To come out of interactive mode, simply hit CTRL-T which will toggle between interactive and transparent modes. The control sequence for toggling between interactive and transparent modes can be set either in the ACLI control interface or can be set in the <i>acli.ini</i> file (see ACLI ini file section).</p>
+<pre>
+	ACLI> ctrl info
+	CTRL characters:
+	        Escape character     : ^]
+	        Quit character       : ^Q
+	        Terminal mode toggle : ^T
+	        More paging toggle   : ^P
+	        Send Break           : ^S
+	        Debug                : ^[
+	ACLI>
+</pre>
+<p>There are a number of CTRL keys defined within ACLI interactive mode to help with command editing. These are inspired from what is typically available on connected devices, but are purely handled on the ACLI interactive terminal side:</p>
+<ul>
+	<li><b>CTRL-H</b> or <b>Backspace</b>: Deletes one character from the right; cursor moves one space towards the left.</li>
+	<li><b>CTRL-D</b> or <b>Delete</b>: Deletes one character from the left; cursor does not move, any remaining characters on the right are moved one space towards the left.</li>
+	<li><b>CTRL-B</b> or <b>Cursor-Left</b>: Moves the cursor one character to the left.</li>
+	<li><b>CTRL-F</b> or <b>Cursor-Right</b>: Moves the cursor one character to the right.</li>
+	<li><b>CTRL-P</b> or <b>Cursor-Up</b>: Recalls previous command from history of entered commands.</li>
+	<li><b>CTRL-N</b> or <b>Cursor-Down</b>: Recalls next command from history of entered commands.</li>
+	<li><b>CTRL-A</b>: Moves the cursor to the beginning of the line.</li>
+	<li><b>CTRL-E</b>: Moves the cursor to the end of the line.</li>
+	<li><b>CTRL-C</b> or <b>CTRL-U</b>: Deletes the line; clears the current prompt for a new command.</li>
+	<li><b>CTRL-K</b> or <b>CTRL-R</b>: Redisplays the current command line on the current prompt.</li>
+	<li><b>CTRL-W</b>: Deletes word left of cursor.</li>
+	<li><b>CTRL-X</b>: Deletes all characters left of cursor.</li>
+</ul>
+<p>Note that ConsoleZ can also reserve CTRL key sequences for its own use. If any of the above CTRL sequences is processed by ConsoleZ, then it will no longer be available to ACLI.</p>
+<p>Interactive mode is currently supported on the following devices:</p>
+<ul>
+	<li>Extreme Networks:<ul>
+		<li>VOSS: VSP Series switches</li>
+		<li>BOSS: ERS Series switches</li>
+		<li>XOS: Summit Series switches</li>
+		<li>SLX: Data Center switches</li>
+		<li>ISW industrial switches</li>
+		<li>Series200: models 210, 220</li>
+		<li>Wing: APs and Controllers</li>
+	</ul></li>
+	<li>Legacy Avaya:<ul>
+		<li>DSG white-label switches</li>
+		<li>ERS 8x00 Chassis</li>
+		<li>WLAN9100 Series</li>
+	</ul></li>
+	<li>Legacy Nortel:<ul>
+		<li>Passport 8000 Chassis</li>
+		<li>Metro-ERS 8000 Chassis</li>
+		<li>Secure Router Series</li>
+		<li>WLAN8100 Series</li>
+		<li>WLAN2300 Controllers</li>
+		<li>Baystack Series switches</li>
+	</ul></li>
+</ul>
+
+</BODY>
+</HTML>

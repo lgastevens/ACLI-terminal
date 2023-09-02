@@ -1,0 +1,79 @@
+INTRODUCTION
+============
+ACLI requires the following software in order to run on MACOS:
+- Perl compiled with multi-thread
+  (NOTE: the Perl which ships with MACOS is not compiled with threads, so cannot be used and should not be used anyway)
+- The following additional Perl modules (which are not normally included in Perlbrew):
+	- Net::Telnet
+	- Device::SerialPort
+	- Control::CLI
+	- Control::CLI::Extreme
+	- Control::CLI::AvayaData
+	- Net::Ping::External
+	- Module::Install
+	- Module::Install::CheckLib
+	- IO::Scalar
+	- Net::SSH2
+	- Net::TFTP
+	- IO::Callback
+	- Tk
+	- Tk::DoubleClick
+	- LWP::UserAgent
+	- Cpanel::JSON::XS
+	- Config::INI::Reader::Ordered
+	- LWP::Protocol::https
+	- IO::Socket::Multicast
+
+
+To meet the above requirements, you have to install all of the following:
+- Xcode, brings gcc which is required for building Perl with Perlbrew
+- Perlbrew, allows installing Perl; we need it to install a new Perl version with multi-thread support
+- Homebrew, allows installing packages which are not already provided on MACOS; we need it to install Libssh2
+- Libssh2, library required for Perl's Net::SSH2 module
+- XQuartz, X-Windows for MACOS, required for Perl's Tk module
+
+
+
+INTALL XCODE
+============
+Home-iMac:~ Ludovico$ xcode-select --install
+
+
+INSTALL PERL (see: https://perlbrew.pl/)
+========================================
+Home-iMac:~ Ludovico$ curl -L http://xrl.us/installperlosx | bash
+Home-iMac:~ Ludovico$ perlbrew install --as perl-5.28.0t -Dusethreads perl-5.28.0
+
+
+INSTALL LIBSSH2 (see: https://brew.sh/)
+=======================================
+Home-iMac:~ Ludovico$ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+Home-iMac:~ Ludovico$ brew install libssh2
+
+
+INSTALL PERL MODULES
+====================
+Home-iMac:~ Ludovico$ cpanm Net::Telnet
+Home-iMac:~ Ludovico$ cpanm Device::SerialPort
+Home-iMac:~ Ludovico$ cpanm Control::CLI
+Home-iMac:~ Ludovico$ cpanm Control::CLI::Extreme
+Home-iMac:~ Ludovico$ cpanm Control::CLI::AvayaData
+Home-iMac:~ Ludovico$ cpanm Net::Ping::External
+Home-iMac:~ Ludovico$ cpanm Module::Install
+Home-iMac:~ Ludovico$ cpanm Module::Install::CheckLib
+Home-iMac:~ Ludovico$ cpanm IO::Scalar
+Home-iMac:~ Ludovico$ cpanm Net::SSH2
+Home-iMac:~ Ludovico$ cpanm Net::TFTP
+Home-iMac:~ Ludovico$ cpanm IO::Callback
+Home-iMac:~ Ludovico$ cpanm --force Tk
+Home-iMac:~ Ludovico$ cpanm Tk::DoubleClick
+Home-iMac:~ Ludovico$ cpanm LWP::UserAgent
+Home-iMac:~ Ludovico$ cpanm Cpanel::JSON::XS
+Home-iMac:~ Ludovico$ cpanm Config::INI::Reader::Ordered
+Home-iMac:~ Ludovico$ cpanm LWP::Protocol::https
+Home-iMac:~ Ludovico$ cpanm IO::Socket::Multicast
+
+
+INSTAL XQUARTZ
+==============
+Install from App store or from https://www.xquartz.org/

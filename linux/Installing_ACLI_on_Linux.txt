@@ -1,0 +1,66 @@
+#debian 10/ Ubuntu 18/ LINUX Mint 19
+
+# get permanent root access
+sudo -s
+
+# pull and install the latest fixes
+apt update && apt -y full-upgrade
+
+# install required modules
+apt install libnet-telnet-perl libdevice-serialport-perl libmodule-install-perl libnet-ssh2-perl libnet-tftp-perl perl-tk libtest-lwp-useragent-perl libcpanel-json-xs-perl liblwp-protocol-https-perl libio-socket-multicast-perl libyaml-perl
+apt install libio-callback-perl libtk-doubleclick-perl libconfig-ini-reader-ordered-perl libmodule-install-perl liblog-log4perl-perl libdevel-checklib-perl
+
+# install perl module witch are not supported by OS packet manager
+cpan install Control::CLI
+cpan install Control::CLI::Extreme
+cpan install Control::CLI::AvayaData
+cpan install Net::Ping::External
+cpan install IO::Scalar
+cpan install Module::Install::CheckLib
+cpan install Tk::DoubleClick 
+cpan install Config::INI::Reader::Ordered
+cpan install Cpanel::JSON::XS
+cpan install Crypt::Digest::MD5 module
+
+
+# load the ACLI files
+mkdir -p /usr/local/acli
+cd /usr/local/acli
+wget http://www.oranda.fr/ACLI-terminal/downloads/ACLI-600-linux.zip
+unzip ACLI-600-linux.zip
+rm ACLI-600-linux.zip
+
+# make the file executable
+chmod a+x acli
+chmod a+x acligui
+chmod a+x xmcacli
+chmod a+x acmd
+chmod a+x aftp
+chmod a+x cfm-test
+chmod a+x spb-ect
+chmod a+x termtest
+chmod a+x *.pl
+
+# check where the perl interprete is located
+type perl
+# If it is in "/usr/bin/perl", can skip the next step
+
+# Else take your Perl path and adapt files where the path is not right
+find . -name '*.pl' | xargs sed -i 's/#!\/usr\/bin\/perl/#!\/*your*\/*perl*\/*path*/g'
+
+# setup for all user the enviroment variable
+echo "export ACLIDIR=/usr/local/acli" > /etc/profile.d/all_user.sh
+
+cp /usr/local/acli/acli /usr/local/bin/
+cp /usr/local/acli/acligui /usr/local/bin/
+cp /usr/local/acli/xmcacli /usr/local/bin/
+cp /usr/local/acli/aftp /usr/local/bin/
+cp /usr/local/acli/acmd /usr/local/bin/
+cp /usr/local/acli/cfm-test /usr/local/bin/
+cp /usr/local/acli/spb-ect /usr/local/bin/
+cp /usr/local/acli/termtest /usr/local/bin/
+
+# reboot
+init 6
+
+# now it should all work

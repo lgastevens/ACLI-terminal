@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Opening a connection</Title>
+</HEAD>
+<BODY>
+<h1>Opening a connection</h1>
+
+<p>To start a connection, simply run an ACLI tab to get the ACLI control interface. Then use the <i>'open'</i> command.</p>
+<p>
+<img src="../images/acli-launch.png" />
+</p>
+
+<p>To start a telnet connection:</p>
+<pre>
+	ACLI> open 192.168.56.71
+	
+	Logging to file: C:\Users\lstevens\Documents\ACLI-logs\192.168.56.71.log
+	Escape character is '^]'.
+	Trying 192.168.56.71
+	Connected to 192.168.56.71 via TELNET
+	acli.pl: Performing login ................
+	Using security software from Mocana Corporation. Please visit https://www.mocana.com/ for more information
+	
+	Copyright(c) 2010-2018 Extreme Networks.
+	All Rights Reserved.
+	VSP Simulator: Virtual Services Platform  8200
+	VSP Operating System Software Build 7.1.0.0_B030 (PRIVATE)
+	Built: Fri Jun 29 09:09:06 EDT 2018
+	
+	Unsupported Software, Internal Use Only
+	
+	This product is protected by one or more US patents listed at http://www.extremenetworks.com/patents along with their foreign counterparts.
+	
+	EXTREME NETWORKS VOSS COMMAND LINE INTERFACE
+	
+	Login:
+</pre>
+<p>Alternatively use the <i>'telnet'</i> command alias.</p>
+<p>To start an SSH connection:</p>
+<pre>
+	ACLI> open -l rwa 192.168.56.71
+	
+	Logging to file: C:\Users\lstevens\Documents\ACLI-logs\192.168.56.71.log
+	Escape character is '^]'.
+	Trying 192.168.56.71 ..
+	acli.pl: Added SSH host key to known_hosts file
+	
+	Enter Password:
+	.
+	Connected to 192.168.56.71 via SSH
+	acli.pl: Performing login ............
+	Using security software from Mocana Corporation. Please visit https://www.mocana.com/ for more information
+	
+	Copyright(c) 2010-2018 Extreme Networks.
+	All Rights Reserved.
+	VSP Simulator: Virtual Services Platform  8200
+	VSP Operating System Software Build 7.1.0.0_B030 (PRIVATE)
+	Built: Fri Jun 29 09:09:06 EDT 2018
+	
+	Unsupported Software, Internal Use Only
+	
+	This product is protected by one or more US patents listed at http://www.extremenetworks.com/patents along with their foreign counterparts.
+	
+	EXTREME NETWORKS VOSS COMMAND LINE INTERFACE
+	
+	
+	acli.pl: Detected an Extreme Networks device -> using terminal interactive mode
+	VSP-8284XSQ:1>% enable
+	acli.pl: Detecting device ...
+	acli.pl: Detected VSP-8284-XSQ (00-51-00-27-38-00) Single CPU system, 2 slots 84 ports
+	acli.pl: Use '^T' to toggle between interactive & transparent modes
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>Alternatively use the <i>'ssh connect'</i> command alias.</p>
+<p>Note, any SSH banners set on the connected device will not be displayed as it is not possible to retrieve these via the underlying Net::SSH2 Perl module used by ACLI.</p>
+<p>And to start a serial port connection:</p>
+<pre>
+	ACLI> open -n serial:
+	
+	Known serial ports:
+	
+	Num  Serial Port           Description
+	---  -----------           -----------
+	  1  COM4                  Standard Serial over Bluetooth link
+	  2  COM5                  Standard Serial over Bluetooth link
+	  3  COM6                  Prolific USB-to-Serial Comm Port
+	
+	Select entry number / serial port name glob / &lt;entry&gt;@&lt;baudrate&gt; :
+</pre>
+<p>And then select the COM port to use. Or alternatively, if you know the right COM port to use from the start:</p>
+<pre>
+	ACLI> open -n serial:COM6
+	
+	Logging to file: C:\Users\lstevens\Documents\ACLI-logs\serial_COM6.log
+	Escape character is '^]'.
+	Trying serial:COM6
+	Connected to serial:COM6 via COM6
+</pre>
+<p>By default the baudrate is always set to 9600. To use a different baudrate, either specify it on the command line:</p>
+<pre>
+	ACLI> open -n serial:COM6@115200
+	
+	Logging to file: C:\Users\lstevens\Documents\ACLI-logs\serial_COM6.log
+	Escape character is '^]'.
+	Trying serial:COM6
+	Connected to serial:COM6 via COM6 at baudrate 115200
+</pre>
+<p>Or enter the ACLI control interface (by hitting CTRL-]) and then set the serial port parameters using the <i>serial</i> command:</p>
+<pre>
+	ACLI> serial ?
+	Syntax: serial baudrate|databits|handshake|info|parity|stopbits
+	ACLI> serial baudrate ?
+	Syntax: serial baudrate 110|300|600|1200|2400|4800|9600|14400|19200|38400|57600|115200|230400|460800
+</pre>
+<p>Note that when connecting over the serial port it is best to always use the <i>-n</i> command line switch to disable ACLI's auto-detection, which can otherwise take a while to complete over a slow 9600 baud connection (and in some cases it might fail anyway); to enter ACLI interactive mode, it is safer to hit CTRL-T once the login via serial port is complete and the switch CLI prompt has been gained.</p>
+
+<p>Even easier, ACLI pre-defines a ConsoleZ tab named <i>'ACLI Serial Port'</i>:</p>
+<img src="../images/acli-serial-port.png" />
+<p>Which will execute the same:</p>
+<img src="../images/acli-serial-port2.png" />
+
+</BODY>
+</HTML>

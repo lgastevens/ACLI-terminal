@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Spb-Ect script</Title>
+</HEAD>
+<BODY>
+<h1>Spb-Ect script</h1>
+<p>The Spb-Ect script can be used to see how SPB allocates available shortest paths to BVLANs.</p>
+<p>For example in the following topology we can use the script to identify the paths programmed in the available BVLANs</p>
+<img src="../images/spb-ect.png" />
+<pre>
+	C:\>spb-ect.pl
+	Specify number of paths to compare[default = 2] :3
+	Specify number of BVLANs in use[default = 2] :
+	Comma separated list of nodes on path 1 :a1,01,d3,d4
+	Comma separated list of nodes on path 2 :a1,a2,f2,d4
+	Comma separated list of nodes on path 3 :a1,01,f2,d4
+	
+	Lexicographic ordering done AFTER applying ECT Masks
+	====================================================
+	
+	 Processing for BVLAN1, after applying ECT Mask 00
+	                XORed Path 1 : a1,01,d3,d4
+	                XORed Path 2 : a1,a2,f2,d4
+	                XORed Path 3 : a1,01,f2,d4
+	                Sorted XORed Path 1 : 01,a1,d3,d4 &lt;-- chosen
+	                Sorted XORed Path 2 : a1,a2,d4,f2
+	                Sorted XORed Path 3 : 01,a1,d4,f2
+	
+	 Processing for BVLAN2, after applying ECT Mask ff
+	                XORed Path 1 : 5e,fe,2c,2b
+	                XORed Path 2 : 5e,5d,0d,2b
+	                XORed Path 3 : 5e,fe,0d,2b
+	                Sorted XORed Path 1 : 2b,2c,5e,fe
+	                Sorted XORed Path 2 : 0d,2b,5d,5e &lt;-- chosen
+	                Sorted XORed Path 3 : 0d,2b,5e,fe
+	
+	SUMMARY
+	=======
+	        Path 1 used by BVIDs: 1
+	        Path 2 used by BVIDs: 2
+	        Path 3 used by BVIDs:
+	
+	C:\>
+</pre>
+
+</BODY>
+</HTML>

@@ -1,0 +1,764 @@
+INTRODUCTION
+============
+ACLI requires the following software in order to run on MACOS:
+- Perl compiled with multi-thread
+  (NOTE: the Perl which ships with MACOS is not compiled with threads, so cannot be used and should not be used anyway)
+- The following additional Perl modules (which are not normally included in Perlbrew):
+	- Net::Telnet
+	- Device::SerialPort
+	- Control::CLI
+	- Control::CLI::Extreme
+	- Control::CLI::AvayaData
+	- Net::Ping::External
+	- Module::Install
+	- Module::Install::CheckLib
+	- IO::Scalar
+	- Net::SSH2
+	- Net::TFTP
+	- IO::Callback
+	- Tk
+	- Tk::DoubleClick
+	- LWP::UserAgent
+	- Cpanel::JSON::XS
+	- Config::INI::Reader::Ordered
+	- LWP::Protocol::https
+	- IO::Socket::Multicast
+
+
+To meet the above requirements, you have to install all of the following:
+- Xcode, brings gcc which is required for building Perl with Perlbrew
+- Perlbrew, allows installing Perl; we need it to install a new Perl version with multi-thread support
+- Homebrew, allows installing packages which are not already provided on MACOS; we need it to install Libssh2
+- Libssh2, library required for Perl's Net::SSH2 module
+- XQuartz, X-Windows for MACOS, required for Perl's Tk module
+
+
+
+INTALL XCODE
+============
+
+Home-iMac:~ Ludovico$ xcode-select --install
+xcode-select: note: install requested for command line developer tools
+
+Then get popup to install Developer Tools; accept
+
+
+
+INSTALL PERL (see: https://perlbrew.pl/)
+========================================
+
+Home-iMac:~ Ludovico$ curl -L http://xrl.us/installperlosx | bash
+
+Home-iMac:~ Ludovico$ perlbrew install --as perl-5.28.0t -Dusethreads perl-5.28.0
+Installing /Users/Ludovico/perl5/perlbrew/build/perl-5.28.0/perl-5.28.0 into ~/perl5/perlbrew/perls/perl-5.28.0t
+
+This could take a while. You can run the following command on another shell to track the status:
+
+  tail -f ~/perl5/perlbrew/build.perl-5.28.0.log
+
+perl-5.28.0t is successfully installed.
+Home-iMac:~ Ludovico$ 
+
+
+
+INSTALL LIBSSH2 (see: https://brew.sh/)
+=======================================
+
+Home-iMac:~ Ludovico$ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+let it install, takes a while, then...
+
+Home-iMac:~ Ludovico$ brew install libssh2
+==> Installing dependencies for libssh2: openssl
+==> Installing libssh2 dependency: openssl
+==> Downloading https://homebrew.bintray.com/bottles/openssl-1.0.2p.high_sierra.bottle.tar.gz
+==> Downloading from https://akamai.bintray.com/f5/f5f498c4e8dee3e835c1750cb4140c2f7c52ae21f18f699894d0f0e418970ec3?__gda_
+######################################################################## 100.0%
+==> Pouring openssl-1.0.2p.high_sierra.bottle.tar.gz
+==> Caveats
+A CA file has been bootstrapped using certificates from the SystemRoots
+keychain. To add additional certificates (e.g. the certificates added in
+the System keychain), place .pem files in
+  /usr/local/etc/openssl/certs
+
+and run
+  /usr/local/opt/openssl/bin/c_rehash
+
+openssl is keg-only, which means it was not symlinked into /usr/local,
+because Apple has deprecated use of OpenSSL in favor of its own TLS and crypto libraries.
+
+If you need to have openssl first in your PATH run:
+  echo 'export PATH="/usr/local/opt/openssl/bin:$PATH"' >> ~/.bash_profile
+
+For compilers to find openssl you may need to set:
+  export LDFLAGS="-L/usr/local/opt/openssl/lib"
+  export CPPFLAGS="-I/usr/local/opt/openssl/include"
+
+==> Summary
+??  /usr/local/Cellar/openssl/1.0.2p: 1,793 files, 12.3MB
+==> Installing libssh2
+==> Downloading https://homebrew.bintray.com/bottles/libssh2-1.8.0.high_sierra.bottle.1.tar.gz
+==> Downloading from https://akamai.bintray.com/22/22327eb5bbff660935db0c5106d5a43069ee23e5cb33d5125bad4e144e83ee34?__gda_
+######################################################################## 100.0%
+==> Pouring libssh2-1.8.0.high_sierra.bottle.1.tar.gz
+Error: The `brew link` step did not complete successfully
+The formula built, but is not symlinked into /usr/local
+Could not symlink include/libssh2.h
+Target /usr/local/include/libssh2.h
+already exists. You may want to remove it:
+  rm '/usr/local/include/libssh2.h'
+
+To force the link and overwrite all conflicting files:
+  brew link --overwrite libssh2
+
+To list all files that would be deleted:
+  brew link --overwrite --dry-run libssh2
+
+Possible conflicting files are:
+/usr/local/include/libssh2.h
+/usr/local/include/libssh2_publickey.h
+/usr/local/include/libssh2_sftp.h
+/usr/local/share/man/man3/libssh2_agent_connect.3
+/usr/local/share/man/man3/libssh2_agent_disconnect.3
+/usr/local/share/man/man3/libssh2_agent_free.3
+/usr/local/share/man/man3/libssh2_agent_get_identity.3
+/usr/local/share/man/man3/libssh2_agent_init.3
+/usr/local/share/man/man3/libssh2_agent_list_identities.3
+/usr/local/share/man/man3/libssh2_agent_userauth.3
+/usr/local/share/man/man3/libssh2_banner_set.3
+/usr/local/share/man/man3/libssh2_base64_decode.3
+/usr/local/share/man/man3/libssh2_channel_close.3
+/usr/local/share/man/man3/libssh2_channel_direct_tcpip.3
+/usr/local/share/man/man3/libssh2_channel_direct_tcpip_ex.3
+/usr/local/share/man/man3/libssh2_channel_eof.3
+/usr/local/share/man/man3/libssh2_channel_exec.3
+/usr/local/share/man/man3/libssh2_channel_flush.3
+/usr/local/share/man/man3/libssh2_channel_flush_ex.3
+/usr/local/share/man/man3/libssh2_channel_flush_stderr.3
+/usr/local/share/man/man3/libssh2_channel_forward_accept.3
+/usr/local/share/man/man3/libssh2_channel_forward_cancel.3
+/usr/local/share/man/man3/libssh2_channel_forward_listen.3
+/usr/local/share/man/man3/libssh2_channel_forward_listen_ex.3
+/usr/local/share/man/man3/libssh2_channel_free.3
+/usr/local/share/man/man3/libssh2_channel_get_exit_signal.3
+/usr/local/share/man/man3/libssh2_channel_get_exit_status.3
+/usr/local/share/man/man3/libssh2_channel_handle_extended_data.3
+/usr/local/share/man/man3/libssh2_channel_handle_extended_data2.3
+/usr/local/share/man/man3/libssh2_channel_ignore_extended_data.3
+/usr/local/share/man/man3/libssh2_channel_open_ex.3
+/usr/local/share/man/man3/libssh2_channel_open_session.3
+/usr/local/share/man/man3/libssh2_channel_process_startup.3
+/usr/local/share/man/man3/libssh2_channel_read.3
+/usr/local/share/man/man3/libssh2_channel_read_ex.3
+/usr/local/share/man/man3/libssh2_channel_read_stderr.3
+/usr/local/share/man/man3/libssh2_channel_receive_window_adjust.3
+/usr/local/share/man/man3/libssh2_channel_receive_window_adjust2.3
+/usr/local/share/man/man3/libssh2_channel_request_pty.3
+/usr/local/share/man/man3/libssh2_channel_request_pty_ex.3
+/usr/local/share/man/man3/libssh2_channel_request_pty_size.3
+/usr/local/share/man/man3/libssh2_channel_request_pty_size_ex.3
+/usr/local/share/man/man3/libssh2_channel_send_eof.3
+/usr/local/share/man/man3/libssh2_channel_set_blocking.3
+/usr/local/share/man/man3/libssh2_channel_setenv.3
+/usr/local/share/man/man3/libssh2_channel_setenv_ex.3
+/usr/local/share/man/man3/libssh2_channel_shell.3
+/usr/local/share/man/man3/libssh2_channel_subsystem.3
+/usr/local/share/man/man3/libssh2_channel_wait_closed.3
+/usr/local/share/man/man3/libssh2_channel_wait_eof.3
+/usr/local/share/man/man3/libssh2_channel_window_read.3
+/usr/local/share/man/man3/libssh2_channel_window_read_ex.3
+/usr/local/share/man/man3/libssh2_channel_window_write.3
+/usr/local/share/man/man3/libssh2_channel_window_write_ex.3
+/usr/local/share/man/man3/libssh2_channel_write.3
+/usr/local/share/man/man3/libssh2_channel_write_ex.3
+/usr/local/share/man/man3/libssh2_channel_write_stderr.3
+/usr/local/share/man/man3/libssh2_channel_x11_req.3
+/usr/local/share/man/man3/libssh2_channel_x11_req_ex.3
+/usr/local/share/man/man3/libssh2_exit.3
+/usr/local/share/man/man3/libssh2_free.3
+/usr/local/share/man/man3/libssh2_hostkey_hash.3
+/usr/local/share/man/man3/libssh2_init.3
+/usr/local/share/man/man3/libssh2_keepalive_config.3
+/usr/local/share/man/man3/libssh2_keepalive_send.3
+/usr/local/share/man/man3/libssh2_knownhost_add.3
+/usr/local/share/man/man3/libssh2_knownhost_addc.3
+/usr/local/share/man/man3/libssh2_knownhost_check.3
+/usr/local/share/man/man3/libssh2_knownhost_checkp.3
+/usr/local/share/man/man3/libssh2_knownhost_del.3
+/usr/local/share/man/man3/libssh2_knownhost_free.3
+/usr/local/share/man/man3/libssh2_knownhost_get.3
+/usr/local/share/man/man3/libssh2_knownhost_init.3
+/usr/local/share/man/man3/libssh2_knownhost_readfile.3
+/usr/local/share/man/man3/libssh2_knownhost_readline.3
+/usr/local/share/man/man3/libssh2_knownhost_writefile.3
+/usr/local/share/man/man3/libssh2_knownhost_writeline.3
+/usr/local/share/man/man3/libssh2_poll.3
+/usr/local/share/man/man3/libssh2_poll_channel_read.3
+/usr/local/share/man/man3/libssh2_publickey_add.3
+/usr/local/share/man/man3/libssh2_publickey_add_ex.3
+/usr/local/share/man/man3/libssh2_publickey_init.3
+/usr/local/share/man/man3/libssh2_publickey_list_fetch.3
+/usr/local/share/man/man3/libssh2_publickey_list_free.3
+/usr/local/share/man/man3/libssh2_publickey_remove.3
+/usr/local/share/man/man3/libssh2_publickey_remove_ex.3
+/usr/local/share/man/man3/libssh2_publickey_shutdown.3
+/usr/local/share/man/man3/libssh2_scp_recv.3
+/usr/local/share/man/man3/libssh2_scp_send.3
+/usr/local/share/man/man3/libssh2_scp_send64.3
+/usr/local/share/man/man3/libssh2_scp_send_ex.3
+/usr/local/share/man/man3/libssh2_session_abstract.3
+/usr/local/share/man/man3/libssh2_session_banner_get.3
+/usr/local/share/man/man3/libssh2_session_banner_set.3
+/usr/local/share/man/man3/libssh2_session_block_directions.3
+/usr/local/share/man/man3/libssh2_session_callback_set.3
+/usr/local/share/man/man3/libssh2_session_disconnect.3
+/usr/local/share/man/man3/libssh2_session_disconnect_ex.3
+/usr/local/share/man/man3/libssh2_session_flag.3
+/usr/local/share/man/man3/libssh2_session_free.3
+/usr/local/share/man/man3/libssh2_session_get_blocking.3
+/usr/local/share/man/man3/libssh2_session_get_timeout.3
+/usr/local/share/man/man3/libssh2_session_hostkey.3
+/usr/local/share/man/man3/libssh2_session_init.3
+/usr/local/share/man/man3/libssh2_session_init_ex.3
+/usr/local/share/man/man3/libssh2_session_last_errno.3
+/usr/local/share/man/man3/libssh2_session_last_error.3
+/usr/local/share/man/man3/libssh2_session_method_pref.3
+/usr/local/share/man/man3/libssh2_session_methods.3
+/usr/local/share/man/man3/libssh2_session_set_blocking.3
+/usr/local/share/man/man3/libssh2_session_set_timeout.3
+/usr/local/share/man/man3/libssh2_session_startup.3
+/usr/local/share/man/man3/libssh2_session_supported_algs.3
+/usr/local/share/man/man3/libssh2_sftp_close.3
+/usr/local/share/man/man3/libssh2_sftp_close_handle.3
+/usr/local/share/man/man3/libssh2_sftp_closedir.3
+/usr/local/share/man/man3/libssh2_sftp_fsetstat.3
+/usr/local/share/man/man3/libssh2_sftp_fstat.3
+/usr/local/share/man/man3/libssh2_sftp_fstat_ex.3
+/usr/local/share/man/man3/libssh2_sftp_fstatvfs.3
+/usr/local/share/man/man3/libssh2_sftp_get_channel.3
+/usr/local/share/man/man3/libssh2_sftp_init.3
+/usr/local/share/man/man3/libssh2_sftp_last_error.3
+/usr/local/share/man/man3/libssh2_sftp_lstat.3
+/usr/local/share/man/man3/libssh2_sftp_mkdir.3
+/usr/local/share/man/man3/libssh2_sftp_mkdir_ex.3
+/usr/local/share/man/man3/libssh2_sftp_open.3
+/usr/local/share/man/man3/libssh2_sftp_open_ex.3
+/usr/local/share/man/man3/libssh2_sftp_opendir.3
+/usr/local/share/man/man3/libssh2_sftp_read.3
+/usr/local/share/man/man3/libssh2_sftp_readdir.3
+/usr/local/share/man/man3/libssh2_sftp_readdir_ex.3
+/usr/local/share/man/man3/libssh2_sftp_readlink.3
+/usr/local/share/man/man3/libssh2_sftp_realpath.3
+/usr/local/share/man/man3/libssh2_sftp_rename.3
+/usr/local/share/man/man3/libssh2_sftp_rename_ex.3
+/usr/local/share/man/man3/libssh2_sftp_rewind.3
+/usr/local/share/man/man3/libssh2_sftp_rmdir.3
+/usr/local/share/man/man3/libssh2_sftp_rmdir_ex.3
+/usr/local/share/man/man3/libssh2_sftp_seek.3
+/usr/local/share/man/man3/libssh2_sftp_seek64.3
+/usr/local/share/man/man3/libssh2_sftp_setstat.3
+/usr/local/share/man/man3/libssh2_sftp_shutdown.3
+/usr/local/share/man/man3/libssh2_sftp_stat.3
+/usr/local/share/man/man3/libssh2_sftp_stat_ex.3
+/usr/local/share/man/man3/libssh2_sftp_statvfs.3
+/usr/local/share/man/man3/libssh2_sftp_symlink.3
+/usr/local/share/man/man3/libssh2_sftp_symlink_ex.3
+/usr/local/share/man/man3/libssh2_sftp_tell.3
+/usr/local/share/man/man3/libssh2_sftp_tell64.3
+/usr/local/share/man/man3/libssh2_sftp_unlink.3
+/usr/local/share/man/man3/libssh2_sftp_unlink_ex.3
+/usr/local/share/man/man3/libssh2_sftp_write.3
+/usr/local/share/man/man3/libssh2_trace.3
+/usr/local/share/man/man3/libssh2_trace_sethandler.3
+/usr/local/share/man/man3/libssh2_userauth_authenticated.3
+/usr/local/share/man/man3/libssh2_userauth_hostbased_fromfile.3
+/usr/local/share/man/man3/libssh2_userauth_hostbased_fromfile_ex.3
+/usr/local/share/man/man3/libssh2_userauth_keyboard_interactive.3
+/usr/local/share/man/man3/libssh2_userauth_keyboard_interactive_ex.3
+/usr/local/share/man/man3/libssh2_userauth_list.3
+/usr/local/share/man/man3/libssh2_userauth_password.3
+/usr/local/share/man/man3/libssh2_userauth_password_ex.3
+/usr/local/share/man/man3/libssh2_userauth_publickey.3
+/usr/local/share/man/man3/libssh2_userauth_publickey_fromfile.3
+/usr/local/share/man/man3/libssh2_userauth_publickey_fromfile_ex.3
+/usr/local/share/man/man3/libssh2_version.3
+/usr/local/lib/libssh2.1.dylib
+/usr/local/lib/libssh2.a
+/usr/local/lib/libssh2.dylib -> /usr/local/lib/libssh2.1.dylib
+/usr/local/lib/pkgconfig/libssh2.pc
+==> Summary
+??  /usr/local/Cellar/libssh2/1.8.0: 182 files, 797.8KB
+==> Caveats
+==> openssl
+A CA file has been bootstrapped using certificates from the SystemRoots
+keychain. To add additional certificates (e.g. the certificates added in
+the System keychain), place .pem files in
+  /usr/local/etc/openssl/certs
+
+and run
+  /usr/local/opt/openssl/bin/c_rehash
+
+openssl is keg-only, which means it was not symlinked into /usr/local,
+because Apple has deprecated use of OpenSSL in favor of its own TLS and crypto libraries.
+
+If you need to have openssl first in your PATH run:
+  echo 'export PATH="/usr/local/opt/openssl/bin:$PATH"' >> ~/.bash_profile
+
+For compilers to find openssl you may need to set:
+  export LDFLAGS="-L/usr/local/opt/openssl/lib"
+  export CPPFLAGS="-I/usr/local/opt/openssl/include"
+
+
+
+INSTALL PERL MODULES
+====================
+
+Home-iMac:~ Ludovico$ cpanm Net::Telnet
+--> Working on Net::Telnet
+Fetching http://www.cpan.org/authors/id/J/JR/JROGERS/Net-Telnet-3.04.tar.gz ... OK
+Configuring Net-Telnet-3.04 ... OK
+Building and testing Net-Telnet-3.04 ... OK
+Successfully installed Net-Telnet-3.04
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Device::SerialPort
+--> Working on Device::SerialPort
+Fetching http://www.cpan.org/authors/id/C/CO/COOK/Device-SerialPort-1.04.tar.gz ... OK
+Configuring Device-SerialPort-1.04 ... OK
+Building and testing Device-SerialPort-1.04 ... OK
+Successfully installed Device-SerialPort-1.04
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Control::CLI
+--> Working on Control::CLI
+Fetching http://www.cpan.org/authors/id/L/LS/LSTEVENS/Control-CLI-2.07.tar.gz ... OK
+==> Found dependencies: Module::Build
+--> Working on Module::Build
+Fetching http://www.cpan.org/authors/id/L/LE/LEONT/Module-Build-0.4224.tar.gz ... OK
+Configuring Module-Build-0.4224 ... OK
+Building and testing Module-Build-0.4224 ... OK
+Successfully installed Module-Build-0.4224
+Configuring Control-CLI-2.07 ... OK
+==> Found dependencies: Term::ReadKey, IO::Interactive
+--> Working on Term::ReadKey
+Fetching http://www.cpan.org/authors/id/J/JS/JSTOWE/TermReadKey-2.37.tar.gz ... OK
+Configuring TermReadKey-2.37 ... OK
+Building and testing TermReadKey-2.37 ... OK
+Successfully installed TermReadKey-2.37
+--> Working on IO::Interactive
+Fetching http://www.cpan.org/authors/id/B/BD/BDFOY/IO-Interactive-1.022.tar.gz ... OK
+Configuring IO-Interactive-1.022 ... OK
+Building and testing IO-Interactive-1.022 ... OK
+Successfully installed IO-Interactive-1.022
+Building and testing Control-CLI-2.07 ... OK
+Successfully installed Control-CLI-2.07
+4 distributions installed
+
+
+Home-iMac:~ Ludovico$ cpanm Control::CLI::Extreme
+--> Working on Control::CLI::Extreme
+Fetching http://www.cpan.org/authors/id/L/LS/LSTEVENS/Control-CLI-Extreme-1.01.tar.gz ... OK
+Configuring Control-CLI-Extreme-1.01 ... OK
+Building and testing Control-CLI-Extreme-1.01 ... OK
+Successfully installed Control-CLI-Extreme-1.01
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Control::CLI::AvayaData
+--> Working on Control::CLI::AvayaData
+Fetching http://www.cpan.org/authors/id/L/LS/LSTEVENS/Control-CLI-AvayaData-2.05.tar.gz ... OK
+Configuring Control-CLI-AvayaData-2.05 ... OK
+Building and testing Control-CLI-AvayaData-2.05 ... OK
+Successfully installed Control-CLI-AvayaData-2.05
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Net::Ping::External
+--> Working on Net::Ping::External
+Fetching http://www.cpan.org/authors/id/C/CH/CHORNY/Net-Ping-External-0.15.tar.gz ... OK
+Configuring Net-Ping-External-0.15 ... OK
+Building and testing Net-Ping-External-0.15 ... OK
+Successfully installed Net-Ping-External-0.15
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Module::Install
+--> Working on Module::Install
+Fetching http://www.cpan.org/authors/id/E/ET/ETHER/Module-Install-1.19.tar.gz ... OK
+==> Found dependencies: YAML::Tiny
+--> Working on YAML::Tiny
+Fetching http://www.cpan.org/authors/id/E/ET/ETHER/YAML-Tiny-1.73.tar.gz ... OK
+Configuring YAML-Tiny-1.73 ... OK
+Building and testing YAML-Tiny-1.73 ... OK
+Successfully installed YAML-Tiny-1.73
+Configuring Module-Install-1.19 ... OK
+==> Found dependencies: File::Remove, Module::ScanDeps
+--> Working on File::Remove
+Fetching http://www.cpan.org/authors/id/S/SH/SHLOMIF/File-Remove-1.58.tar.gz ... OK
+Configuring File-Remove-1.58 ... OK
+Building and testing File-Remove-1.58 ... OK
+Successfully installed File-Remove-1.58
+--> Working on Module::ScanDeps
+Fetching http://www.cpan.org/authors/id/R/RS/RSCHUPP/Module-ScanDeps-1.25.tar.gz ... OK
+Configuring Module-ScanDeps-1.25 ... OK
+==> Found dependencies: Test::Requires
+--> Working on Test::Requires
+Fetching http://www.cpan.org/authors/id/T/TO/TOKUHIROM/Test-Requires-0.10.tar.gz ... OK
+Configuring Test-Requires-0.10 ... OK
+Building and testing Test-Requires-0.10 ... OK
+Successfully installed Test-Requires-0.10
+Building and testing Module-ScanDeps-1.25 ... OK
+Successfully installed Module-ScanDeps-1.25
+Building and testing Module-Install-1.19 ... OK
+Successfully installed Module-Install-1.19
+5 distributions installed
+
+
+Home-iMac:~ Ludovico$ cpanm Module::Install::CheckLib
+--> Working on Module::Install::CheckLib
+Fetching http://www.cpan.org/authors/id/B/BI/BINGOS/Module-Install-CheckLib-0.12.tar.gz ... OK
+Configuring Module-Install-CheckLib-0.12 ... OK
+==> Found dependencies: Capture::Tiny, Devel::CheckLib
+--> Working on Capture::Tiny
+Fetching http://www.cpan.org/authors/id/D/DA/DAGOLDEN/Capture-Tiny-0.48.tar.gz ... OK
+Configuring Capture-Tiny-0.48 ... OK
+Building and testing Capture-Tiny-0.48 ... OK
+Successfully installed Capture-Tiny-0.48
+--> Working on Devel::CheckLib
+Fetching http://www.cpan.org/authors/id/M/MA/MATTN/Devel-CheckLib-1.13.tar.gz ... OK
+Configuring Devel-CheckLib-1.13 ... OK
+==> Found dependencies: IO::CaptureOutput, Mock::Config
+--> Working on IO::CaptureOutput
+Fetching http://www.cpan.org/authors/id/D/DA/DAGOLDEN/IO-CaptureOutput-1.1104.tar.gz ... OK
+Configuring IO-CaptureOutput-1.1104 ... OK
+Building and testing IO-CaptureOutput-1.1104 ... OK
+Successfully installed IO-CaptureOutput-1.1104
+--> Working on Mock::Config
+Fetching http://www.cpan.org/authors/id/R/RU/RURBAN/Mock-Config-0.03.tar.gz ... OK
+Configuring Mock-Config-0.03 ... OK
+Building and testing Mock-Config-0.03 ... OK
+Successfully installed Mock-Config-0.03
+Building and testing Devel-CheckLib-1.13 ... OK
+Successfully installed Devel-CheckLib-1.13
+Building and testing Module-Install-CheckLib-0.12 ... OK
+Successfully installed Module-Install-CheckLib-0.12
+5 distributions installed
+
+
+Home-iMac:~ Ludovico$ cpanm IO::Scalar
+--> Working on IO::Scalar
+Fetching http://www.cpan.org/authors/id/D/DS/DSKOLL/IO-stringy-2.111.tar.gz ... OK
+Configuring IO-stringy-2.111 ... OK
+Building and testing IO-stringy-2.111 ... OK
+Successfully installed IO-stringy-2.111
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Net::SSH2
+--> Working on Net::SSH2
+Fetching http://www.cpan.org/authors/id/S/SA/SALVA/Net-SSH2-0.69.tar.gz ... OK
+Configuring Net-SSH2-0.69 ... OK
+Building and testing Net-SSH2-0.69 ... OK
+Successfully installed Net-SSH2-0.69
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Net::TFTP
+--> Working on Net::TFTP
+Fetching http://www.cpan.org/authors/id/G/GB/GBARR/Net-TFTP-0.1901.tar.gz ... OK
+Configuring Net-TFTP-0.1901 ... OK
+==> Found dependencies: Test::MockModule, Test::Warn
+--> Working on Test::MockModule
+Fetching http://www.cpan.org/authors/id/G/GF/GFRANKS/Test-MockModule-v0.170.0.tar.gz ... OK
+Configuring Test-MockModule-v0.170.0 ... OK
+==> Found dependencies: Test::Warnings, SUPER
+--> Working on Test::Warnings
+Fetching http://www.cpan.org/authors/id/E/ET/ETHER/Test-Warnings-0.026.tar.gz ... OK
+Configuring Test-Warnings-0.026 ... OK
+Building and testing Test-Warnings-0.026 ... OK
+Successfully installed Test-Warnings-0.026
+--> Working on SUPER
+Fetching http://www.cpan.org/authors/id/C/CH/CHROMATIC/SUPER-1.20141117.tar.gz ... OK
+Configuring SUPER-1.20141117 ... OK
+==> Found dependencies: Sub::Identify
+--> Working on Sub::Identify
+Fetching http://www.cpan.org/authors/id/R/RG/RGARCIA/Sub-Identify-0.14.tar.gz ... OK
+Configuring Sub-Identify-0.14 ... OK
+Building and testing Sub-Identify-0.14 ... OK
+Successfully installed Sub-Identify-0.14
+Building and testing SUPER-1.20141117 ... OK
+Successfully installed SUPER-1.20141117
+Building and testing Test-MockModule-v0.170.0 ... OK
+Successfully installed Test-MockModule-v0.170.0
+--> Working on Test::Warn
+Fetching http://www.cpan.org/authors/id/B/BI/BIGJ/Test-Warn-0.36.tar.gz ... OK
+Configuring Test-Warn-0.36 ... OK
+==> Found dependencies: Sub::Uplevel
+--> Working on Sub::Uplevel
+Fetching http://www.cpan.org/authors/id/D/DA/DAGOLDEN/Sub-Uplevel-0.2800.tar.gz ... OK
+Configuring Sub-Uplevel-0.2800 ... OK
+Building and testing Sub-Uplevel-0.2800 ... OK
+Successfully installed Sub-Uplevel-0.2800
+Building and testing Test-Warn-0.36 ... OK
+Successfully installed Test-Warn-0.36
+Building and testing Net-TFTP-0.1901 ... OK
+Successfully installed Net-TFTP-0.1901
+7 distributions installed
+
+
+Home-iMac:~ Ludovico$ cpanm IO::Callback
+--> Working on IO::Callback
+Fetching http://www.cpan.org/authors/id/T/TO/TOBYINK/IO-Callback-1.12.tar.gz ... OK
+Configuring IO-Callback-1.12 ... OK
+==> Found dependencies: File::Slurp, Test::NoWarnings, Test::Exception, IO::String
+--> Working on File::Slurp
+Fetching http://www.cpan.org/authors/id/C/CA/CAPOEIRAB/File-Slurp-9999.21.tar.gz ... OK
+Configuring File-Slurp-9999.21 ... OK
+Building and testing File-Slurp-9999.21 ... OK
+Successfully installed File-Slurp-9999.21
+--> Working on Test::NoWarnings
+Fetching http://www.cpan.org/authors/id/A/AD/ADAMK/Test-NoWarnings-1.04.tar.gz ... OK
+Configuring Test-NoWarnings-1.04 ... OK
+Building and testing Test-NoWarnings-1.04 ... OK
+Successfully installed Test-NoWarnings-1.04
+--> Working on Test::Exception
+Fetching http://www.cpan.org/authors/id/E/EX/EXODIST/Test-Exception-0.43.tar.gz ... OK
+Configuring Test-Exception-0.43 ... OK
+Building and testing Test-Exception-0.43 ... OK
+Successfully installed Test-Exception-0.43
+--> Working on IO::String
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/IO-String-1.08.tar.gz ... OK
+Configuring IO-String-1.08 ... OK
+Building and testing IO-String-1.08 ... OK
+Successfully installed IO-String-1.08
+Building and testing IO-Callback-1.12 ... OK
+Successfully installed IO-Callback-1.12
+5 distributions installed
+
+
+Home-iMac:~ Ludovico$ cpanm --force Tk
+--> Working on Tk
+Fetching http://www.cpan.org/authors/id/S/SR/SREZIC/Tk-804.034.tar.gz ... OK
+Configuring Tk-804.034 ... OK
+Building and testing Tk-804.034 ... FAIL
+! Testing Tk-804.034 failed but installing it anyway.
+Successfully installed Tk-804.034
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Tk::DoubleClick
+--> Working on Tk::DoubleClick
+Fetching http://www.cpan.org/authors/id/D/DD/DDUMONT/Tk-DoubleClick-0.04.tar.gz ... OK
+Configuring Tk-DoubleClick-0.04 ... OK
+Building and testing Tk-DoubleClick-0.04 ... OK
+Successfully installed Tk-DoubleClick-0.04
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm LWP::UserAgent
+--> Working on LWP::UserAgent
+Fetching http://www.cpan.org/authors/id/E/ET/ETHER/libwww-perl-6.36.tar.gz ... OK
+Configuring libwww-perl-6.36 ... OK
+==> Found dependencies: HTTP::Request, Encode::Locale, Try::Tiny, Test::Needs, WWW::RobotRules, LWP::MediaTypes, HTTP::Cookies, HTML::HeadParser, URI::Escape, HTTP::Response, Test::RequiresInternet, File::Listing, HTTP::Status, HTTP::Date, Test::Fatal, HTML::Entities, HTTP::Request::Common, HTTP::Negotiate, Net::HTTP, HTTP::Daemon, URI
+--> Working on HTTP::Request
+Fetching http://www.cpan.org/authors/id/O/OA/OALDERS/HTTP-Message-6.18.tar.gz ... OK
+Configuring HTTP-Message-6.18 ... OK
+==> Found dependencies: HTTP::Date, URI, Encode::Locale, Try::Tiny, LWP::MediaTypes, IO::HTML
+--> Working on HTTP::Date
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/HTTP-Date-6.02.tar.gz ... OK
+Configuring HTTP-Date-6.02 ... OK
+Building and testing HTTP-Date-6.02 ... OK
+Successfully installed HTTP-Date-6.02
+--> Working on URI
+Fetching http://www.cpan.org/authors/id/E/ET/ETHER/URI-1.74.tar.gz ... OK
+Configuring URI-1.74 ... OK
+==> Found dependencies: Test::Needs
+--> Working on Test::Needs
+Fetching http://www.cpan.org/authors/id/H/HA/HAARG/Test-Needs-0.002005.tar.gz ... OK
+Configuring Test-Needs-0.002005 ... OK
+Building and testing Test-Needs-0.002005 ... OK
+Successfully installed Test-Needs-0.002005
+Building and testing URI-1.74 ... OK
+Successfully installed URI-1.74
+--> Working on Encode::Locale
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/Encode-Locale-1.05.tar.gz ... OK
+Configuring Encode-Locale-1.05 ... OK
+Building and testing Encode-Locale-1.05 ... OK
+Successfully installed Encode-Locale-1.05
+--> Working on Try::Tiny
+Fetching http://www.cpan.org/authors/id/E/ET/ETHER/Try-Tiny-0.30.tar.gz ... OK
+Configuring Try-Tiny-0.30 ... OK
+Building and testing Try-Tiny-0.30 ... OK
+Successfully installed Try-Tiny-0.30
+--> Working on LWP::MediaTypes
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/LWP-MediaTypes-6.02.tar.gz ... OK
+Configuring LWP-MediaTypes-6.02 ... OK
+Building and testing LWP-MediaTypes-6.02 ... OK
+Successfully installed LWP-MediaTypes-6.02
+--> Working on IO::HTML
+Fetching http://www.cpan.org/authors/id/C/CJ/CJM/IO-HTML-1.001.tar.gz ... OK
+Configuring IO-HTML-1.001 ... OK
+Building and testing IO-HTML-1.001 ... OK
+Successfully installed IO-HTML-1.001
+Building and testing HTTP-Message-6.18 ... OK
+Successfully installed HTTP-Message-6.18
+--> Working on WWW::RobotRules
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/WWW-RobotRules-6.02.tar.gz ... OK
+Configuring WWW-RobotRules-6.02 ... OK
+Building and testing WWW-RobotRules-6.02 ... OK
+Successfully installed WWW-RobotRules-6.02
+--> Working on HTTP::Cookies
+Fetching http://www.cpan.org/authors/id/O/OA/OALDERS/HTTP-Cookies-6.04.tar.gz ... OK
+Configuring HTTP-Cookies-6.04 ... OK
+Building and testing HTTP-Cookies-6.04 ... OK
+Successfully installed HTTP-Cookies-6.04
+--> Working on HTML::HeadParser
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/HTML-Parser-3.72.tar.gz ... OK
+Configuring HTML-Parser-3.72 ... OK
+==> Found dependencies: HTML::Tagset
+--> Working on HTML::Tagset
+Fetching http://www.cpan.org/authors/id/P/PE/PETDANCE/HTML-Tagset-3.20.tar.gz ... OK
+Configuring HTML-Tagset-3.20 ... OK
+Building and testing HTML-Tagset-3.20 ... OK
+Successfully installed HTML-Tagset-3.20
+Building and testing HTML-Parser-3.72 ... OK
+Successfully installed HTML-Parser-3.72
+--> Working on Test::RequiresInternet
+Fetching http://www.cpan.org/authors/id/M/MA/MALLEN/Test-RequiresInternet-0.05.tar.gz ... OK
+Configuring Test-RequiresInternet-0.05 ... OK
+Building and testing Test-RequiresInternet-0.05 ... OK
+Successfully installed Test-RequiresInternet-0.05
+--> Working on File::Listing
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/File-Listing-6.04.tar.gz ... OK
+Configuring File-Listing-6.04 ... OK
+Building and testing File-Listing-6.04 ... OK
+Successfully installed File-Listing-6.04
+--> Working on Test::Fatal
+Fetching http://www.cpan.org/authors/id/R/RJ/RJBS/Test-Fatal-0.014.tar.gz ... OK
+Configuring Test-Fatal-0.014 ... OK
+Building and testing Test-Fatal-0.014 ... OK
+Successfully installed Test-Fatal-0.014
+--> Working on HTTP::Negotiate
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/HTTP-Negotiate-6.01.tar.gz ... OK
+Configuring HTTP-Negotiate-6.01 ... OK
+Building and testing HTTP-Negotiate-6.01 ... OK
+Successfully installed HTTP-Negotiate-6.01
+--> Working on Net::HTTP
+Fetching http://www.cpan.org/authors/id/O/OA/OALDERS/Net-HTTP-6.18.tar.gz ... OK
+Configuring Net-HTTP-6.18 ... OK
+Building and testing Net-HTTP-6.18 ... OK
+Successfully installed Net-HTTP-6.18
+--> Working on HTTP::Daemon
+Fetching http://www.cpan.org/authors/id/G/GA/GAAS/HTTP-Daemon-6.01.tar.gz ... OK
+Configuring HTTP-Daemon-6.01 ... OK
+Building and testing HTTP-Daemon-6.01 ... OK
+Successfully installed HTTP-Daemon-6.01
+Building and testing libwww-perl-6.36 ... OK
+Successfully installed libwww-perl-6.36
+19 distributions installed
+
+
+Home-iMac:~ Ludovico$ cpanm Cpanel::JSON::XS
+--> Working on Cpanel::JSON::XS
+Fetching http://www.cpan.org/authors/id/R/RU/RURBAN/Cpanel-JSON-XS-4.06.tar.gz ... OK
+Configuring Cpanel-JSON-XS-4.06 ... OK
+Building and testing Cpanel-JSON-XS-4.06 ... OK
+Successfully installed Cpanel-JSON-XS-4.06
+1 distribution installed
+
+
+Home-iMac:~ Ludovico$ cpanm Config::INI::Reader::Ordered
+--> Working on Config::INI::Reader::Ordered
+Fetching http://www.cpan.org/authors/id/R/RJ/RJBS/Config-INI-Reader-Ordered-0.020.tar.gz ... OK
+Configuring Config-INI-Reader-Ordered-0.020 ... OK
+==> Found dependencies: Config::INI::Reader
+--> Working on Config::INI::Reader
+Fetching http://www.cpan.org/authors/id/R/RJ/RJBS/Config-INI-0.025.tar.gz ... OK
+Configuring Config-INI-0.025 ... OK
+==> Found dependencies: Mixin::Linewise::Readers, Mixin::Linewise::Writers
+--> Working on Mixin::Linewise::Readers
+Fetching http://www.cpan.org/authors/id/R/RJ/RJBS/Mixin-Linewise-0.108.tar.gz ... OK
+Configuring Mixin-Linewise-0.108 ... OK
+==> Found dependencies: Sub::Exporter, PerlIO::utf8_strict
+--> Working on Sub::Exporter
+Fetching http://www.cpan.org/authors/id/R/RJ/RJBS/Sub-Exporter-0.987.tar.gz ... OK
+Configuring Sub-Exporter-0.987 ... OK
+==> Found dependencies: Sub::Install, Params::Util, Data::OptList
+--> Working on Sub::Install
+Fetching http://www.cpan.org/authors/id/R/RJ/RJBS/Sub-Install-0.928.tar.gz ... OK
+Configuring Sub-Install-0.928 ... OK
+Building and testing Sub-Install-0.928 ... OK
+Successfully installed Sub-Install-0.928
+--> Working on Params::Util
+Fetching http://www.cpan.org/authors/id/A/AD/ADAMK/Params-Util-1.07.tar.gz ... OK
+Configuring Params-Util-1.07 ... OK
+Building and testing Params-Util-1.07 ... OK
+Successfully installed Params-Util-1.07
+--> Working on Data::OptList
+Fetching http://www.cpan.org/authors/id/R/RJ/RJBS/Data-OptList-0.110.tar.gz ... OK
+Configuring Data-OptList-0.110 ... OK
+Building and testing Data-OptList-0.110 ... OK
+Successfully installed Data-OptList-0.110
+Building and testing Sub-Exporter-0.987 ... OK
+Successfully installed Sub-Exporter-0.987
+--> Working on PerlIO::utf8_strict
+Fetching http://www.cpan.org/authors/id/L/LE/LEONT/PerlIO-utf8_strict-0.007.tar.gz ... OK
+Configuring PerlIO-utf8_strict-0.007 ... OK
+Building and testing PerlIO-utf8_strict-0.007 ... OK
+Successfully installed PerlIO-utf8_strict-0.007
+Building and testing Mixin-Linewise-0.108 ... OK
+Successfully installed Mixin-Linewise-0.108
+Building and testing Config-INI-0.025 ... OK
+Successfully installed Config-INI-0.025
+Building and testing Config-INI-Reader-Ordered-0.020 ... OK
+Successfully installed Config-INI-Reader-Ordered-0.020
+8 distributions installed
+
+
+Home-iMac:Scripts Ludovico$ cpanm LWP::Protocol::https
+--> Working on LWP::Protocol::https
+Fetching http://www.cpan.org/authors/id/O/OA/OALDERS/LWP-Protocol-https-6.07.tar.gz ... OK
+Configuring LWP-Protocol-https-6.07 ... OK
+==> Found dependencies: Mozilla::CA, IO::Socket::SSL
+--> Working on Mozilla::CA
+Fetching http://www.cpan.org/authors/id/A/AB/ABH/Mozilla-CA-20180117.tar.gz ... OK
+Configuring Mozilla-CA-20180117 ... OK
+Building and testing Mozilla-CA-20180117 ... OK
+Successfully installed Mozilla-CA-20180117
+--> Working on IO::Socket::SSL
+Fetching http://www.cpan.org/authors/id/S/SU/SULLR/IO-Socket-SSL-2.066.tar.gz ... OK
+==> Found dependencies: Net::SSLeay
+--> Working on Net::SSLeay
+Fetching http://www.cpan.org/authors/id/M/MI/MIKEM/Net-SSLeay-1.85.tar.gz ... OK
+Configuring Net-SSLeay-1.85 ... OK
+Building and testing Net-SSLeay-1.85 ... OK
+Successfully installed Net-SSLeay-1.85
+Configuring IO-Socket-SSL-2.066 ... OK
+Building and testing IO-Socket-SSL-2.066 ... OK
+Successfully installed IO-Socket-SSL-2.066
+Building and testing LWP-Protocol-https-6.07 ... OK
+Successfully installed LWP-Protocol-https-6.07
+4 distributions installed
+
+
+Home-iMac:Scripts Ludovico$ cpanm IO::Socket::Multicast
+--> Working on IO::Socket::Multicast
+Fetching http://www.cpan.org/authors/id/B/BR/BRAMBLE/IO-Socket-Multicast-1.12.tar.gz ... OK
+Configuring IO-Socket-Multicast-1.12 ... OK
+==> Found dependencies: IO::Interface
+--> Working on IO::Interface
+Fetching http://www.cpan.org/authors/id/L/LD/LDS/IO-Interface-1.09.tar.gz ... OK
+Configuring IO-Interface-1.09 ... OK
+Building and testing IO-Interface-1.09 ... OK
+Successfully installed IO-Interface-1.09
+Building and testing IO-Socket-Multicast-1.12 ... OK
+Successfully installed IO-Socket-Multicast-1.12
+2 distributions installed
+Home-iMac:Scripts Ludovico$ 
+
+
+INSTAL XQUARTZ
+==============
+Install from App store or from https://www.xquartz.org/

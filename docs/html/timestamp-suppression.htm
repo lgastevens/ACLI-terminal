@@ -1,0 +1,92 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Suppression of show command timestamp banners</Title>
+</HEAD>
+<BODY>
+<h1>Suppression of show command timestamp banners</h1>
+
+<p>Some Extreme switch family types produce a timestamp banner before every CLI "show" command. The intent is to preserve a timestamp if the output was being captured to file and inspected later. However these timestamps pollute the output window with even more uninteresting output (usually a 3 line banner) so the ACLI terminal has the ability to suppress these timestamp banners. To do so simply activate '<i>terminal hidetimestamp</i>' under ACLI control interface or set the '<i>hide_timestamps_flg</i>' key in <i>acli.ini</i>.</p>
+<p>Note that if enabled, this feature will only suppress the timestamps from the ACLI output window. If the ACLI session is being captured to file, the timestamps are not suppressed in the output file. The following example illustrates the feature.</p>
+
+<pre>
+	VSP-8284XSQ:1#% @log start mysession.log
+	Logging to file: C:\Users\lstevens\Local-Documents\ACLI-logs\mysession.log
+	
+	VSP-8284XSQ:1#% vln
+	         alias% show vlan basic
+	************************************************************************************
+	                Command Execution Time: Sun Dec 22 17:03:34 2019 UTC
+	************************************************************************************
+	==================================================================================================
+	                                            Vlan Basic
+	==================================================================================================
+	VLAN                                MSTP
+	ID    NAME             TYPE         INST_ID PROTOCOLID   SUBNETADDR      SUBNETMASK      VRFID
+	--------------------------------------------------------------------------------------------------
+	1     Default          byPort       0       none         N/A             N/A             0
+	
+	All 1 out of 1 Total Num of Vlans displayed
+	acli.pl: Displayed Record Count = 1
+	
+	VSP-8284XSQ:1#%
+	ACLI> terminal hidetimestamp enable
+	ACLI>
+	VSP-8284XSQ:1#% vln
+	         alias% show vlan basic
+	==================================================================================================
+	                                            Vlan Basic
+	==================================================================================================
+	VLAN                                MSTP
+	ID    NAME             TYPE         INST_ID PROTOCOLID   SUBNETADDR      SUBNETMASK      VRFID
+	--------------------------------------------------------------------------------------------------
+	1     Default          byPort       0       none         N/A             N/A             0
+	
+	All 1 out of 1 Total Num of Vlans displayed
+	acli.pl: Displayed Record Count = 1
+	
+	VSP-8284XSQ:1#% @log stop
+</pre>
+<p>Notice that the timestamp banner is absent after enabling the feature from the ACLI control interface.</p>
+<p>Inspection of the captured file will show the timestamp banner preserved in both instances:</p>
+<pre>
+	=~=~=~=~=~=~=~=~=~=~= acli.pl log Sun Dec 22 18:03:29 2019 =~=~=~=~=~=~=~=~=~=~=
+	VSP-8284XSQ:1#% vln
+	         alias% show vlan basic
+	************************************************************************************
+			Command Execution Time: Sun Dec 22 17:03:34 2019 UTC
+	************************************************************************************
+	==================================================================================================
+	                                            Vlan Basic
+	==================================================================================================
+	VLAN                                MSTP
+	ID    NAME             TYPE         INST_ID PROTOCOLID   SUBNETADDR      SUBNETMASK      VRFID
+	--------------------------------------------------------------------------------------------------
+	1     Default          byPort       0       none         N/A             N/A             0
+	
+	All 1 out of 1 Total Num of Vlans displayed
+	acli.pl: Displayed Record Count = 1
+	
+	VSP-8284XSQ:1#% VSP-8284XSQ:1#% vln
+	         alias% show vlan basic
+	************************************************************************************
+			Command Execution Time: Sun Dec 22 17:03:47 2019 UTC
+	************************************************************************************
+	==================================================================================================
+	                                            Vlan Basic
+	==================================================================================================
+	VLAN                                MSTP
+	ID    NAME             TYPE         INST_ID PROTOCOLID   SUBNETADDR      SUBNETMASK      VRFID
+	--------------------------------------------------------------------------------------------------
+	1     Default          byPort       0       none         N/A             N/A             0
+	
+	All 1 out of 1 Total Num of Vlans displayed
+	acli.pl: Displayed Record Count = 1
+	
+	VSP-8284XSQ:1#% @log stop 
+	
+	=~=~=~=~=~=~=~=~=~=~= acli.pl log Sun Dec 22 18:04:00 2019 =~=~=~=~=~=~=~=~=~=~=
+	</pre>
+</BODY>
+</HTML>

@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Eval of Perl in CLI commands</Title>
+</HEAD>
+<BODY>
+<h1>Eval of Perl in CLI commands</h1>
+<p>With ACLI in interactive mode it is possible to eval Perl code snippets embedded in CLI command lines by enclosing them in curly brackets '{}'. The use case, to date, is for dereferencing $variables using Perl's sprintf() function. Follows an example ACLI script used by the author to set up SPB on a VSP node in a lab environment.</p>
+<pre>
+	; $node = Node ID must be set
+	; $nni  = List of NNI ports
+	;
+	spbm
+	router isis
+	   manual-area 49.0000
+	   spbm 1
+	   spbm 1 b-vid 4051-4052 primary 4051
+	   spbm 1 nick-name 0.00.{sprintf "%02d", $node}
+	   system-id 00bb.0000.{sprintf "%02d", $node}00
+	exit
+	vlan create 4051 name "B-VLAN-1" type spbm-bvlan
+	vlan create 4052 name "B-VLAN-2" type spbm-bvlan
+	
+	vlan members remove 1 $nni
+	interface gigabitEthernet $nni
+	   isis
+	   isis spbm 1
+	   isis enable
+	exit
+	
+	cfm spbm mepid $node
+	cfm spbm enable
+	router isis enable
+</pre>
+<p>The variable $node is given a decimal value (1-99). When using this variable to derive a nick-name and the system-id it is desired for the variable to be encoded as a 2 digit decimal number. This means that if $node = 1-9 we have to use 01-09 in the nick-name and system-id fields. A hex number could also easily be produced using sprintf() with "%02x".</p>
+<p>Another example is this other ACLI script to enable vIST on an already configured SPB node (Note, this works on the assumption that one of the vIST peers has an even $node and the other vIST peer has an odd $node number. The same script is simply executed on both nodes).</p>
+<pre>
+	; $node   = Node ID must be set
+	;
+	no router isis enable
+	router isis
+	   spbm 1 smlt-peer-system-id 00bb.0000.{sprintf "%02d", $node & 1 ? $node + 1 : $node - 1}00
+	   spbm 1 smlt-virtual-bmac 00:bb:00:00:{sprintf "%02d", $node & 1 ? $node : $node - 1}:ff
+	exit
+	vlan create 4000 name "IST-VLAN" type port-mstprstp 0
+	vlan i-sid 4000 1000{sprintf "%02d", $node & 1 ? $node : $node - 1}{sprintf "%02d", $node & 1 ? $node + 1 : $node}
+	interface Vlan 4000
+	   ip address 192.168.255.{sprintf "%02d", $node & 1 ? 1 : 2} 255.255.255.252
+	exit
+	virtual-ist peer-ip 192.168.255.{sprintf "%02d", $node & 1 ? 2 : 1} vlan 4000
+	router isis enable
+</pre>
+<p>In this example Perl's conditional assignment is combined with sprintf().</p>
+<p>Another reason for using curlies is to dereference a variable which otherwise would be delimited by alphanumeric characters.</p>
+<pre>
+	; $byte = Byte value to use in Nick-name + BMAC
+
+	router isis
+	   manual-area 49.0000
+	   spbm 1
+	   spbm 1 b-vid 4051-4052 primary 4051
+	   spbm 1 nick-name 0.00.$byte
+	   system-id 00bb.0000.{$byte}00
+	exit
+</pre>
+<p>In the example above, if $byte was not enclosed in curlies, ACLI would try and look for a variable named $byte00, which would not exist. There is no visible Perl code here, though what happens is that the value of $byte is eval-ed as Perl code, which, surprise, returns the same value!</p>
+<p>Another ACLI script example heavily using curlies:</p>
+<pre>
+	# Create 500 IPv4 interfaces (with VRRP) + 500 IPv6 interfaces (with VRRP)
+	ipv6 forwarding
+	@for $blk &1..2
+		@for $vln &0..255
+			vlan create {sprintf "%d%03d", $blk, $vln} type port-mstprstp 0
+			interface vlan {sprintf "%d%03d", $blk, $vln}
+			   ip address 10.$blk.$vln.1/24
+			   ip vrrp version 3
+			   ip vrrp address 1 10.$blk.$vln.254
+			   ip vrrp 1 enable
+			   ipv6 interface enable
+			   ipv6 interface address 300$blk:{sprintf "%02x", $vln}::$node/64
+			   ipv6 forwarding
+			   ipv6 vrrp address 2 link-local fe80::{sprintf "%02x", $vln}:1
+			   ipv6 vrrp address 2 global 300$blk:{sprintf "%02x", $vln}::1/64
+			   ipv6 vrrp 2 enable
+			   ip dhcp-relay
+			   ip dhcp-relay fwd-path 1.1.1.1 mode dhcp
+			   ip dhcp-relay fwd-path 1.1.1.1 enable
+			exit
+		@endfor
+	@endfor
+</pre>
+<p>In this example you can see sprintf() used to construct a string built from multiple ACLI variables.</p>
+<p>In theory other Perl code can be used, as long as it returns some value when it has completed, though not all Perl code is guaranteed to work. The examples shown here are pretty much what the author has tested with. For additional requests contact the author.</p>
+
+</BODY>
+</HTML>

@@ -1,0 +1,1842 @@
+# acli.pl alias file
+#
+$Version = 1.61_001
+#
+# This file should be placed either in the same directory as acli.pl or else in your home directory (ENV paths HOME & USERPROFILE are checked)
+# If the file is present in multiple paths the order of preference is the following:
+# - ENV path %ACLI% (if you defined it)
+# - ENV path $HOME/.acli (on Unix systems)
+# - ENV path %USERPROFILE%\.acli (on Windows)
+# - Same directory where acli.pl resides (ENV path %ACLIDIR%)
+#
+# Note that if you use the ACLI Update script, a new version of this file might overwrite the existing one in the acli.pl directory
+# Hence, if you want to edit this file, you should place it under your home directory, then the ACLI Update script will not touch it
+#
+# Those who wish to use the default supplied aliases (and keep obtaining updates for them) and instead simply define additional
+# personal aliases to merge with the default supplied ones, should place their aliases in a file named merge.alias and place it in
+# one of the above paths (except the directory where acli.pl resides).
+#
+# Recap, if you want to edit your own aliases:
+# - If you are not interested in using the default supplied aliases in acli.alias
+#   -> Edit your own acli.alias file and place it under %USERPROFILE%\.acli
+# - If you want to use the default supplied aliases in acli.alias + some others you've defined
+#   -> Edit your own aliases in merge.alias file and place it under %USERPROFILE%\.acli
+#
+# Syntax:
+#	Lines commencing with '#' are comment lines and are ingnored
+#	Line with alias command (no spaces or tab prepended); this line is where an alias command is defined
+#	There are two forms available:
+#
+#	(1) Simple form, in one line specify the alias name, optional variables, and the command the alias will substitute
+#
+# alias_command [$variable1] [$variable2] ... = <de-reference for alias command>
+#
+#
+#	(2) Conditional form; in a first line the alias name is specified, with optional variables:
+#
+# alias_command [$variable1] [$variable2] ...
+#
+#	Then, on subsequent lines, specify a number of de-reference commands based on certain conditions
+#	These lines must start with space or tab and have 2 fields, in one of these 2 formats:
+#
+#		<condition_field> = <de-reference for alias command if condition_field is true>
+#		<condition_field> = &<instruction> [<input based on instruction; can be in double quotes>]
+#
+#	The condition field can contain any of Control::CLI:Extreme attributes in {} brackets.
+#	You can find available attributes here:
+#		https://metacpan.org/pod/Control::CLI::Extreme#Main-I/O-Object-Methods
+#		See: attribute() - Return device attribute value
+#
+#	The condition field can also contain the $variables entered by user after the alias_command
+#	The condition field is evaluated as a regular perl expression, after making the above {attribute} & $variable replacements
+#	Condition fields are evaluated in order, until one evaluates to true
+#	Once a condition field evaluates to true, the alias_command is de-referenced accordingly
+#	If no condition field evaluates to true, then you get a message on the terminal indicating that alias could not be resolved
+#
+#	The variables, if any, defined for the alias can be mandatory or optional.
+#	A mandatory variable is a variable which must always be specified with the given alias and is specified by simply adding it after
+#	the alias_command
+#	An optional variable is a variable which may or may not be appended to the alias and is enclosed in square brackets '[]' when
+#	added after the alias_command
+#	An alias can be defined with both mandatory and optional variables, but optional variables must come after the mandatory ones.
+#
+#	The de-reference for alias command is the actual command which acli.pl will send to the switch if the condition_field evaluates to true
+#	The optional or mandatory variables can of course be embedded in the command supplied here
+#	If dealing with an optional variable this should again be encloded in square brackets '[]' which can also include a portion of the
+#	final CLI command
+#	In both the syntaxes above, you can chain multiple commands to send to the switch with semicolons (;) and you can also separate these
+#	commands over multiple lines provided that every line begins with one or more space/tab characters and the first non-space character
+#	is a semicolon (;) followed by a command
+#
+#	In the case of aliases which dereference to semicolon separated lists of commands, if the original alias command was entered followed
+#	by a grep string or capture to variables or capture to output file, then all semicolon separated commands will inherit those same grep
+#	strings and variable/file capture options. Where this is not desirable, commands separated by semicolons can have a ':' added at the end
+#	to mark which commands should inherit and which should not. For example, if we had an alias:
+#
+#		alias = cmd1; cmd2; cmd3
+#
+#	and user entered : alias ||pat1||pat2 > $var
+#	The above would dereference to: cmd1 ||pat1||pat2 > $var; cmd2 ||pat1||pat2 >> $var; cmd3 ||pat1||pat2 >> $var
+#	Note that capture to variable/file '>' will automatically convert to append '>>' on second and above instances
+#	But if we only wanted the grep and capture options to apply to just some of the commands in the list, then we could define the alias as:
+#
+#		alias = cmd1:; cmd2; cmd3:
+#
+#	The above would now dereference to: cmd1 ||pat1||pat2 > $var; cmd2; cmd3 ||pat1||pat2 >> $var
+#
+#	It is also possible to request alternative actions using the &<instruction> format. The following instructions are supported:
+#
+#		&print "text to print"	: The alias command will simply print out the text provided; useful for giving syntax
+#		&noalias		: This will bybass aliasing alltogether; useful to avoid clashes with switch commands
+#
+#	You can also provide a syntax output string by adding a line starting with space or tab then '?:' like this:
+#
+#		?:"Alias syntax:\n	<alias name> [<arg1>] [<arg2>]\n"
+#
+#	A description of the alias can be included by adding a line starting with '~:' as follows. This text will be rendered by the embedded
+#	command "@vars list [<search-pattern>]" for which the search pattern will look into the description field of all aliases.
+#
+#		~:"<description of what alias does>"
+#
+#	The same description line can also be inserted on single line alias definitions as follows:
+#
+# alias_command [$variable1] [$variable2] ~:"<description>" = <de-reference for alias command>
+#
+#
+# Note: Care should be taken to chose alias_names which do not conflict with a switch command
+#       If there is a conflict, the alias command will override the switch command
+#	If this happens, it is possible to force a command to the switch (without de-aliasing) by appending ';' to the command
+#	Alternatively include a condition match to avoid the clash using the &noalias instruction
+#
+# This file was edited with Tab = 8 space characters; set to same on your editor for better viewing
+
+
+#
+# Box commands
+#
+cfg [$mode]
+	~:"Show running-config with no banners and indentation"
+	{family_type} =~ /^(?:SecureRouter|WLAN9100)$/					= show running-config -b
+	{family_type} eq 'Series200'							= show running-config -ib
+	{is_isw} || {is_slx}								= do show running-config -b
+	{is_acli}									= show running-config [mode $mode] -ib
+	{is_xos}									= show configuration -b
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show config [mode $mode] -ib
+cfgv [$mode]
+	~:"Show verbose running-config including non-default values, but no banners"
+	{family_type} eq 'WLAN9100'							= show running-config inc-defaults
+	{is_isw}									= do show running-config all-defaults -b
+	{is_acli}									= show running-config verbose [mode $mode] -ib
+	{is_xos}									= show configuration detail -b
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show config verbose [mode $mode] -ib
+cfgf [$mode]
+	~:"Show normal running-config, as displayed by device, including banners"
+	{family_type} =~ /^(?:SecureRouter|WLAN9100|ISW)$/				= show running-config
+	{is_acli}									= show running-config [mode $mode]
+	{is_xos}									= show configuration
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show config [mode $mode]
+sfg
+	~:"Show startup-config with no banners and indentation"
+	{family_type} eq 'SecureRouter'							= show startup-config -b
+	{family_type} eq 'PassportERS'							= more config.cfg -ib
+	{family_type} eq 'WLAN9100'							= show saved-config -b
+	{is_slx}									= do show startup-config -b
+ofg $file
+	~:"Show offline config file with no banners and indentation"
+	{family_type} eq 'PassportERS'							= more $file -ib
+	!{family_type}									= @cat $file -ib
+sys
+	~:"Show system info"
+	{family_type} eq 'WLAN9100'							= show system-info
+	{is_isw}									= do show version
+	{is_acli}									= show sys-info
+	{is_xos}									= show switch
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show sys info
+sw
+	~:"Show software versions"
+	{family_type} eq 'PassportERS' && {is_acli}					= show sys software |^Slot# :,^Version
+	{family_type} eq 'PassportERS'							= show sys sw |^Slot# :,^Version
+	{family_type} eq 'BaystackERS'							= show sys-info|SW:,FW:
+	{is_xos}									= show version
+	{is_isw}									= do show version |Software Version
+	{is_slx}									= do show version
+	{family_type} eq 'SecureRouter'							= show version |Runtime
+	{family_type} eq 'WLAN9100'							= show system-info|Version,-----------------------------------,Firmware,Loader,Driver,System Software
+	{is_sdwan}									= version
+hw
+	~:"Show hardware components"
+	{is_voss}									= show sys-info |^Card Info,^SF Info,^\tSlot#.+Power$,State,^\t\s+\d,^\t\s+SF
+	{family_type} eq 'PassportERS' && {is_acli}					= show sys-info |^Card Info,^\tSlot#,\s\sVersion,^\t\s+\d
+	{family_type} eq 'PassportERS'							= show sys info |^Card Info,^\tSlot#,\s\sVersion,^\t\s+\d
+	{family_type} eq 'BaystackERS'							= show stack-info
+	{is_xos}									= @echo off; @if $_switch_mode eq 'Stack'; show slot !!Empty!" - "; @else; show switch |System Type; @endif; @echo on
+	{is_isw}									= do show version |Chipset,Board Type,Product
+	{family_type} eq 'WLAN9100'							= show system-info|Model:
+ona
+	~:"Show Open-Network-Adapter (ONA) info (VSP4k only)"
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-4/				= show khi fe-ona status; show khi fe-ona detail
+
+log [$unitOrName]
+	~:"Show or clear log file"
+	?:"Alias syntax:\n	log [<stackable:unit>|<VOSS:log file>]\n	log clear\n"
+	{family_type} eq 'PassportERS' && {is_acli} && $unitOrName eq 'clear'		= clear logging
+	{family_type} eq 'PassportERS' && !{is_acli} && $unitOrName eq 'clear'		= config log clear
+	{family_type} eq 'BaystackERS' && $unitOrName eq 'clear'			= clear log nv
+	{family_type} eq 'SecureRouter' && $unitOrName eq 'clear'			= clear event_log
+	{family_type} eq 'WLAN9100' && $unitOrName eq 'clear'				= clear log
+	{is_xos} && $unitOrName eq 'clear'						= clear log
+	{is_isw} && $unitOrName eq 'clear'						= clear logging
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= @echo off output off; @sed output add '(?:- )?00000000 |GlobalRouter ' ''; @echo on; show log file [name-of-file $unitOrName]:
+	{family_type} eq 'BaystackERS'							= show log [unit $unitOrName] -i
+	{family_type} eq 'SecureRouter'							= show event_logs
+	{family_type} eq 'WLAN9100'							= show log
+	{is_xos}									= show log chronological
+	{is_isw}									= do show logging -i
+	{is_sdwan}									= shell; cat /var/log/commd.log
+logt [$unitOrName]
+	~:"Show log file in reverse order; most recent events first"
+	?:"Alias syntax:\n	logt [<stackale:unit>|<VOSS:log file>]\n"
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= @echo off output off; @sed output add '(?:- )?00000000 |GlobalRouter ' ''; @echo on; show log file tail [name-of-file $unitOrName]:
+	{family_type} eq 'BaystackERS'							= show log sort-reverse [unit $unitOrName] -i
+	{is_xos}									= show log
+alarm [$clear]
+	~:"Show alarm log (VOSS only)"
+	{is_voss} && $clear eq '?'							= &print "Alias syntax:\n	alarm\n	alarm clear\n"
+	{is_voss} && $clear eq 'clear'	= clear alarm database
+	{is_voss}									= show alarm database
+sv [$file]
+	~:"Save config or save-as provided filename"
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= save config [file $file]
+	{family_type} eq 'BaystackERS' && $file						= show nvram block |False > $'%1'; copy config nvram block $ name $file
+	{family_type} eq 'BaystackERS'							= copy config nvram
+	{family_type} eq 'SecureRouter'							= save local [file $file]
+	{family_type} eq 'WLAN9100'							= save [$file]
+	{family_type} eq 'Series200'							= copy system:running-config nvram:startup-config -y
+	{is_xos} && length($file)							= save configuration {(split('\.', "$file"))[0]} // y // n
+	{is_xos}									= save configuration -y
+	{is_isw} && length($file)							= do copy running-config flash:$file
+	{is_isw}									= do copy running-config startup-config
+	{is_slx}									= do copy running-config startup-config -y
+svv [$file]
+	~:"Save config or save-as provided filename + @save ACLI device info (vars, dir, sockets)"
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= save config [file $file]; @save all
+	{family_type} eq 'BaystackERS'							= copy config nvram; @save all
+	{family_type} eq 'SecureRouter'							= save local [file $file]; @save all
+	{family_type} eq 'WLAN9100'							= save [$file]; @save all
+	{is_xos} && length($file)							= save configuration {(split('\.', "$file"))[0]} // y // n; @save all
+	{is_xos}									= save configuration -y; @save all
+	{is_isw}									= do copy running-config startup-config; @save all
+	{is_slx}									= do copy running-config startup-config -y; @save all
+fl
+	~:"List/ls/dir flash directory"
+	{is_voss}									= ls /intflash/
+	{family_type} eq 'PassportERS' && !{is_voss}					= ls /flash/
+	{family_type} eq 'SecureRouter'							= show file ls
+	{family_type} eq 'WLAN9100'							= file ls
+	{is_isw}									= dir
+cf
+	~:"List/ls/dir external flash directory"
+	{is_voss}									= ls /extflash/
+	{family_type} eq 'PassportERS' && !{is_voss}					= ls /pcmcia/
+	{family_type} eq 'SecureRouter'							= show file ls
+usb [$par1] [$par2]
+	~:"List/ls/dir external USB"
+	{is_voss}									= ls /usb/
+	{is_xos}									= ls /usr/local/ext
+	{family_type} eq 'BaystackERS'							= show usb-files [$par1] [$par2]
+img
+	~:"List switch images"
+	{family_type} eq 'BaystackERS'							= show boot image
+	{family_type} eq 'WLAN9100'							= show boot-image
+	{family_type} eq 'Series200'							= show bootvar
+	{is_voss}									= show software
+	{is_xos}									= @echo off; sys|image,ver:; show version images; @echo on
+cpu [$slot]
+	~:"Show CPU utilization"
+	{family_type} eq 'PassportERS' && !{is_voss}					= show sys perf
+	{is_voss}									= show khi performance cpu [$slot]
+	{is_xos}									= show cpu-monitoring process techSupport
+	{family_type} eq 'BaystackERS'							= show cpu-utilization [unit $slot]
+gboot
+	~:"VOSS Fabric graceful boot with ISIS Overload"
+	{is_voss}									= config term; router isis; overload; end; @sleep 2; boot:
+greset
+	~:"VOSS Fabric graceful reset with ISIS Overload"
+	{is_voss}									= config term; router isis; overload; end; @sleep 2; reset:
+
+tie [$sockname] [$mode]
+	~:"Tie terminal to socket name and ping listening terminals"
+	?:"Alias syntax:\n	tie [<socket-name>] [<echo-mode: all|none>]\n"
+	$mode eq ''									= @socket tie [$sockname]; @socket echo error; @socket ping
+	1										= @socket tie [$sockname]; @socket echo $mode; @socket ping
+untie	~:"Untie terminal from socket"							= @socket untie
+listen [$socknames] [$condition]
+	~:"Make terminal listen on socket name(s)"
+	?:"Alias syntax:\n	listen [<socket-name>] [<if-string-match-against-name-or-model>]\n"
+	$condition eq ''								= @socket listen [add $socknames]
+	1										= @if {$$ =~ /$condition/i || $_model =~ /$condition/i}; @socket listen add $socknames; @endif
+ignore $socknames [$condition]
+	~:"Make terminal no longer listen on socket name(s)"
+	?:"Alias syntax:\n	ignore <socket-name> [<if-string-match-against-name-or-model>]\n"
+	$condition eq ''								= @socket listen remove $socknames
+	1										= @if {$$ =~ /$condition/i || $_model =~ /$condition/i}; @socket listen remove $socknames; @endif
+sping [$sockname]	~:"Send ping on named or tied socket name"			= @socket ping [$sockname]
+
+slam			~:"Show slamon agent info"					= show application slamon agent
+slamrtp $ip $dscp	~:"Slamon rtp trace"						= config term; application; slamon rtp $ip $dscp; exit; end
+slamntr $ip $dscp	~:"Slamon ntr trace"						= config term; application; slamon ntr $ip $dscp; exit; end
+
+ivm
+	~:"List Insight VMs configured"
+	{is_voss}									= show virtual-service config
+	{is_xos}									= show vm
+ivmp
+	~:"List Insight OVA/QCOW packages"
+	{is_voss}									= ls /var/lib/insight/packages 
+	{is_xos}									= ls /usr/local/vm/packages
+ivmd [$name]
+	~:"Show install statistics of Insight VM"
+	{is_voss} && $name								= show virtual-service statistics $name; show virtual-service install $name
+	{is_xos} && $name								= show vm detail||$name; show vm $name virtual-interface; show vm $name guest interfaces
+	{is_voss}									= show virtual-service statistics
+	{is_xos}									= show vm detail
+ivmc $name
+	~:"Start Insight VM console"
+	{is_voss}									= virtual-service $name console
+	{is_xos}									= open vm $name console
+
+ztpi
+	~:"Show ZTP+ agent status"
+	{is_xos}									= show auto-provision
+	{is_voss}									= show application auto-provision
+	{family_type} eq 'BaystackERS' && {model} =~ /^ERS-[45]9/			= show auto-provision
+shell
+	~:"Enter Linux shell on device"
+	{is_voss}									= dbg enable
+											; debug mode
+											; @send line "execute bash"
+											; @send line "cd /intflash"
+	{is_xos}									= @send line "run script shell.py"
+	{is_sdwan}									= @echo off output off
+											; @if $> =~ /^\[/
+											;     @echo on; shell; @echo off output off
+											; @elsif $> =~ /\.rt\d:/
+											;     @echo on; exit; exit; @echo off output off
+											; @elsif $> =~ /\.?:/
+											;     @echo on; exit; @echo off output off
+											; @endif
+											; @echo on
+
+
+#
+# SD-WAN appliance only aliases
+#
+enable [$rt]
+	~:"Switch CLI contexts on Ipanema SD-WAN appliances"
+	!{is_sdwan}									= &noalias
+	$rt && $rt !~ 'rt[1-3]'								= &print "Alias syntax:\n	enable [rt1|rt2|rt3]\n"
+	$rt										= @echo off output off
+											; @if $> =~ /\.rt\d\]/
+											;     @echo on; exit; shell; su -; ns $rt bash; @echo off output off
+											; @elsif $> =~ /^\[/
+											;     @echo on; shell; su -; ns $rt bash; @echo off output off
+											; @elsif $> =~ /^bash/
+											;     @echo on; su -; ns $rt bash; @echo off output off
+											; @elsif $> =~ /\.rt\d:/
+											;     @echo on; exit; ns $rt bash; @echo off output off
+											; @elsif $> =~ /\.?:/
+											;     @echo on; ns $rt bash; @echo off output off
+											; @endif
+											; @echo on
+	1										= @echo off output off
+											; @if $> =~ /\.rt\d\]/
+											;     @echo on; exit; shell; su -; @echo off output off
+											; @elsif $> =~ /^\[/
+											;     @echo on; shell; su -; @echo off output off
+											; @elsif $> =~ /^bash/
+											;     @echo on; su -; @echo off output off
+											; @elsif $> =~ /\.rt\d:/
+											;     @echo on; exit; @echo off output off
+											; @endif
+											; @echo on
+disable
+	~:"Switch CLI contexts on Ipanema SD-WAN appliances"
+	!{is_sdwan}									= &noalias
+	1										= @echo off output off
+											; @if $> =~ /^bash/
+											;     @echo on; exit; @echo off output off
+											; @elsif $> =~ /\.rt\d\]/
+											;     @echo on; exit; @echo off output off
+											; @elsif $> =~ /\.rt\d:/
+											;     @echo on; exit; exit; exit; @echo off output off
+											; @elsif $> =~ /\.?:/
+											;     @echo on; exit; exit; @echo off output off
+											; @endif
+											; @echo on
+state
+	~:"Show state of SD-WAN appliance"
+	!{is_sdwan}									= &noalias
+	1										= debug comm show all
+sync
+	~:"Show synchronization state of SD-WAN appliance"
+	!{is_sdwan}									= &noalias
+	1										= debug icd show state; chronyc -n sources ^[\^=]\K[\?x~]
+ztp
+	~:"Show ZTP config of SD-WAN appliance"
+	!{is_sdwan}									= &noalias
+	1										= ztpconfig -d
+ipsec $rt
+	~:"Show IPsec status of WAN Router tunnels of SD-WAN appliance"
+	!{is_sdwan}									= &noalias
+	1										= enable $rt; ipsec status
+fabric
+	~:"Show fabric config and status of SD-WAN appliance"
+	!{is_sdwan}									= &noalias
+	1										= debug fabric show config
+dws
+	~:"Show app sessions and their DWS decisions on SD-WAN appliance"
+	!{is_sdwan}									= &noalias
+	1										= tail -f /tmp/obps_choice*.log ^\bC=\d\b
+probe $siteMgmtIP $wan
+	~:"Tcpdump probing to selected remote site on selected WAN of SD-WAN appliance"
+	!{is_sdwan}									= &noalias
+	1										= enable; tcpdump -i $wan host $siteMgmtIP and port 19999 ^"19999:"
+apps [$search]
+	~:"Display App name and Id on SD-WAN appliance"
+	!{is_sdwan}									= &noalias
+	1										= debug dump appli
+
+
+#
+# L1 commands
+#
+tdp
+	~:"Show SONMP topology neighbours"
+	{is_acli}									= show autotopology nmm-table !0/ *0
+	{family_type} eq 'PassportERS'							= show sys topology !0/0
+if [$ports]
+	~:"Show all port"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet interface [$ports]!!\blocked
+	{family_type} eq 'PassportERS' && {model} =~ /^ERS-16/				= show port inf interface [$ports]
+	{family_type} eq 'PassportERS'							= show port inf interface [port $ports]
+	{family_type} eq 'BaystackERS'							= show interfaces [$ports]
+	{is_xos}									= show ports [$ports] information port-number
+	{is_isw}									= do show interface * status
+	{is_slx}									= do show interface status [|| $ports]
+	{is_sdwan}									= eth-diag
+ifl1 [$ports]
+	~:"Show port L1 config"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet l1-config [$ports]
+	{is_xos}									= show ports [$ports] configuration no-refresh
+ifen
+	~:"Show enabled port"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet interface ||\S\sup
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show port inf interface ||\S\sup
+	{family_type} eq 'BaystackERS'							= show interfaces ||Enable\s
+	{is_xos}									= show ports information port-number ||\d\s+E -s
+	{is_isw}									= do show interface * status ||enabled  \S
+	{is_slx}									= do show interface status !!adminDown
+ifup
+	~:"Show ports with link up"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet interface ||up\s+up
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show port inf interface ||up\s+up
+	{family_type} eq 'BaystackERS'							= show interfaces ||up
+	{is_xos}									= show ports information port-number ||active
+	{is_isw}									= do show interface * status !!Down
+	{is_slx}									= do show interface status ||connected \(up\)
+ifdown
+	~:"Show enabled ports with link down"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet interface ||up\s+down
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show port inf interface ||up\s+down
+	{family_type} eq 'BaystackERS'							= show interfaces ||Enable\s+Down
+	{is_xos}									= show ports information port-number ||\d\s+D -s
+	{is_isw}									= do show interface * status ||Down
+	{is_slx}									= do show interface status ||notconnected
+ifst
+	~:"Show ports which have been shutdown for an exceoption"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet state !!--,TELNET,OPER-STATUS,ADMIN-DOWN
+	{family_type} eq 'PassportERS'							= show port inf state !!--,TELNET,OPER-STATUS,ADMIN-DOWN
+	{family_type} eq 'BaystackERS'							= show interfaces verbose||Blocking
+ifname [$ports]
+	~:"Show named port"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet name [$ports]||\d+/\d+\s+\S.*\S\s+\S+\s+(up|down)
+	{family_type} eq 'PassportERS'							= show port info name [$ports]||\d+/\d+\s+\S.*\S\s+\S+\s+(up|down)
+	{family_type} eq 'BaystackERS'							= show interfaces names [$ports]||\d+/\d+\s+\S+,\d+\s+\S+
+	{is_xos}									= show ports [$ports] description ||\d+\s+\S
+ifl1 [$ports]
+	~:"Show port L1 config"
+	{is_voss}									= show interfaces gigabitEthernet l1-config [$ports]
+	{is_xos}									= show ports [$ports] configuration no-refresh
+iffec [$ports]
+	~:"Show port FEC config"
+	{is_voss}									= show interfaces gigabitEthernet config [$ports]
+	{is_xos}									= show ports [$ports] forward-error-correction no-refresh
+ifchn [$ports]
+	~:"Show port channelization/partition config"
+	{is_voss}									= show interfaces gigabitEthernet channelize [$ports]
+	{is_xos}									= show ports [$ports] information detail||partition
+ifcfg [$ports]
+	~:"Show port config"
+	{is_voss}									= show interfaces gigabitEthernet config [$ports]
+ifqos [$ports]
+	~:"Show port QoS config"
+	{is_voss}									= @echo off output on; show interfaces gigabitEthernet config [$ports]; show qos 802.1p-override gigabitEthernet [$ports]; @echo on
+ifas [$ports]
+	~:"Show port auto-sense config & status"
+	{is_voss} && $ports								= show interfaces gigabitEthernet auto-sense [$ports]
+	{is_voss}									= show interfaces gigabitEthernet auto-sense !!DOWN,OFF -s
+
+if% [$ports]
+	~:"Show ports utilization"
+	{family_type} eq 'PassportERS' && {is_acli}					= monitor ports statistics [$ports] interface utilization
+	{family_type} eq 'PassportERS'							= monitor ports stats interface utilization [$ports]
+fi
+	~:"Show fabric-interconnect (rear) interfaces (VSP7024 only)"
+	{family_type} eq 'BaystackERS' && {model} =~ /^VSP/				= show interfaces||^3[3-9],^40
+ife $ports [$gigorfasteth]
+	~:"Enter ports configuration context"
+	{family_type} eq 'PassportERS' && {is_acli}					= interface gigabitEthernet $ports
+	{family_type} eq 'PassportERS'							= config ethernet $ports
+	{family_type} eq 'BaystackERS'							= interface fastEthernet $ports
+	{family_type} eq 'SecureRouter'							= interface ethernet $ports
+	{is_slx}									= interface Ethernet $ports
+	{is_isw} && $gigorfasteth =~ /^g/i						= interface GigabitEthernet $ports
+	{is_isw} && $gigorfasteth =~ /^f/i						= interface FastEthernet $ports
+ifv $vlan
+	~:"Enter VLAN configuration context"
+	{family_type} eq 'SecureRouter'							= interface vlan vlan$vlan
+	{is_acli}									= interface vlan $vlan
+	{family_type} eq 'PassportERS'							= config vlan $vlan
+	{is_slx}									= interface Ve $vlan
+ifm $mlt
+	~:"Enter MLT configuration context"
+	{family_type} eq 'SecureRouter'							= interface lag lag$mlt
+	{is_acli}									= interface mlt $mlt
+	{family_type} eq 'PassportERS'							= config mlt $mlt
+	{is_slx}									= interface Port-channel $mlt
+ifl $loopback
+	~:"Enter loopback/circuitless configuration context"
+	{is_acli}									= interface loopback $loopback
+	{family_type} eq 'PassportERS'							= config ip circuitless-ip-int $loopback
+	{is_slx}									= interface Loopback $loopback
+isl [$id]
+	~:"Show or enter config context for logical ISIS interfaces (VOSS only)"
+	{is_voss} && $id =~ /^\d+$/							= logical-intf isis $id
+	{is_voss} && {model} =~ /^XA/							= @echo off; show isis logical-interface; show isis logical-interface mtu; show isis logical-interface ipsec; @echo on
+	{is_voss}									= show isis logical-interface
+rtv $vrfname
+	~:"Enter router vrf configuration context"
+	{is_voss}									= router vrf $vrfname
+stat [$ports]
+	~:"Show ports all stats"
+	?:"Alias syntax:\n	stat [<ports>]\n	stat clear\n"
+	{family_type} eq 'PassportERS' && {is_acli} && $ports eq 'clear'		= clear-stats
+	{family_type} eq 'PassportERS' && $ports eq 'clear'				= clear ports stats
+	{family_type} eq 'BaystackERS' && $ports eq 'clear'				= config term; int fast ALL; clear-stats; end
+	{family_type} eq 'SecureRouter' && $ports eq 'clear'				= clear counters all
+	{is_xos} && $ports eq 'clear'					 		= clear counters ports
+	{is_slx} && $ports eq 'clear'							= do clear counters all
+	{family_type} eq 'PassportERS' && {is_acli}					= @echo off output on; show interfaces gigabitEthernet statistics [$ports]!Please; show interfaces gigabitEthernet statistics verbose [$ports]!Please; @echo on
+	{family_type} eq 'PassportERS' && {model} =~ /^ERS-16/				= @echo off output on; show port stat interface main [$ports]; show port stat interface extended [$ports]; @echo on
+	{family_type} eq 'PassportERS'							= @echo off output on; show port stat interface main [port $ports]; show port stat interface extended [port $ports]; @echo on
+	{family_type} eq 'BaystackERS'							= show port-statistics [port $ports]|Port: ,--------,  Packets:,Multicasts:,Received,Transmitted
+	{family_type} eq 'SecureRouter'							= show interface ethernet $ports|since,five,Bytes,Packets
+	{is_xos}									= show ports [$ports] statistics no-refresh
+	{is_slx}									= do show interface stats brief [|| $ports]
+	{is_sdwan}									= debug dump drv
+stat1 [$ports]
+	~:"Show ports simple stats"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet statistics [$ports]!Please
+	{family_type} eq 'PassportERS' && {model} =~ /^ERS-16/				= show port stat interface main [$ports]
+	{family_type} eq 'PassportERS'							= show port stat interface main [port $ports]
+stat2 [$ports]
+	~:"Show ports verbose stats"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet statistics verbose [$ports]!Please
+	{family_type} eq 'PassportERS' && {model} =~ /^ERS-16/				= show port stat interface extended [$ports]
+	{family_type} eq 'PassportERS'							= show port stat interface extended [port $ports]
+statr [$ports]
+	~:"Show ports error stats"
+	{family_type} eq 'PassportERS' && {is_acli}					= @echo off output on; show interfaces gigabitEthernet error [$ports]; show interfaces gigabitEthernet error verbose [$ports]; @echo on
+	{family_type} eq 'PassportERS'							= @echo off output on; show port error main [port $ports]; show port error extended [port $ports]; show port error phy-error [port $ports]; @echo on
+	{is_xos}									= @echo off; show ports [$ports] txerrors no-refresh; show ports [$ports] rxerrors no-refresh; @echo on
+mstat [$ports]
+	~:"Show ports utilization"
+	{family_type} eq 'PassportERS' && {is_acli}					= monitor ports statistics [$ports] interface utilization
+	{family_type} eq 'PassportERS'							= monitor ports stats interface utilization [$ports]
+mstat2 [$ports]
+	~:"Show ports utilization verbose"
+	{family_type} eq 'PassportERS' && {is_acli}					= monitor ports statistics [$ports] interface verbose
+	{family_type} eq 'PassportERS'							= monitor ports stats interface extended [$ports]
+qstat [$ports]
+	~:"Show ports QoS/CoS stats"
+	?:"Alias syntax:\n	qstat [<ports>]\n	qstat clear\n"
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-[478]/ && $ports eq 'clear'	= clear qos cosq-stats
+	$ports eq 'clear'								= &noalias
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-[478]/			= show qos cosq-stats interface [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-9/ && $ports			= config term; int gig $ports; fabric statistics enable; end
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-9/				= show fabric statistics
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet statistics egress-queues [$ports]
+	{family_type} eq 'PassportERS' && $ports					= show qos stats egress-queue-set port $ports
+	{family_type} eq 'PassportERS'							= show qos stats egress-queue-set all
+	{family_type} eq 'BaystackERS'							= show qos queue-statistics [port $ports]
+pstat [$ports]
+	~:"Show ports QoS/CoS policer stats"
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-4/				= show interfaces gigabitEthernet statistics policer [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-[78]/			= show interfaces gigabitEthernet statistics rate-limiting [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-9/				= &noalias
+	{family_type} eq 'PassportERS' && {is_acli}					= &noalias
+	{family_type} eq 'PassportERS'							= &noalias
+mlt
+	# Do not add [$id]; mlt $id is used to create an MLT
+	~:"Show MLT/Sharing interfaces"
+	{is_acli} && {family_type} eq 'PassportERS'					= show mlt|===,Mlt Info,norm,smlt   smlt,ist    ist,vist -s
+	{is_acli} && {family_type} eq 'BaystackERS'					= show mlt!!NONE\s -s
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show mlt info|===,Mlt Info,norm,smlt   smlt,ist    ist,vist -s
+	{is_xos}									= show sharing !\w ?-,#,Layer,Flags
+	{is_slx}									= do show port-channel summary
+	{is_isw}									= do show aggregation
+lag
+	~:"Show LACP LAG interfaces"
+	{is_acli} && {family_type} eq 'PassportERS'					= show lacp actor-oper interface ||\d\s+true
+	{is_acli} && {family_type} eq 'BaystackERS'					= show lacp port ||Active,Passive
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ports info lacp actor-oper ||\d\s+true
+	{is_xos}									= show sharing !\w ?-,#,Layer,Flags
+	{is_isw}									= do show aggregation
+ist
+	~:"Show SMLT IST status"
+	{family_type} eq 'BaystackERS'							= show ist
+	{is_voss} && {model} =~ /^VSP-9/						= show ist mlt
+	{is_voss}									= show virtual-ist
+	{family_type} eq 'PassportERS' && {is_acli}					= show ist mlt
+	{family_type} eq 'PassportERS'							= show mlt ist info
+	{is_xos}									= show mlag peer
+slt
+	~:"Show single-link SMLT interfaces"
+	{family_type} eq 'BaystackERS'							= show smlt
+	{family_type} eq 'PassportERS' && {is_acli}					= show smlt mlt
+	{family_type} eq 'PassportERS'							= show smlt
+	{is_xos}									= show mlag ports
+
+eap [$ports]
+	~:"Show EAP port"
+	$ports =~ /\?$/ || (length($ports) && $ports !~ /^[\d\/,-]+$/)			= &noalias
+	{is_voss}									= show eapol port interface
+	{is_acli}									= show eapol [port $ports]
+	{is_xos}									= show netlogin [port $ports]
+eapm
+	~:"Show EAP multihost"
+	{is_acli}									= show eapol multihost
+eapmi [$ports]
+	~:"Show EAP multihost port"
+	{is_acli}									= show eapol multihost interface [$ports]
+eaps [$ports]
+	~:"Show EAP sessions"
+	{is_isw}									= do show dot1x status brief
+	{is_voss} && {sw_version} =~ /^(?:[1-7]|8\.[1-3]\.)/				= @echo off; show eapol status interface; show eapol multihost non-eap-mac status; show eapol summary; @echo on
+	{is_voss}									= @echo off; show eapol sessions eap verbose; show eapol sessions neap verbose; show eapol summary; @echo on
+	{is_acli}									= show eapol sessions [|| $ports]
+	{is_xos}									= show netlogin session||dot1x
+neaps [$ports]
+	~:"Show NEAP sessions"
+	{is_isw}									= do show dot1x status brief
+	{is_voss} && {sw_version} =~ /^(?:[1-7]|8\.[1-3]\.)/				= @echo off; show eapol multihost non-eap-mac status [$ports]; show eapol summary; @echo on
+	{is_voss}									= @echo off; show eapol sessions neap [$ports] verbose; show eapol summary; @echo on
+	{is_acli}									= show eapol sessions [|| $ports]
+	{is_xos}									= show netlogin session||mac
+
+eapsv [$ports]
+	~:"Show EAP multihost ports verbose status"
+	{is_voss}									= @echo off; show eapol status interface verbose; show eapol multihost non-eap-mac status verbose; show eapol summary; @echo on
+	{is_acli}									= show eapol multihost status [$ports] verbose
+neapi [$ports]
+	~:"Show Non-EAP multihost port"
+	{is_acli}									= show eapol multihost non-eap-mac interface [$ports]
+eapg
+	~:"Show EAP guest VLAN"
+	{is_acli}									= show eapol guest-vlan
+eapgi [$ports]
+	~:"Show EAP guest VLAN port"
+	{is_acli}									= show eapol guest-vlan interface [$ports]
+eapstat [$ports]
+	~:"Show EAP & Auth stats on port"
+	{is_voss}									= @echo off; show eapol auth-stats interface gigabitEthernet [$ports]; show eapol session-stats interface gigabitEthernet [$ports]; @echo on
+	{is_acli}									= @echo off output on; show eapol auth-stats interface [$ports]; show eapol auth-stats interface [$ports]; @echo on
+eapoff $ports
+	~:"Disable EAP on ports"
+	{family_type} eq 'BaystackERS'							= interface ethernet $ports; eapol status authorized; exit
+	{is_voss}									= interface gigabitEthernet $ports; no eapol status; exit
+eapon $ports
+	~:"Enable EAP on ports"
+	{family_type} eq 'BaystackERS'							= interface ethernet $ports; eapol status auto; exit
+	{is_voss}									= interface gigabitEthernet $ports; eapol status auto; exit
+
+adci [$ports]
+	~:"Show ADAC port"
+	{is_acli} && $ports eq ''							= show adac interface ||Enabled   Applied
+	{is_acli}									= show adac interface $ports
+lldpl [$ports]
+	~:"Show LLDP local data"
+	{is_acli}									= show lldp [port $ports] local-sys-data detail
+lldn [$ports]
+	~:"Show LLDP neighbours brief"
+	{is_voss}									= show lldp neighbor summary [port $ports]
+	{family_type} eq 'BaystackERS'							= show lldp [port $ports] neighbor ||SysName:
+	{is_xos}									= show lldp neighbors
+	{is_slx}									= do show lldp neighbors
+	{is_wing}									= show lldp neighbors |Chassis,System Name,Platform,Local Interface
+	{is_isw}									= do show lldp neighbors ||Local Interface,Port Description,System Name,System Description
+	{is_sdwan}									= lldpcli show neighbors
+lldpn [$ports]
+	~:"Show LLDP neighbours verbose"
+	{is_voss}									= show lldp neighbor detail [port $ports]
+	{family_type} eq 'BaystackERS'							= show lldp [port $ports] neighbor detail
+	{family_type} eq 'PassportERS'							= show lldp [port $ports] neighbor
+	{is_xos}									= show lldp neighbors detailed
+	{is_wing}									= show lldp neighbors
+	{is_isw}									= show lldp neighbors
+up $ports [$gigorfasteth]
+	~:"Enable port"
+	$ports !~ /^[\d\$]/								= &noalias
+	{family_type} eq 'BaystackERS'							= config term; int fast $ports; no shut; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; no shut; end
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports state enable
+	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; no shut; end
+	{is_xos}									= enable ports $ports
+	{is_isw} && $gigorfasteth =~ /^g/i						= configure terminal; interface GigabitEthernet $ports; no shut; end
+	{is_isw} && $gigorfasteth =~ /^f/i						= configure terminal; interface FastEthernet $ports; no shut; end
+	{is_isw}									= configure terminal; interface * $ports; no shut; end
+	{is_slx}									= configure terminal; @my $up_p; @for $up_p &$ports; interface Ethernet $up_p; no shut; exit; @endfor; end
+down $ports [$gigorfasteth]
+	~:"Disable port"
+	$ports !~ /^[\d\$]/								= &noalias
+	{family_type} eq 'BaystackERS'							= config term; int fast $ports; shut; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; shut; end
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports state disable
+	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; shut; end
+	{is_xos}									= disable ports $ports
+	{is_isw} && $gigorfasteth =~ /^g/i						= configure terminal; interface GigabitEthernet $ports; shut; end
+	{is_isw} && $gigorfasteth =~ /^f/i						= configure terminal; interface FastEthernet $ports; shut; end
+	{is_isw}									= configure terminal; interface * $ports; shut; end
+	{is_slx}									= configure terminal; @my $dw_p; @for $dw_p &$ports; interface Ethernet $dw_p; shut; exit; @endfor; end
+bounce $ports [$gigorfasteth]
+	~:"Bounce port"
+	$ports !~ /^[\d\$]/								= &noalias
+	{family_type} eq 'BaystackERS'							= config term; int fast $ports; shut; @sleep 2; no shut; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; shut; @sleep 2; no shut; end
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports state disable; @sleep 2; config ethernet $ports state enable
+	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; shut; @sleep 2; no shut; end
+	{is_xos}									= disable ports $ports; @sleep 2; enable ports $ports
+	{is_isw} && $gigorfasteth =~ /^g/i						= configure terminal; interface GigabitEthernet $ports; shut; @sleep 2; no shut; end
+	{is_isw} && $gigorfasteth =~ /^f/i						= configure terminal; interface FastEthernet $ports; shut; @sleep 2; no shut; end
+	{is_isw}									= configure terminal; interface * $ports; shut; @sleep 2; no shut; end
+	{is_slx}									= configure terminal; interface Ethernet $ports; shut; @sleep 2; no shut; end
+tag $ports
+	~:"Enable q-tagging on port"
+	$ports !~ /^[\d\$]/								= &noalias
+	{family_type} eq 'BaystackERS'							= config term; vlan port $ports tagging tagAll; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; encapsulation dot1q; end
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports perform-tagging enable
+	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; switchport mode trunk; end
+untag $ports
+	~:"Untag (no q-tagging) port"
+	$ports !~ /^[\d\$]/								= &noalias
+	{family_type} eq 'BaystackERS'							= config term; vlan port $ports tagging untagAll; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; no encapsulation dot1q; end
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports perform-tagging disable
+	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; switchport mode access; end
+pvid $vid $ports
+	~:"Set PVID on port"
+	$vid !~ /^[\d\$]/ || $ports !~ /^[\d\$]/					= &noalias
+	{family_type} eq 'BaystackERS'							= config term; vlan port $ports pvid $vid; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; default-vlan-id $vid; end
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports default-vlan-id $vid
+	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; switchport pvid $vid; end
+
+msec [$ports]
+	~:"Show MACSEC enabled port"
+	{is_voss} && $ports								 = show macsec status $ports
+	{is_voss}									 = show macsec status !!Nil -s
+	{is_xos} && $ports								 = @echo off; show macsec ports $ports configuration; @print; show macsec ports $ports; @echo on
+	{is_xos}									 = @echo off; show macsec ports all configuration; @print; show macsec ports all; @echo on
+poff $ports
+	~:"Disable PoE on port"
+	$ports !~ /^[\d\$]/								= &noalias
+	{family_type} eq 'BaystackERS'							= config term; int fast $ports; poe poe-shutdown; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; poe poe-shutdown; end
+	{is_xos}									= disable inline-power ports $ports
+pon $ports
+	~:"Enable PoE on port"
+	$ports !~ /^[\d\$]/								= &noalias
+	{family_type} eq 'BaystackERS'							= config term; int fast $ports; no poe-shutdown; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; no poe-shutdown; end
+	{is_xos}									= enable inline-power ports $ports
+pbounce $ports
+	~:"Bounce PoE on port"
+	$ports !~ /^[\d\$]/								= &noalias
+	{family_type} eq 'BaystackERS'							= config term; int fast $ports; poe poe-shutdown; @sleep 2; no poe-shutdown; end
+	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; poe poe-shutdown; @sleep 2; no poe-shutdown; end
+	{is_xos}									= disable inline-power ports $ports; @sleep 2; enable inline-power ports $ports
+poem [$unitslot]
+	~:"Show PoE global info"
+	{family_type} eq 'BaystackERS'							= show poe-main-status [unit $unitslot]
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/ && {is_acli}		= show poe main-status [slot $unitslot]
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/				= show poe card info [$unitslot]
+	{family_type} eq 'PassportERS' && {model} =~ /^(?:\d|VSP-4)/			= show poe-main-status
+	{is_xos}									= show inline-power
+poei [$ports]
+	~:"Show PoE ports info"
+	{family_type} eq 'BaystackERS' && $ports					= show poe-port-status [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/ && {is_acli} && $ports	= show poe port-status port [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/ && $ports			= show poe port info [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /^(?:\d|VSP-4)/ && $ports		= show poe-port-status [$ports]
+	{family_type} eq 'BaystackERS'							= show poe-port-status ||Delivering !-{60,}
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/ && {is_acli}		= show poe port-status ||Delivering
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/				= show poe port info ||Delivering
+	{family_type} eq 'PassportERS' && {model} =~ /^(?:\d|VSP-4)/			= show poe-port-status ||Delivering!!does not support DTE power
+	{is_xos} && {switch_mode} eq 'Stack'						= show inline-power configuration ports %s:* [||$ports] &$_slots
+	{is_xos}									= show inline-power configuration ports $_ports [||$ports]
+poew [$ports]
+	~:"Show PoE Watts usage on port"
+	{family_type} eq 'BaystackERS' && $ports					= show poe-power-measurement [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/ && {is_acli} && $ports	= show poe power-measurement port [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/ && $ports			= show poe port power-measurement [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /^(?:\d|VSP-4)/ && $ports		= show poe-power-measurement [$ports]
+	{family_type} eq 'BaystackERS'							= show poe-power-measurement !!\s0\.0,does not support DTE power!-{20}
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/ && {is_acli}		= show poe power-measurement !!Non-PoE,0\.0
+	{family_type} eq 'PassportERS' && {model} =~ /83\d\d/				= show poe port power-measurement !!Non-PoE,0\.0
+	{family_type} eq 'PassportERS' && {model} =~ /^(?:\d|VSP-4)/			= show poe-power-measurement !!\s0\.0,does not support DTE power
+	{is_xos} && {switch_mode} eq 'Stack'						= show inline-power info ports %s:* || delivering [||$ports] &$_slots
+	{is_xos}									= show inline-power info ports $_ports || delivering [||$ports]
+ddm [$ports]
+	~:"Show transceiver DDI information on port"
+	{family_type} eq 'PassportERS' && {is_acli}					= show pluggable-optical-modules detail [$ports] ^\S+\salarm
+	{family_type} eq 'BaystackERS'							= show interfaces gbic-info [$ports]
+
+ddmd [$ports]
+	~:"Show transceiver DDI information on port; thresholds only"
+	{family_type} eq 'PassportERS' && {is_acli}					= show pluggable-optical-modules detail [$ports] !^[PDAWOC],^Ve,^Ty,^RX -s  ^\S+\salarm
+	{family_type} eq 'BaystackERS'							= show interfaces gbic-info [$ports] !^\s+[GWVHDC]
+
+
+#
+# L2 commands
+#
+fdb [$vidorport] [$port]
+	~:"Show VLAN MAC table"
+	?:"Alias syntax:\n	fdb [<vid>] [flush]\n	fdb port <$portlist>\n"
+	{family_type} eq 'BaystackERS' && $vidorport eq 'port'				= show mac-address-table [port $port]
+	{family_type} eq 'SecureRouter' && $vidorport eq 'port'				= show bridge mac [$port]
+	{family_type} eq 'PassportERS' && {is_acli} && $vidorport eq 'port'		= show vlan mac-address-entry [port $port]
+	{family_type} eq 'PassportERS' && !{is_acli} && $vidorport eq 'port'		= show vlan info fdb-entry [port $port]
+	{is_xos} && $vidorport eq 'port'						= show fdb ports [$port]
+	{is_isw} && $vidorport eq 'port'						= do show mac address-table interface * [$port]
+	#---
+	{family_type} eq 'BaystackERS' && $vidorport eq 'flush'				= clear mac-address-table
+	{family_type} eq 'SecureRouter' && $vidorport eq 'flush'			= clear bridge mac
+	{family_type} eq 'BaystackERS' && $port eq 'flush'				= clear mac-address-table interface vlan $vidorport
+	{family_type} eq 'SecureRouter' && $port eq 'flush'				= clear bridge mac $vidorport
+	{family_type} eq 'PassportERS' && {is_acli} && $port eq 'flush'			= config term; vlan action $vidorport flushMacFdb; end
+	{family_type} eq 'PassportERS' && !{is_acli} && $port eq 'flush'		= config vlan $vidorport fdb-entry flush
+	{is_xos} && $port eq 'flush'							= clear fdb vlan [$vidorport]
+	{is_isw} && $port eq 'flush'							= do clear mac address-table
+	#---
+	{family_type} eq 'BaystackERS'							= show mac-address-table [vid $vidorport]
+	{family_type} eq 'SecureRouter'							= show bridge mac [$vidorport]
+	{family_type} eq 'PassportERS' && {is_acli}					= show vlan mac-address-entry [$vidorport]
+	{family_type} eq 'PassportERS' && !{is_acli}					= show vlan info fdb-entry [$vidorport]
+	{family_type} eq 'Accelar'							= show vlan info fdb-entry [$vidorport]
+	{is_xos}									= show fdb [vlan $vidorport]
+	{is_isw}									= do show mac address-table [vlan $vidorport]
+ifdb [$isid] [$flushorsync]
+	~:"Show I-SID MAC table"
+	?:"Alias syntax:\n	ifdb [<isid>] [flush|sync]\n"
+	{family_type} eq 'PassportERS' && $flushorsync =~ /flush|sync/i			= config term; i-sid mac-address-entry $isid $flushorsync; end
+	{family_type} eq 'PassportERS'							= show i-sid mac-address-entry [$isid]
+fdbr [$vid]
+	~:"Show MAC-in-MAC remote MAC table"
+	{family_type} eq 'BaystackERS'							= show mac-address-table spbm [i-sid $vid]
+	{family_type} eq 'PassportERS' && {is_acli}					= show vlan remote-mac-table $vid
+	{family_type} eq 'PassportERS' && !{is_acli}					= show vlan info remote-mac-table $vid
+vln [$vid]
+	~:"Show VLANs"
+	{family_type} eq 'BaystackERS'							= show vlan [id $vid]
+	{family_type} eq 'PassportERS' && {is_acli}					= show vlan basic [$vid]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show vlan info basic [$vid]
+	{family_type} eq 'SecureRouter'							= show bridge vlan [$vid]
+	{family_type} eq 'WLAN9100'							= show vlan [$vid]
+	{is_xos}									= show vlan !\(.\)
+	{is_isw}									= do show vlan brief
+	{is_slx}									= do show vlan brief
+vlni [$ports]
+	~:"Show ports VLAN membership"
+	{family_type} eq 'SecureRouter'							= show bridge port [$ports]
+	{family_type} eq 'BaystackERS'							= @echo off output on; show vlan interface info [$ports]; @print; show vlan interface vids [$ports]; @echo on
+	{is_isw} && $ports 								= do show interface * [$ports] switchport ||Name:,Administrative mode:,Access Mode VLAN:
+	{is_isw}									= do show interface * switchport ||Name:,Administrative mode:,Access Mode VLAN:
+	{is_acli}									= show interfaces gigabitEthernet vlan [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /^ERS-16/				= show ports info vlans [$ports]
+	{family_type} eq 'PassportERS'							= show ports info vlans [port $ports]
+	{family_type} eq 'Accelar'							= show ports info vlans [$ports]
+	{is_xos}									= show port [$ports] vlan description port-number
+isid [$portOrMlt]
+	~:"Show i-sids, all, per port or per MLT"
+	?:"Alias syntax:\n	isid [<mltid>|<ports>|'mlt'|'port']\n"
+	{is_voss} && $portOrMlt =~ /^\d+$/						= show mlt i-sid $portOrMlt
+	{is_voss} && $portOrMlt	=~ /^mlt$/i						= show mlt i-sid
+	{is_voss} && $portOrMlt	=~ /^ports?$/i						= show interface gigabitEthernet i-sid
+	{is_voss} && $portOrMlt								= show interface gigabitEthernet i-sid $portOrMlt
+	{is_voss}									= show i-sid
+
+
+pvlan [$ports]		~:"Show Private-VLAN port"				= show interfaces gigabitEthernet private-vlan [$ports]
+
+vlci [$ports]
+	~:"Show VLACP enabled port"
+	{family_type} eq 'BaystackERS' && $ports					= show vlacp interface [$ports]
+	{family_type} eq 'PassportERS' && {is_acli} && $ports				= show vlacp interface [gigabitethernet $ports]
+	{family_type} eq 'PassportERS' && $ports					= show ports info vlacp [port $ports]
+	{is_acli}									= show vlacp interface||true
+	{family_type} eq 'PassportERS'							= show ports info vlacp||true
+stp
+	~:"Show Spanning Tree global status"
+	{family_type} eq 'SecureRouter'							= show spanning-tree
+	{is_acli} && {stp_mode} eq 'stpg' && {family_type} eq 'BaystackERS'		= show spanning-tree config
+	{is_acli} && {stp_mode} eq 'stpg'						= show spanning-tree status
+	{is_acli} && {stp_mode} eq 'rstp'						= show spanning-tree rstp status
+	{is_acli} && {stp_mode} eq 'mstp'						= show spanning-tree mstp status
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'stpg'				= show stg info status
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= show rstp status
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= show mstp status
+	{is_xos}									= show stpd detail
+spi [$ports]
+	~:"Show Spanning Tree ports status"
+	{family_type} eq 'SecureRouter'							= show spanning-tree
+	{is_acli} && {stp_mode} eq 'stpg'						= show spanning-tree port [$ports]
+	{is_acli} && {stp_mode} eq 'rstp'						= show spanning-tree rstp port role [$ports]
+	{is_acli} && {stp_mode} eq 'mstp'						= show spanning-tree mstp port role [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /^ERS-16/				= show ports info stg main [$ports]
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'stpg'				= show ports info stg main [port $ports]
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= show ports info rstp role [$ports]
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= show ports info mstp cist role [$ports]
+	{is_xos}									= show stpd s0 ports [$ports] !^\d+: ,= edgeport,Flags: -s
+spe [$ports]
+	~:"Show Spanning Tree faststart or edge enabled ports"
+	{is_acli} && {stp_mode} eq 'rstp'						= show spanning-tree rstp port config [$ports]|^[= ],^Port,Edge -s
+	{is_acli} && {stp_mode} eq 'mstp'						= show spanning-tree mstp port config [$ports]|^[= ],^Port,Edge -s
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= show ports info rstp config [$ports]|^[= ],^Port,Edge -s
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= show ports info mstp cist config [$ports]|^[= ],^Port,Edge -s
+stpon [$ports]
+	~:"Enable Spanning Tree on ports"
+	$ports eq ''					= &print "Alias syntax:\n	stpon <ports>\n"
+	{is_acli} && {stp_mode} eq 'stpg' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree learning enable; exit
+	{is_acli} && {stp_mode} eq 'rstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree rstp learning enable; exit
+	{is_acli} && {stp_mode} eq 'mstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree mstp learning enable; exit
+	{is_acli} && {stp_mode} eq 'stpg'						= interface GigabitEthernet $ports; spanning-tree stp 1 enable; exit
+	{is_acli} && {stp_mode} eq 'rstp'						= interface GigabitEthernet $ports; spanning-tree rstp stp enable; exit
+	{is_acli} && {stp_mode} eq 'mstp'						= interface GigabitEthernet $ports; spanning-tree mstp force-port-state enable; exit
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'stpg'				= config ethernet $ports stg 1 stp enable
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= config ethernet $ports rstp stp enable
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= config ethernet $ports mstp cist forceportstate enable
+	{is_xos}									= enable stpd s0 ports $ports
+stpoff [$ports]
+	~:"Disable Spanning Tree on ports"
+	$ports eq ''					= &print "Alias syntax:\n	stpoff <ports>\n"
+	{is_acli} && {stp_mode} eq 'stpg' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree learning disable; exit
+	{is_acli} && {stp_mode} eq 'rstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree rstp learning disable; exit
+	{is_acli} && {stp_mode} eq 'mstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree mstp learning disable; exit
+	{is_acli} && {stp_mode} eq 'stpg'						= interface GigabitEthernet $ports; no spanning-tree stp 1 enable; exit
+	{is_acli} && {stp_mode} eq 'rstp'						= interface GigabitEthernet $ports; no spanning-tree rstp stp enable; exit
+	{is_acli} && {stp_mode} eq 'mstp'						= interface GigabitEthernet $ports; no spanning-tree mstp force-port-state enable; exit
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'stpg'				= config ethernet $ports stg 1 stp disable
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= config ethernet $ports rstp stp disable
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= config ethernet $ports mstp cist forceportstate disable
+	{is_xos}									= disable stpd s0 ports $ports
+stpfast [$ports]
+	~:"Enable Spanning Treefaststart/edge mode on ports"
+	$ports eq ''					= &print "Alias syntax:\n	stpfast <ports>\n"
+	{is_acli} && {stp_mode} eq 'stpg' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree learning fast; exit
+	{is_acli} && {stp_mode} eq 'rstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree rstp edge-port true; exit
+	{is_acli} && {stp_mode} eq 'mstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree mstp edge-port true; exit
+	{is_acli} && {stp_mode} eq 'stpg'						= interface GigabitEthernet $ports; spanning-tree stp 1 learning fast; exit
+	{is_acli} && {stp_mode} eq 'rstp'						= interface GigabitEthernet $ports; spanning-tree rstp edge-port true; exit
+	{is_acli} && {stp_mode} eq 'mstp'						= interface GigabitEthernet $ports; spanning-tree mstp edge-port true; exit
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'stpg'				= config ethernet $ports stg 1 faststart enable
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= config ethernet $ports rstp edge-port true
+	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= config ethernet $ports mstp cist edge-port true
+	{is_xos}									= configure stpd s0 ports link-type edge $ports
+slp
+	~:"Show SLPP enabled ports"
+	{family_type} eq 'PassportERS' && {is_acli}					= show slpp; show slpp interface gigabitEthernet
+	{family_type} eq 'PassportERS'							= show slpp; show port inf slpp
+
+
+#
+# SPB comands
+#
+spb
+	~:"Show SPB global info"
+	{is_acli}									= show isis spbm
+	{family_type} eq 'PassportERS'							= show isis spbm info
+nick	~:"Show all SPB nodes in fabric"						= show isis spbm nick-name
+nicksrv	~:"Show nick-name server config & leases"					= @echo off; @print; show spbm|nick; show spbm nick-name server leases; @echo on
+
+isj	~:"Show SPB ISIS adjacencies"							= show isis adjacencies
+isi	~:"Show SPB ISIS interfaces"							= show isis interface
+isa	~:"Show SPB ISIS interface authentication"					= show isis int-auth
+isl1	~:"Show SPB ISIS interface L1 counters"						= show isis int-l1-cntl-pkts
+iss
+	~:"Show ISIS global info"
+	{is_acli}									= show isis
+	{family_type} eq 'PassportERS'							= show isis info
+isdb	~:"Show SPB ISIS LSDB"								= show isis lsdb detail
+dbisid	[$isid]
+	~:"Dump all I-SIDs in Fabric LSDB"
+	?:"Alias syntax:\n	dbisid [<i-sid value> | 'all|l2|l3']\n"
+	$isid eq 'all'									= show isis lsdb detail ||Both,Rx,Tx,Vrf ISID: -s!B-MAC,BVID,Metric,Address,Level-1,TLV,Number of ISID -s! > $l2isid,$l3isid '(\d+)\(|Vrf ISID:(\d+)'g
+	$isid eq 'l2'									= show isis lsdb detail ||Both,Rx,Tx  -s!B-MAC,BVID,Metric,Address,Level-1,TLV,Number of ISID -s! > $l2isid '(\d+)\('g
+	$isid eq 'l3'									= show isis lsdb detail ||"Vrf ISID:" -s!B-MAC,BVID,Metric,Address,Level-1,TLV,Number of ISID -s! > $l3isid 'Vrf ISID:(\d+)'
+	1										= show isis lsdb detail ||Both,Rx,Tx,Vrf ISID: -s!Level-1,TLV,Number of ISID -s [||$isid\(,D:$isid ^$isid]
+
+l2vsn $isid
+	~:"Verify if L2 I-SID has state on node"
+	$isid =~ /\?$/ || (length($isid) && $isid !~ /^\d+$/)				= &noalias
+	1										= show isis spbm i-sid all id $isid
+l3vsn $isid	~:"Verify if L3 I-SID has state on node"				= show isis lsdb detail||$isid|Host_name:,Vrf ISID
+
+fibu [$arg1] [$arg2]
+	~:"Dump SPB's unicast forwarding database (fdb)"
+	?:"Alias syntax:\n	fibu [b-mac] [blvan]\n	fibu [blvan] [b-mac]\n"
+	$arg1 =~ /:/									= show isis spbm unicast-fib[ b-mac $arg1][ vlan $arg2]
+	1										= show isis spbm unicast-fib[ b-mac $arg2][ vlan $arg1]
+
+fibm [$arg1] [$arg2] [$arg3]
+	~:"Dump SPB's multicast forwarding database (fdb)"
+	?:"Alias syntax:\n	fibm [bvlan] [i-sid] [nick-name x.xx.xx]\n	fibm [bvlan] [nick-name x.xx.xx] [i-sid]\n	fibm [i-sid] [bvlan] [nick-name x.xx.xx]\n	fibm [i-sid] [nick-name x.xx.xx] [bvlan]\n	fibm [nick-name x.xx.xx] [bvlan] [i-sid]\n	fibm [nick-name x.xx.xx] [i-sid] [bvlan]\n"
+	$arg1 =~ /^40[05][012]$/ && $arg2 !~ /\./					= show isis spbm multicast-fib[ vlan $arg1][ i-sid $arg2][ nick-name $arg3]
+	$arg1 =~ /^40[05][012]$/ && $arg2 =~ /\./					= show isis spbm multicast-fib[ vlan $arg1][ i-sid $arg3][ nick-name $arg2]
+	$arg1 !~ /\./ && $arg2 =~ /^40[05][012]$/					= show isis spbm multicast-fib[ vlan $arg2][ i-sid $arg1][ nick-name $arg3]
+	$arg1 !~ /\./ && $arg2 =~ /\./							= show isis spbm multicast-fib[ vlan $arg3][ i-sid $arg1][ nick-name $arg2]
+	$arg1 =~ /\./ && $arg2 =~ /^40[05][012]$/					= show isis spbm multicast-fib[ vlan $arg2][ i-sid $arg3][ nick-name $arg1]
+	$arg1 =~ /\./ && $arg2 !~ /\./							= show isis spbm multicast-fib[ vlan $arg3][ i-sid $arg2][ nick-name $arg1]
+	$arg1 =~ /^40[05][012]$/							= show isis spbm multicast-fib[ vlan $arg1]
+	$arg1 =~ /\./									= show isis spbm multicast-fib[ nick-name $arg1]
+	1										= show isis spbm multicast-fib[ i-sid $arg1]
+
+fibip [$isid]
+	~:"Dump SPB ISIS IP routes installed"
+	?:"Alias syntax:\n	fibip [i-sid]\n"
+	length($isid) && $isid > 0							= show isis spbm ip-unicast-fib id [$isid]
+	length($isid) && $isid == 0							= show isis spbm ip-unicast-fib
+	1										= show isis spbm ip-unicast-fib all
+
+fibi6 [$isid]
+	~:"Dump SPB ISIS IPv6 routes installed"
+	?:"Alias syntax:\n	fibi6 [i-sid]\n"
+	length($isid) && $isid > 0							= show isis spbm ipv6-unicast-fib id [$isid]
+	length($isid) && $isid == 0							= show isis spbm ipv6-unicast-fib
+	1										= show isis spbm ipv6-unicast-fib all
+
+dropstat [$ports]
+	~:"Dump SPB ISIS drop-stats (ERS8k/VSP9k only)"
+	{family_type} eq 'PassportERS' && $ports					= @echo off output on
+											; show isis spbm drop-stats port last-drop [$ports]!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port rpfc-multicast-sa [$ports]!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port rpfc-unicast-sa [$ports]!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port unknown-multicast-da [$ports]!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port unknown-unicast-da [$ports]!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port unknown-unicast-sa [$ports]!SPBM Drop Stats By Port,^NUM
+											; @echo on
+	{family_type} eq 'PassportERS'							= @echo off output on
+											; show isis spbm drop-stats port last-drop [$ports]!!00:00:00:00:00:00\s+[YN]\s+00:00:00:00:00:00!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port rpfc-multicast-sa [$ports]!!\b0\s+0\b!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port rpfc-unicast-sa [$ports]!!\b0\s+0\b!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port unknown-multicast-da [$ports]!!\b0\s+0\b!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port unknown-unicast-da [$ports]!!\b0\s+0\b!SPBM Drop Stats By Port,^NUM
+											; show isis spbm drop-stats port unknown-unicast-sa [$ports]!!\b0\s+0\b!SPBM Drop Stats By Port,^NUM
+											; @echo on
+
+rng
+	~:"Show ISW ring state (ISW only)"
+	{is_isw}		= do show ringv2 ^blocked
+	1			= &noalias
+
+
+#
+# Fabric Attach commands
+#
+fag
+	~:"Show Fabric Attach agent status"
+	{family_type} eq 'BaystackERS'							= show fa agent
+	{family_type} eq 'PassportERS'							= show fa agent
+	{family_type} eq 'WLAN9100'							= show fabric-attach status
+	{is_xos}									= show fabric attach agent
+	{is_isw}									= do show fa agent
+fai [$portmlt]
+	~:"Show Fabric Attach ports"
+	{family_type} eq 'BaystackERS'							= show fa interface [$portmlt]
+	{family_type} eq 'PassportERS' && $portmlt =~ /^\d+$/				= show fa interface mlt $portmlt
+	{family_type} eq 'PassportERS'							= show fa interface [port $portmlt]
+	{is_isw}									= do show fa interface [$portmlt]
+fae [$ports]
+	~:"Show Fabric Attach discovered neighbours"
+	{family_type} eq 'BaystackERS'							= show fa elements [$ports]!!Legend,[A-Z]= *[A-Z]
+	{family_type} eq 'PassportERS'							= show fa elements [$ports]!!Legend,[A-Z]= *[A-Z]
+	{family_type} eq 'WLAN9100'							= show fabric-attach elements
+	{is_xos}									= show fabric attach elements
+	{is_isw}									= do show fa elements [$ports]!!Legend,[A-Z]= *[A-Z]
+fas [$portorisid]
+	~:"Show Fabric Attach I-SID bindings/assignments"
+	{family_type} eq 'BaystackERS' && {model} =~ /^VSP/				= show fa i-sid [$portorisid]
+	{family_type} eq 'BaystackERS'							= show fa assignment [$portorisid]
+	{family_type} eq 'PassportERS'							= show fa assignment [$portorisid]
+	{is_xos} && {sw_version} =~ /^22\.|30\.1/					= show vlan fabric attach assignments
+	{is_xos}									= show fabric attach assignments
+	{is_wing}									= show fabric-attach assignments
+	{is_isw}									= do show fa assignment [$portorisid]
+faz
+	~:"Show Fabric Attach zero-touch options (ERS only)"
+	{family_type} eq 'BaystackERS'							= show fa zero-touch-options
+fal
+	~:"Show Fabric Attach LLDP neighbour data"
+	{family_type} eq 'BaystackERS'							= show lldp neighbor vendor-specific fabric-attach
+	{is_xos}									= show lldp neighbors detailed ||Fabric Attach
+faa [$ports]
+	{is_xos} && $ports								= show fabric attach ports $ports authentication
+	{is_xos}									= show fabric attach ports all authentication
+
+
+#
+# L3 commands
+#
+mgi
+	~:"Show VOSS segmented mgmt interfaces"
+	{is_voss}									= show mgmt interface
+mgp
+	~:"Show VOSS segmented mgmt IP interfaces"
+	{is_voss}									= show mgmt ip
+mga
+	~:"Show VOSS segmented mgmt ARP cache"
+	{is_voss}									= show mgmt ip arp
+mg6
+	~:"Show VOSS segmented mgmt IPv6 interfaces"
+	{is_voss}									= show mgmt ipv6
+mgr
+	~:"Show VOSS segmented mgmt IP routes"
+	{is_voss}									= show mgmt ip route
+mg6r
+	~:"Show VOSS segmented mgmt IPv6 routes"
+	{is_voss}									= show mgmt ipv6 route
+vf [$vrf]
+	~:"Show VRFs"
+	{is_xos}									= show vr [$vrf]
+	{is_slx}									= do show vrf [$vrf]
+	{is_acli} && $vrf =~ /^\d+$/							= show ip vrf [vrfids $vrf]
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip vrf info [vrfids $vrf]
+	{is_acli}									= show ip vrf [$vrf]
+	{family_type} eq 'PassportERS'							= show ip vrf info [vrf $vrf]
+ipi [$vrf]
+	~:"Show IP interfaces for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip interface [vrfids $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip interface [vrf $vrf]
+	{family_type} eq 'BaystackERS'							= show vlan ip
+	{family_type} eq 'SecureRouter'							= show ip interfaces
+	{is_xos}									= show vlan !\(.\),auto-move,Active router,/Total||\d+\.\d+\.\d+\.\d+
+	{is_isw}									= do show ip interface brief
+	{is_slx}									= do show ip interface brief !!unassigned
+	{is_sdwan}									= ipconfig -d
+ipv [$vrf]
+	~:"Show IP interfaces across all VRFs/GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show interfaces vlan ip [vrfids $vrf]!disable    -,dvr,gw
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show interfaces vlan ip [vrf $vrf]!disable    -,dvr,gw
+	{family_type} eq 'BaystackERS'							= show vlan ip
+	{is_xos}									= show vlan !\(.\),auto-move,Active router,/Total||\d+\.\d+\.\d+\.\d+
+ipa [$vrf]
+	~:"Show ARP cache for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^\d+$/							= show ip arp [vrfids $vrf]
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip arp info [vrfids $vrf]
+	{is_acli}									= show ip arp [vrf $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip arp info [vrf $vrf]
+	{is_xos}									= show iparp [vr $vrf] !" : "!
+ipr [$vrf]
+	~:"Show IP routes for a given VRF or GRT"
+	{is_xos}									= show iproute [vr $vrf] !\(..?\),routes,distribution:!
+	{is_slx}									= do show ip route [vrf $vrf]
+	{is_isw}									= do show ip route
+	{is_acli} && $vrf =~ /^\d+$/							= show ip route [vrfids $vrf]
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip route info [vrfids $vrf]
+	{is_acli}									= show ip route [vrf $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip route info [vrf $vrf]
+ipra [$vrf]
+	~:"Show IP routes including alternatives for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^\d+$/							= show ip route alternative [vrfids $vrf]
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip route info alternative [vrfids $vrf]
+	{is_acli}									= show ip route alternative [vrf $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip route info alternative [vrf $vrf]
+iprs [$vrf]
+	~:"Show IP static routes for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^\d+$/							= show ip route static [vrfids $vrf]
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip static-route info [vrfids $vrf]
+	{is_acli}									= show ip route static  [vrf $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip static-route info [vrf $vrf]
+vrp [$vrf]
+	~:"Show VRRP status for a given VRF or GRT"
+	{family_type} eq 'BaystackERS'							= show ip vrrp interface verbose ^Master -s
+	{is_acli} && {family_type} eq 'PassportERS' && $vrf =~ /^\d+$/			= show ip vrrp address [vrfids $vrf]||.!Total Num of ^Master -s
+	{is_acli} && {family_type} eq 'PassportERS'					= show ip vrrp address [vrf $vrf]||.!Total Num of ^Master -s
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip vrrp info [vrfids $vrf]||.!Total Num of ^Master -s
+	{family_type} eq 'PassportERS'							= show ip vrrp info [vrf $vrf]||.!Total Num of ^Master -s
+	{is_slx}									= show vrrp summary ^Master -s
+osj [$vrf]
+	~:"Show OSPF adjacencies for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip ospf neighbor [vrfids $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip ospf neighbor [vrf $vrf]
+	{family_type} eq 'BaystackERS'							= show ip ospf neighbor
+	{family_type} eq 'SecureRouter'							= show ip ospf neighbor
+	{is_xos}									= show ospf neighbor
+osi [$vrf]
+	~:"Show OSPF interfaces for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip ospf interface [vrfids $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip ospf interface [vrf $vrf]
+	{family_type} eq 'BaystackERS'							= show ip ospf interface
+	{family_type} eq 'SecureRouter'							= show ip ospf interface
+	{is_xos}									= show ospf interfaces
+ose [$vrf]
+	~:"Show OSPF external LSA5s for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip ospf ase [vrfids $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip ospf ase [vrf $vrf]
+	{family_type} eq 'BaystackERS'							= show ip ospf ase
+ripi [$vrf]
+	~:"Show RIP interfaces for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip rip interface [vrfids $vrf]
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip rip interface [vrf $vrf]
+	{family_type} eq 'BaystackERS'							= show ip rip interface
+	{is_xos}									= show rip interface
+bgn [$vrf]
+	~:"Show BGP neighbours for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip bgp summary [vrfids $vrf]|STATE,^\d,---,- [\dI]!metric
+	{family_type} eq 'PassportERS'							= show ip bgp summary [vrf $vrf]|STATE,^\d,---,- [\dI]!metric
+	{is_xos}									= show bgp neighbor !\(\w\),\s:\s,Stati
+	{is_slx}									= do show ip bgp summary
+#	{is_sdwan}									= enable $vrf
+#											; @echo off output off
+#											; @my $bg_*
+#											; $bg_cltList[] = ("/etc/bird.d/run/bird.ctl"; "/run/bird/bird.rt2.ctl")
+#											; @error disable
+#											; @for $bg_idx &$bg_cltList[]
+#											;    ls $bg_cltList[$bg_idx] > $bg_ctl %1
+#											;    @if $bg_ctl
+#											;        @echo off output on
+#											;        birdcl -s $bg_cltList[$bg_idx] show protocols
+#											;        @last
+#											;    @endif
+#											; @endfor
+#											; @error enable
+#											; @echo on
+	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.rt2.ctl show protocols
+
+bgr [$vrf]
+	~:"Show BGP routes for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip bgp route [vrfids $vrf]
+	{family_type} eq 'PassportERS'							= show ip bgp route [vrf $vrf]
+	{is_xos}									= show bgp route all!: \d,Stati
+#	{is_sdwan}									= enable $vrf
+#											; @my $bg_*
+#											; $bg_cltList[] = ("/etc/bird.d/run/bird.ctl"; "/run/bird/bird.rt2.ctl")
+#											; @error disable
+#											; @for $bg_idx &$bg_cltList[]
+#											;    ls $bg_cltList[$bg_idx] > $bg_ctl %1
+#											;    @if $bg_ctl
+#											;        @echo off output on
+#											;        birdcl -s $bg_cltList[$bg_idx] show route all
+#											;        @last
+#											;    @endif
+#											; @endfor
+#											; @error enable
+#											; @echo on
+	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.rt2.ctl show route all
+
+ipff [$slots]
+	~:"Show IPFIX flows"
+	{family_type} eq 'PassportERS' && $slots =~ /^[\d,]+$/				= show ip ipfix flows $slots
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-74/				= show ip ipfix flows
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-9/				= show ip ipfix flows 3-12
+	{family_type} eq 'PassportERS'							= show ip ipfix flows 1-10
+	{family_type} eq 'BaystackERS' && $slots =~ /^[\d,]+$/				= show ip ipfix table $slots sort-by byte-count sort-order descending display all
+	{family_type} eq 'BaystackERS'							= show ip ipfix table sort-by byte-count sort-order descending display all
+ipfi
+	~:"Show IPFIX enabled ports"
+	{family_type} eq 'PassportERS' || {family_type} eq 'BaystackERS'		= show ip ipfix interface ||enable
+apt
+	~:"Show Application-Telemetry stats"
+	{is_voss}									= show app-telemetry counter !!0
+bfdg [$vrf]
+	~:"Show BFD global config"
+	{is_voss} && $vrf =~ /^\d+$/							= show ip bfd [vrfids $vrf]
+	{is_voss}									= show ip bfd [vrf $vrf]
+	{is_xos}									= show bfd
+bfdi
+	~:"Show BFD interfaces"
+	{is_voss}									= @echo off; show ip bfd interfaces gigabitethernet||enable; @print; show ip bfd interfaces vlan||enable; @print; show ip bfd interfaces loopback||enable; @echo on
+	{is_xos}									= show bfd vlan
+bfdn [$vrf]
+	~:"Show BFD neighbours / sessions"
+	{is_voss} && $vrf =~ /^\d+$/							= show ip bfd neighbors [vrfids $vrf]!
+	{is_voss}									= show ip bfd neighbors [vrf $vrf]!
+	{is_xos}									= show bfd session
+	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.rt2.ctl show bfd sessions
+bfds [$vrf]
+	~:"Show BFD statistics / counters"
+	{is_voss} && $vrf =~ /^\d+$/							= show ip bfd stats [vrfids $vrf]!
+	{is_voss}									= show ip bfd stats [vrf $vrf]!
+	{is_xos}									= show bfd counters
+
+
+#
+# IPv6 commands
+#
+i6i [$vrf]
+	~:"Show IPv6 interfaces for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^\d+$/							= show ipv6 interface [vrfids $vrf]
+	{is_acli}									= show ipv6 interface [vrf $vrf]
+	{family_type} eq 'PassportERS'							= show ipv6 interface info
+i6a [$vrf]
+	~:"Show IPv6 addresses for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^\d+$/							= show ipv6 address interface [vrfids $vrf]
+	{is_acli}									= show ipv6 address interface [vrf $vrf]
+	{family_type} eq 'PassportERS'							= show ipv6 addr info
+i6v [$vid]
+	~:"Show IPv6 interfaces across all VRFs/GRT"
+	{is_voss}									= show ipv6 interface vlan [$vid]
+i6r [$vrf]
+	~:"Show IPv6 routes for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^\d+$/							= show ipv6 route [vrfids $vrf]
+	{is_acli}									= show ipv6 route [vrf $vrf]
+	{family_type} eq 'PassportERS'							= show ipv6 route info
+i6rs [$vrf]
+	~:"Show IPv6 static routes for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^\d+$/							= show ipv6 route static [vrfids $vrf]
+	{is_acli}									= show ipv6 route static [vrf $vrf]
+	{family_type} eq 'PassportERS'							= show ipv6 static-route info
+i6ra [$vrf]
+	~:"Show IPv6 routes including alternatives for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^\d+$/							= show ipv6 route alternative [vrfids $vrf]
+	{is_acli}									= show ipv6 route alternative [vrf $vrf]
+o6i
+	~:"Show IPv6 OSPFv3 interfaces for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && {is_acli}					= show ipv6 ospf interface
+	{family_type} eq 'PassportERS'							= show ipv6 ospf interface
+o6j
+	~:"Show IPv6 OSPFv3 adjacencies for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && {is_acli}					= show ipv6 ospf neighbor
+	{family_type} eq 'PassportERS'							= show ipv6 ospf neighbors
+v6p [$vrf]
+	~:"Show IPv6 VRRP status for a given VRF or GRT"
+	{is_acli} && {family_type} eq 'PassportERS' && $vrf =~ /^\d+$/			= show ipv6 vrrp address [vrfids $vrf]||.!Total Num of ^Master -s
+	{is_acli} && {family_type} eq 'PassportERS'					= show ipv6 vrrp address [vrf $vrf]||.!Total Num of ^Master -s
+	{family_type} eq 'PassportERS'							= show ipv6 vrrp info ||.!Total Num of ^Master -s
+
+b6n
+	~:"Show IPv6 BGP neighbours for a given VRF or GRT"
+	{family_type} eq 'PassportERS'							= show bgp ipv6 summary|STATE,^\d,---,- [\dI]!metric
+	{is_slx}									= do show ipv6 bgp summary
+
+b6r
+	~:"Show IPv6 BGP routes for a given VRF or GRT"
+	{family_type} eq 'PassportERS'							= show bgp ipv6 route
+
+
+#
+# L3 IPMC commands
+#
+igi [$vrfORvid]
+	~:"Show IGMP interfaces for a given VRF or GRT"
+	{family_type} eq 'PassportERS'  && $vrfORvid =~ /^\d+$/				= show ip igmp interface [vrfids $vrfORvid] ||active
+	{family_type} eq 'PassportERS' 							= show ip igmp interface [vrf $vrfORvid] ||active
+	{family_type} eq 'BaystackERS'							= show ip igmp interface [vlan $vrfORvid]
+	{is_xos}									= show igmp
+	{is_isw}									= do show ip igmp snooping detail
+igg [$vrfORvid]
+	~:"Show IGMP groups (receivers) for a given VRF or GRT"
+	{family_type} eq 'PassportERS'  && $vrfORvid =~ /^\d+$/				= show ip igmp group [vrfids $vrfORvid]
+	{family_type} eq 'PassportERS' 							= show ip igmp group [vrf $vrfORvid]
+	{family_type} eq 'BaystackERS'							= show ip igmp group [vlan $vrfORvid]
+	{family_type} eq 'SecureRouter'							= show ip igmp groups
+	{is_xos}									= show igmp group
+	{is_isw}									= do show ip igmp snooping group-database
+igc [$vrfORvid]
+	~:"Show IGMP cache (receivers) for a given VRF or GRT"
+	{family_type} eq 'PassportERS'  && $vrfORvid =~ /^\d+$/				= show ip igmp cache [vrfids $vrfORvid]
+	{family_type} eq 'PassportERS' 							= show ip igmp cache [vrf $vrfORvid]
+	{family_type} eq 'BaystackERS'							= show ip igmp cache [vlan $vrfORvid]
+	{is_xos}									= show igmp snooping cache
+igs [$vrf]
+	~:"Show IGMP senders for a given VRF or GRT"
+	{family_type} eq 'PassportERS'  && $vrf =~ /^\d+$/				= show ip igmp sender [vrfids $vrf]
+	{family_type} eq 'PassportERS' 							= show ip igmp sender [vrf $vrf]
+	{family_type} eq 'SecureRouter'							= show ip mroute
+	{family_type} eq 'BaystackERS' 							= show ip igmp sender
+	{is_xos}									= show igmp snooping detail
+pimi [$vrf]
+	~:"Show PIM interfaces for a given VRF or GRT"
+	{family_type} eq 'PassportERS'  && $vrf =~ /^\d+$/				= show ip pim interface [vrfids $vrf] ||up
+	{family_type} eq 'PassportERS' 							= show ip pim interface [vrf $vrf] ||up
+	{family_type} eq 'BaystackERS' 							= show ip pim interface ||up
+	{family_type} eq 'SecureRouter'							= show ip pim sparse-mode interface
+pimn [$vrf]
+	~:"Show PIM neighbours for a given VRF or GRT"
+	{family_type} eq 'PassportERS'  && $vrf =~ /^\d+$/				= show ip pim neighbor [vrfids $vrf]
+	{family_type} eq 'PassportERS' 							= show ip pim neighbor [vrf $vrf]
+	{family_type} eq 'BaystackERS' 							= show ip pim neighbor
+	{family_type} eq 'SecureRouter'							= show ip pim sparse-mode neighbor
+pimr [$vrf]
+	~:"Show PIM multicast routes for a given VRF or GRT"
+	{family_type} eq 'PassportERS'  && $vrf =~ /^\d+$/				= show ip pim mroute [vrfids $vrf]
+	{family_type} eq 'PassportERS' 							= show ip pim mroute [vrf $vrf]
+	{family_type} eq 'BaystackERS' 							= show ip pim mroute
+	{family_type} eq 'SecureRouter'							= show ip pim sparse-mode database
+
+ism		~:"Show SPB fabric known IP Multicast sources"				= show isis spb-mcast-summary
+ismd [$vlanvrf]
+	~:"Show SPB fabric IP Multicast streams for given VSN"
+	?:"Alias syntax:\n	ismd [vlan-id|vrf-name]\n"
+	!{is_acli} && $vlanvrf eq ''							= show isis spbm ip-multicast-route info detail
+	$vlanvrf =~ /^\d+/								= show isis spbm ip-multicast-route [vlan $vlanvrf] detail
+	1										= show isis spbm ip-multicast-route [vrf $vlanvrf] detail
+
+
+#
+# DVR commands
+#
+dvr	~:"Show SPB DVR global info"				= show dvr
+dvri [$vrf]
+	~:"Show SPB DVR interfaces"
+	$vrf =~ /^\d{1,3}$/					= show dvr interfaces [vrfids $vrf]
+	$vrf =~ /^\d+$/						= show dvr interfaces [l3isid $vrf]
+	1							= show dvr interfaces [vrf $vrf]
+
+dvrr [$vrf]
+	~:"Show SPB DVR routes"
+	$vrf =~ /^\d{1,3}$/					= show dvr routes [vrfids $vrf]
+	$vrf =~ /^\d+$/						= show dvr routes [l3isid $vrf]
+	1							= show dvr routes [vrf $vrf]
+
+dvrh [$vrf]
+	~:"Show SPB DVR hosts"
+	$vrf =~ /^\d{1,3}$/					= show dvr host-entries [vrfids $vrf]
+	$vrf =~ /^\d+$/						= show dvr host-entries [l3isid $vrf]
+	1							= show dvr host-entries [vrf $vrf]
+
+dvrdb [$isid]	~:"Show SPB DVR database"			= show dvr database [l3isid $isid]
+dvrbh [$isid]	~:"Show SPB DVR backbone"			= show dvr backbone-entries [l3isid $isid]
+dvrm		~:"Show SPB DVR domain members"			= show dvr members
+dvrbm		~:"Show SPB DVR backbone members"		= show dvr backbone-members
+dvr3		~:"Show L3VSN inferred VRF name on DVR leaf"	= show dvr l3vsn
+
+
+#
+# PIM-GW commands
+#
+spgi [$vrf]
+	~:"Show SPB PIM Gateway interfaces for given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/	= show ip spb-pim-gw interface [vrfids $vrf] ||Enabled
+	{family_type} eq 'PassportERS'				= show ip spb-pim-gw interface [vrf $vrf] ||Enabled
+spgn [$vrf]
+	~:"Show SPB PIM Gateway neighbours for given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/	= show ip spb-pim-gw neighbor [vrfids $vrf]
+	{family_type} eq 'PassportERS'				= show ip spb-pim-gw neighbor [vrf $vrf]
+spgr [$vrf]
+	~:"Show SPB PIM Gateway multicast routes for given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/	= show ip spb-pim-gw mroute [vrfids $vrf]
+	{family_type} eq 'PassportERS'				= show ip spb-pim-gw mroute [vrf $vrf]
+spgs [$vrf]
+	~:"Show SPB PIM Gateway fabric side sources for given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/	= show ip spb-pim-gw spbmc-source [vrfids $vrf]
+	{family_type} eq 'PassportERS'				= show ip spb-pim-gw spbmc-source [vrf $vrf]
+spgf [$vrf]
+	~:"Show SPB PIM Gateway PIM side sources for given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/	= show ip spb-pim-gw foreign-source [vrfids $vrf]
+	{family_type} eq 'PassportERS'				= show ip spb-pim-gw foreign-source [vrf $vrf]
+msdn [$vrf]
+	~:"Show MSDP neighbours for given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/	= show ip msdp summary [vrfids $vrf]
+	{family_type} eq 'PassportERS'				= show ip msdp summary [vrf $vrf]
+	{is_xos}						= show msdp peer [vr $vrf]
+msds [$vrf]
+	~:"Show MSDP source addresses for given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/	= show ip msdp sa-cache [vrfids $vrf]
+	{family_type} eq 'PassportERS'				= show ip msdp sa-cache [vrf $vrf]
+	{is_xos}						= show msdp sa-cache [vr $vrf]
+
+
+#
+# OVSDB / VXLAN commands
+#
+ovsc	~:"Show VXLAN OVSDB global info"	= show ovsdb configs; show ovsdb controller status
+ovsm	~:"Show VXLAN OVSDB interfaces"		= show ovsdb managed-interface
+ovsr	~:"Show VXLAN OVSDB replication"	= show ovsdb replication state
+vtpl	~:"Show VXLAN local VTEPs"		= show vtep local
+vtpr	~:"Show VXLAN remote VTEPs"		= show vtep remote
+vnid	~:"Show VXLAN VNI I-SID mappings"	= show vnid i-sid
+vndb	~:"Show VXLAN VNI mac table"		= show vnid mac-address-entry
+
+
+#
+# Endpoint Tracking commands
+#
+ept
+	~:"Show VM Endpoint-tracking global settings"
+	{is_voss}				= show endpoint-tracking
+epti
+	~:"Show VM Endpoint-tracking interfaces"
+	{is_voss}				= show endpoint-tracking interfaces
+eptb
+	~:"Show VM Endpoint-tracking bindings"
+	{is_voss}				= show endpoint-tracking bindings
+
+
+#
+# Configuration bundles
+#
+isname [$id] [$name]
+	~:"Re-configure SPB system name without having to modify the nick-name (requires id derived nick-name)"
+	$id eq '' || $name eq ''	= &print "Alias syntax:\n	isname $id $name\n"
+	1				= config term; snmp-server name $name; no router isis enable; router isis; sys-name $name; spbm 1 nick-name 1.00.$id; exit; router isis enable; no router isis enable; router isis; spbm 1 nick-name 0.00.$id; exit; router isis enable; end
+
+vlacp-fast [$ports]
+	~:"Configure ports for VLACP with fast timers"
+	$ports eq ''					= &print "Alias syntax:\n	vlacp-fast <ports>\n"
+	{family_type} eq 'PassportERS' && {is_acli}	= interface GigabitEthernet $ports; no vlacp enable; vlacp fast-periodic-time 500 timeout short timeout-scale 5 funcmac-addr 01:80:c2:00:00:0f; vlacp enable; exit
+	{family_type} eq 'BaystackERS'			= vlacp macaddress 01:80:c2:00:00:0f; interface fastEthernet $ports; no vlacp enable; vlacp timeout short; vlacp timeout-scale 5; vlacp enable; exit
+
+vlacp-fast2 [$ports]
+	~:"Configure ports for VLACP with fast timers and default MAC"
+	$ports eq ''					= &print "Alias syntax:\n	vlacp-fast <ports>\n"
+	{family_type} eq 'PassportERS' && {is_acli}	= interface GigabitEthernet $ports; no vlacp enable; vlacp fast-periodic-time 500 timeout short timeout-scale 5 funcmac-addr 01:80:c2:00:11:00; vlacp enable; exit
+	{family_type} eq 'BaystackERS'			= vlacp macaddress 01:80:c2:00:11:00; interface fastEthernet $ports; no vlacp enable; vlacp timeout short; vlacp timeout-scale 5; vlacp enable; exit
+
+vlacp-slow [$ports]
+	~:"Configure ports for VLACP with slow timers (IST on ERS8k,VSP9k)"
+	$ports eq ''					= &print "Alias syntax:\n	vlacp-slow <ports>\n"
+	{family_type} eq 'PassportERS' && {is_acli}	= interface GigabitEthernet $ports; no vlacp enable; vlacp slow-periodic-time 10000 funcmac-addr 01:80:c2:00:00:0f; vlacp enable; exit
+	{family_type} eq 'BaystackERS'			= vlacp macaddress 01:80:c2:00:00:0f; interface fastEthernet $ports; no vlacp enable; vlacp slow-periodic-time 10000; vlacp enable; exit
+
+nni $ports [$speed]
+	~:"Configure SPB NNI ports and set metric according to port speed"
+	?:"Alias syntax:\n	nni <ports|mlt-id> [link-speed-gbps]\n"
+	{family_type} eq 'PassportERS' && {is_acli} && $ports =~ /^\d+$/ && $speed eq ''		= interface mlt $ports; isis; isis spbm 1; isis enable; exit
+	{family_type} eq 'PassportERS' && {is_acli} && {stp_mode} eq 'mstp' && $speed eq ''		= vlan members remove 1 $ports; interface GigabitEthernet $ports; isis; isis spbm 1; isis enable; no spanning-tree mstp force-port-state enable; exit
+	{family_type} eq 'PassportERS' && {is_acli} && {stp_mode} eq 'stpg' && $speed eq ''		= vlan members remove 1 $ports; interface GigabitEthernet $ports; isis; isis spbm 1; isis enable; no spanning-tree stp 1 enable; exit
+	{family_type} eq 'BaystackERS' && {stp_mode} eq 'mstp' && $speed eq ''				= vlan members remove 1 $ports; interface fastEthernet $ports; isis; isis spbm 1; isis enable; spanning-tree mstp learning disable; exit
+	{family_type} eq 'BaystackERS' && {stp_mode} eq 'stpg' && $speed eq ''				= vlan members remove 1 $ports; interface fastEthernet $ports; isis; isis spbm 1; isis enable; spanning-tree learning disable; exit
+	{family_type} eq 'PassportERS' && {is_acli} && $ports =~ /^\d+$/ && $speed =~ /\d+/		= interface mlt $ports; isis; isis spbm 1; isis spbm 1 l1-metric {2000/$speed}; isis enable; exit
+	{family_type} eq 'PassportERS' && {is_acli} && {stp_mode} eq 'mstp' && $speed =~ /\d+/		= vlan members remove 1 $ports; interface GigabitEthernet $ports; isis; isis spbm 1; isis spbm 1 l1-metric {2000/$speed}; isis enable; no spanning-tree mstp force-port-state enable; exit
+	{family_type} eq 'PassportERS' && {is_acli} && {stp_mode} eq 'stpg' && $speed =~ /\d+/		= vlan members remove 1 $ports; interface GigabitEthernet $ports; isis; isis spbm 1; isis spbm 1 l1-metric {2000/$speed}; isis enable; no spanning-tree stp 1 enable; exit
+	{family_type} eq 'BaystackERS' && {stp_mode} eq 'mstp' && $speed =~ /\d+/			= vlan members remove 1 $ports; interface fastEthernet $ports; isis; isis spbm 1; isis spbm 1 l1-metric {2000/$speed}; isis enable; spanning-tree mstp learning disable; exit
+	{family_type} eq 'BaystackERS' && {stp_mode} eq 'stpg' && $speed =~ /\d+/			= vlan members remove 1 $ports; interface fastEthernet $ports; isis; isis spbm 1; isis spbm 1 l1-metric {2000/$speed}; isis enable; spanning-tree learning disable; exit
+
+nnimetric $ports $speed
+	~:"Modify SPB NNI ports metric according to port speed"
+	?:"Alias syntax:\n	nnimetric <ports|mlt-id> [link-speed-gbps]\n"
+	{family_type} eq 'PassportERS' && {is_acli} && $ports =~ /^\d+$/	= interface mlt $ports; isis spbm 1 l1-metric {2000/$speed}; exit
+	{family_type} eq 'PassportERS' && {is_acli} 				= interface GigabitEthernet $ports; isis spbm 1 l1-metric {2000/$speed}; exit
+	{family_type} eq 'BaystackERS'						= interface Ethernet $ports; isis spbm 1 l1-metric {2000/$speed}; exit
+
+defprt $ports
+	~:"Remove all config for specified ports"
+	?:"Restore ports to factory default settings\nAlias syntax:\n	defprt <ports>\n"
+	{family_type} eq 'PassportERS' && {is_acli} 				= @echo off output off
+										; @my $defprt_*
+										; @more disable
+										; @error disable
+										; @print
+										; @print "Removing configuration from $ports ..."
+										; config term
+										# Remove ports from MLT
+										; @for $defprt_port &$ports
+										;    show mlt|smlt,norm|$defprt_port > $defprt_mlt %1
+										;    @if $defprt_mlt
+										;       no mlt $defprt_mlt member $defprt_port
+										;    @endif
+										; @endfor
+										# Remove ports from all VLANs
+										; show interfaces gigabitEthernet vlan  |$ports > $defprt_vids %6
+										; @for $defprt_vid &$defprt_vids
+										;       @next if $defprt_vid eq 0
+										;	vlan members remove $defprt_vid $ports
+										; @endfor
+										# Remove ports from any i-sids
+										; show interfaces gigabitEthernet i-sid $ports > $defprt_Isid{%1},$defprt_Cvid{%1} %3%5
+										; @for $defprt_port &$defprt_Isid{}
+										; 	i-sid $defprt_Isid{$defprt_port}
+										; 	@if $defprt_Cvid{$defprt_port} eq 'N/A'
+										; 		no port $defprt_port
+										; 	@else
+										; 		no c-vid $defprt_Cvid{$defprt_port} port $defprt_port
+										; 	@endif
+										; @endfor
+										; interface GigabitEthernet $ports
+										; default lock
+										; shutdown
+										; no isis
+										; no isis remote
+										; no fa
+										; no name
+										; no brouter
+										; no vrf
+										; no qos if-policer
+										; no qos if-rate-limiting
+										; no qos if-shaper
+										; no macsec enable
+										; no macsec connectivity-association
+										; no sflow collector 1
+										; no sflow collector 2
+										; no sflow counter-interval
+										; no sflow sampling-rate
+										; no macsec mka enable
+										; no macsec mka profile
+										; no macsec connectivity-association
+										; no endpoint-tracking
+										; default flex-uni enable
+										; default auto-negotiation-advertisements
+										; default macsec actor-priority
+										; default macsec cipher-suite
+										; default fec
+										; default lacp aggregation enable
+										; default lacp timeout-time
+										; default lacp
+										; default vlacp
+										; default lldp status
+										; default slpp packet-rx
+										; default slpp packet-rx-threshold
+										; default spanning-tree mstp
+										; default encapsulation dot1q
+										; default auto-negotiate
+										; default spoof-detect
+										; default qos 802.1p-override
+										; default enable-diffserv
+										; default access-diffserv
+										; default fabric statistics
+										; default spanning-tree bpduguard enable timeout
+										; default slpp-guard enable timeout
+										; default ip arp-inspection
+										; default snmp trap link-status
+										; exit
+										; vlan members add 1 $ports
+										; @error enable
+										; @more enable
+										; @echo on
+										; show running-config  -ib||$ports
+
+	{family_type} eq 'BaystackERS' && {stp_mode} eq 'mstp'			= @echo off output off
+										; @more disable
+										; @error disable
+										; @print
+										; @print "Removing configuration from $ports ..."
+										; config term
+										; interface fastEthernet $ports
+										; no shutdown
+										; no isis
+										; no name
+										; no brouter
+										; no ip ipfix enable
+										; default lacp mode
+										; default lacp aggregation enable
+										; default lacp timeout-time
+										; default lacp key
+										; default vlacp
+										; default slpp-guard
+										; default spanning-tree bpdu-filtering
+										; default spanning-tree mstp learning
+										; default spanning-tree mstp
+										; default mac-security
+										; default adac
+										; default duplex
+										; default speed
+										; default eap-all
+										; default energy-saver
+										; default ip arp-inspection
+										; default ip verify source
+										; default ip dhcp-snooping
+										; default rate-limit
+										; default storm-control all
+										; default sflow sampling-rate
+										; default sflow counter-interval
+										; no sflow collector %s &1..4
+										; exit
+										; vlan ports $ports tagging disable
+										; vlan members add 1 $ports
+										; @error enable
+										; @more enable
+										; @echo on
+										; show running-config  -ib||$ports
+
+	{family_type} eq 'BaystackERS' && {stp_mode} eq 'stpg'			= @echo off output off
+										; @more disable
+										; @error disable
+										; @print
+										; @print "Removing configuration from $ports ..."
+										; config term
+										; interface fastEthernet $ports
+										; no isis
+										; no name
+										; no brouter
+										; no shutdown
+										; default lacp mode
+										; default lacp aggregation enable
+										; default lacp timeout-time
+										; default lacp key
+										; default vlacp
+										; default slpp-guard
+										; default spanning-tree bpdu-filtering
+										; default spanning-tree learning
+										; default spanning-tree
+										; default mac-security
+										; default adac
+										; default duplex
+										; default speed
+										; default eap-all
+										; default energy-saver
+										; default ip arp-inspection
+										; default ip verify source
+										; default ip dhcp-snooping
+										; default rate-limit
+										; default storm-control all
+										; no ip ipfix enable
+										; exit
+										; vlan ports $ports tagging disable
+										; vlan members add 1 $ports
+										; @error enable
+										; @more enable
+										; @echo on
+										; show running-config  -ib||$ports
+
+tuni $ports
+	~:"Create a T-UNI connection between two local ports"
+	?:"Create a T-UNI connection between two local ports\nAlias syntax:\n	tuni <2-ports>\n"
+	{family_type} eq 'PassportERS' && {is_acli} 				= @echo off output off
+										; @my $tuni_*
+										; $tuni_ports = $ports
+										; @if $#tuni_ports == 2
+										; 	show isis spbm |^\d +\d > $tuni_nick %4
+										; 	$tuni_isid = 14000000
+										; 	@if $tuni_nick
+										; 		$tuni_isid = {$tuni_isid + hex(join('', split('\.', "$tuni_nick")))}
+										; 	@endif
+										;	@for $tuni_offset &0..9
+										;		$tuni_isid2 = { $tuni_isid + 100000 * $tuni_offset }
+										;		show i-sid |$tuni_isid2 > $tuni_isid3 %1
+										;		@last if !$tuni_isid3
+										;	@endfor
+										;	@if {$tuni_offset =~ /^\d$/}
+										;		$tuni_isid = { $tuni_isid + 100000 * $tuni_offset }
+										;	@endif
+										; 	config term
+										; 	i-sid $tuni_isid elan-transparent
+										; 	   port $ports
+										; 	exit
+										; 	interface gigabitEthernet $ports
+										; 	   no lldp status
+										; 	   no shutdown
+										; 	exit
+										; @else
+										; 	@print "Must enter 2 ports exacltly"
+										; @endif
+										; @echo off output on
+										; show i-sid $tuni_isid
+										; @echo on
+
+
+#
+# Misc
+#
+h	~:"Show history of commands used in terminal"		= @history
+hu	~:"Show history of commands as entered by user"		= @history user-entered
+hd	~:"Show history of commands as sent to switch"		= @history device-sent
+tgz [$delete]
+	~:"Show or delete all *.tgz files"
+	!{is_voss}						= &noalias
+	$delete eq '?'						= &print "Alias syntax:\n	tgz [delete]\n"
+	$delete eq 'delete'					= delete *.tgz -y; delete *.voss -y
+	$delete eq ''						= @echo off; ls /intflash/*.tgz !Listing; ls /intflash/*.voss !Listing; @echo on
+
+cpycfg $newconf
+	~:"Overwrite config.cfg with specified config"
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-(9\d|86)/			= copy $newconf config.cfg -y; copy $newconf /mnt/intflash/config.cfg -y
+	{is_voss}									= copy $newconf config.cfg -y
+	{family_type} eq 'PassportERS'							= copy $newconf config.cfg -y; copy $newconf 127.0.0.6:config.cfg
+	{is_xos}									= cp $newconf primary.cfg -y
+
+
+pcap [$p] [$m]
+	~:"Do PCAP captures (VSP9k only)"
+	?:"Alias syntax:\n	pcap\n	pcap <on|off>\n	pcap <port> <rx|tx|both|off>\n	pcap clear\n	pcap stats\n"
+	$p eq ''				= show pcap; show pcap port; show pcap stats
+	$p =~ /^cl/				= config term; pcap reset-stat; end
+	$p =~ /^st/				= show pcap stats
+	$p eq 'on'				= config term; pcap enable; end
+	$p eq 'off'				= config term; no pcap enable; end
+	$m eq 'off'				= config term; int gig $p; no pcap enable; end
+	$p =~ /^\d+\/\d+/ && $m eq 'off'	= config term; int gig $p; no pcap enable; end
+	$p =~ /^\d+\/\d+/			= config term; int gig $p; pcap enable [mode $m]; end
+	length($p)				= &noalias
+
+acl [$p] [$p1] [$p2]
+	~:"Show ACL log, stats or config (VSP9k only)"
+	$p eq ''				= &print "Alias syntax:\n	acl clear|log|stat|cfg\n"
+	$p eq 'clear'				= clear filter acl statistics all; clear filter acl log
+	$p eq 'log'				= show filter acl log $p1
+	$p eq 'stat' && $p1 eq '?'		= &print "Alias syntax:\n	acl stat [<acl-id> [<ace-id>|sec|qos]]\n"
+	$p eq 'stat' && $p1 eq ''		= show filter acl statistics all
+	$p eq 'stat'				= show filter acl statistics $p1 [$p2]
+	$p eq 'cfg'				= show filter acl config
+
+show [$funny]
+	~:"Show problem solution!"
+	$funny eq ''		= &noalias
+	$funny eq 'problem'	= &print "\n    CpuUtil: 100%\n    CpuTemp: 200C\n BufferUtil: 100%\n   DramUsed: 100%\n   DramFree: 0\n\nDon't panic.\nThe switch is computing the shortest path to Life the Universe & Everything\n"
+	$funny eq 'solution'	= &print "\n42\n"
+	1			= &noalias
+
+mcd $path
+	~:"Create a new local directory and change dir into it"
+	?:"Create directory and change path into it\nAlias syntax:\n	mcd <new directory>\n"
+	1			= @mkdir $path; @cd $path
+
+vping $ip $vrf
+	~:"Easy ping on a VRF; automatically sets source IP"
+	?:"Alias syntax:\n	vping <ip> <vrf-name-or-id>\n"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/		= @echo off output off
+									; @my $vping_*
+									; show ip interface vrfids $vrf | \d+\.\d+\.\d+\.\d+ > $vping_ip[] %2
+									; show ip vrf |^\S+\s+$vrf\s+[TF] > $vping_vrf %1
+									; @echo on
+									; ping $ip vrf $vping_vrf source $vping_ip[1]
+	{family_type} eq 'PassportERS'					= @echo off output off
+									; @my $vping_*
+									; show ip interface vrf $vrf | \d+\.\d+\.\d+\.\d+ > $vping_ip[] %2
+									; @echo on
+									; ping $ip vrf $vrf source $vping_ip[1]
+
+vtracert $ip $vrf
+	~:"Easy traceroute on a VRF; automatically sets source IP"
+	?:"Alias syntax:\n	vtracert <ip> <vrf-name-or-id>\n"
+	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/		= @echo off output off
+									; @my $vping_*
+									; show ip interface vrfids $vrf | \d+\.\d+\.\d+\.\d+ > $vping_ip[] %2
+									; show ip vrf |^\S+\s+$vrf\s+[TF] > $vping_vrf %1
+									; @echo on
+									; traceroute $ip vrf $vping_vrf source $vping_ip[1]
+	{family_type} eq 'PassportERS'					= @echo off output off
+									; @my $vping_*
+									; show ip interface vrf $vrf | \d+\.\d+\.\d+\.\d+ > $vping_ip[] %2
+									; @echo on
+									; traceroute $ip vrf $vrf source $vping_ip[1]
+
+rmlogs
+	~:"Deletes old logfiles on flash (ones which are from previous years)"
+	{family_type} ne 'PassportERS'					= &noalias
+	1								= @more disable
+									; @my $rmlogs_*
+									; ls |\d\{4\}\s+log\. > $rmlogs_files %9
+									; delete %s &$rmlogs_files
+									; @more enable

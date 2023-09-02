@@ -1,0 +1,164 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>ACMD script</Title>
+</HEAD>
+<BODY>
+<h1>ACMD script</h1>
+<p>The ACMD script allows bulk execution of a set of CLI commands against many switches, either via SSH or Telnet.</p>
+<p>The script can be executed from any DOS box or from a ConsoleZ tab window:</p>
+<pre>
+	C:\>acmd
+	acmd.pl version 1.05
+	
+	 Execution of CLI commands/script in bulk to many Extreme Networks devices using SSH or Telnet
+	
+	Usage:
+	 acmd.pl [-agiopty] [-l &lt;user&gt;] &lt;host/IP/list&gt; &lt;telnet|ssh&gt; "semicolon-separated-cmds" [&lt;output-file&gt;]
+	 acmd.pl [-agiopty] [-l &lt;user&gt;] -s &lt;script-file&gt; &lt;host/IP/list&gt; &lt;telnet|ssh&gt; [&lt;output-file&gt;]
+	 acmd.pl [-agiopty] [-l &lt;user&gt;] -f &lt;hostfile&gt; &lt;telnet|ssh&gt; "semicolon-separated-cmds" [&lt;output-file&gt;]
+	 acmd.pl [-agiopty] [-l &lt;user&gt;] -f &lt;hostfile&gt; -s &lt;script-file&gt; &lt;telnet|ssh&gt; [&lt;output-file&gt;]
+	 acmd.pl [-agiopty] [-l &lt;user&gt;] -x &lt;spreadsheet&gt;[:&lt;sheetname&gt;]!&lt;column-label&gt; &lt;telnet|ssh&gt; "semicolon-separated-cmds" [&lt;output-file&gt;]
+	 acmd.pl [-agiopty] [-l &lt;user&gt;] -x &lt;spreadsheet&gt;[:&lt;sheetname&gt;]!&lt;column-label&gt; -s &lt;script-file&gt; &lt;telnet|ssh&gt; [&lt;output-file&gt;]
+	
+	 -a               : In staggered mode (-g) abort further iterations if at least one host fails
+	 -f &lt;hostfile&gt;    : File containing a list of hostnames/IPs to connect to; valid lines:
+	                  :   &lt;IP/hostname&gt;         [&lt;display-name&gt;] [# Comments]
+	                  :  [&lt;IP/hostname&gt;]:&lt;port&gt; [&lt;display-name&gt;] [# Comments]
+	 -g &lt;number-N&gt;    : Stagger job over more iterations each for a maximum of N hosts;
+	                    if not specified, job is performed against all hosts in a single cycle
+	 -i               : Create output file per-host, using filename &lt;host/IP&gt;[_&lt;output-file&gt;]
+	 -l &lt;user&gt;        : Specify user credentials to use (password will be prompted)(default = rwa/rwa)
+	 -o               : Overwrite &lt;output-file&gt;; default is to append
+	 -p &lt;password&gt;    : Specify a password via command line (instead of being prompted for it)
+	 -s &lt;script-file&gt; : File containing list of commands to be executed against all hosts
+	 -t &lt;timeout&gt;     : Timeout value in seconds to use (default = 20secs)
+	 -x &lt;spreadsheet&gt;[:&lt;sheetname&gt;]!&lt;column-label&gt;  : Spreadsheet file (Microsoft Excel, OpenOffice, CSV)
+	                    Spreadsheet must be a simple table where every row is a device with a number
+	                    of parameters. The first row of the table must be a label for the column values.
+	                    The label corresponding to the column with the switch IP/hostnames must be
+	                    supplied in &lt;column-label&gt;. The other column labels can be embedded as variables
+	                    $&lt;label-name&gt; in the supplied CLI commands or script file.
+	                    The &lt;column-label&gt; and $&lt;label-name&gt; names are case insensitive and any spaces used
+	                    within them in the spreadsheet will be replaced with the '_' underscore character.
+	                    The &lt;sheetname&gt; is optional; if not supplied the first sheet of the spreadsheet
+	                    will be used
+	 -y               : Skip job detailed summary and user confirmation prompt
+	 &lt;host/IP list&gt;   : List of hostnames or IP addresses
+	                  : Note that valid IP lists can be written as: 192.168.10.1-10,40-45,51
+	                  : IPv6 addresses are also supported: 2000:10::1-10 (decimal range 1-10)
+	                  : 2000:20::01-10 (hex range 1,2,3,4,5,6,7,8,9,a,b,c,d,e,f,10)
+	 &lt;telnet|ssh&gt;     : Protocol to use
+	 &lt;output-file&gt;    : Output file (and suffix with -i) for output filenames
+</pre>
+
+<p>If you don’t use the <i>-g</i> flag, the script will attack all nodes in one go; with SSH this will be slow initially as the SSH authentications are blocking calls. This script will run a lot faster with Telnet.</p>
+<p>If you use the <i>-g</i> flag, you can stagger it to do N switches at a time; with SSH it is best to stagger around 10 switches at a time.</p>
+<p>The critical thing when working with many switches is keeping track of when things go wrong (if you can’t connect to 1 switch, or some switch does not like one of your commands).
+The approach taken is that if a command or the connection fails to all switches in the 1st iteration, then the script bombs out => changes were not made on any switch (unless 1 command gave an error across all switches, in which case all preceding commands in your script will have executed).
+If instead only a few switches fail during an iteration (and you are using the staggered mode with <i>-g</i>) you can control whether you would like to carry on with subsequent iterations (default) or not (set the <i>–a</i> flag for abort).
+In any case, if the script succeeds on some switches, but fails on others or is not executed on others because the last iterations were skipped (<i>-g</i> + <i>-a</i>)  the list of all switches for which the script was not executed will be stored in a file <i>&lt;hostfile&gt;.retry</i> ; that way you can easily re-trigger the same script for just those switches which are remaining (after you’ve fixed the problem, whatever that was..).
+The <i>&lt;hostfile&gt;.retry</i> file will also include information about the error which each host failed on.
+And anyway you get a detailed summary of what the script is setting off to do, and you need to confirm before it gets going (unless you force an immediate start with <i>–y</i>)</p>
+
+<p>The <i>&lt;hostfile&gt;</i> can take the same syntax as an IP hosts file; for example:</p>
+
+<pre>
+	10.134.161.41
+	10.134.161.42
+	10.134.161.43
+	10.134.161.44
+	10.134.161.81   vsp8000-1
+	10.134.161.82   vsp8000-2
+</pre>
+
+<p>So you can list just the IP addresses or hostnames; in the former case, you can provide a switch name in the same file, as in example above for .81 & .82, then these switches will be referred to by name in output dialogue. Also if a switch name is provided, it will replace any occurrences of $$ in the CLI script.</p>
+
+<p>A sample <i>&lt;script-file&gt;</i> file, which sets the SNMP location/contact and changes the CLI passwords for 'ro' user:</p>
+
+<pre>
+	config term
+	snmp-server location "test test"
+	snmp-server contact "Ludovico"
+	username ro level ro // ro // newro // newro
+	show cli password
+	end
+</pre>
+
+<p>Note that the same ACLI syntax using <i>//</i> can be used to feed data to commands.</p>
+<p>This is the output of it running:</p>
+
+<pre>
+	C:\>acmd.pl -o -f myhosts -s myscript ssh output.log
+	================================================================================
+	Identified 33 hosts to run job against
+	Job consists of pushing CLI script contained in file: myscript
+	Performing job over single iteration
+	-> job will be performed by connecting to all 33 hosts at the same time
+	SSH will be used with default credentials: rwa/rwa
+	Any output received from hosts will be collected in file: output.log
+	-> output file 'output.log' already exists and will be overwritten!
+	If the script succeeds on some hosts but fails on others
+	-> list of hosts which failed will be listed in file: myhosts.retry
+	-> file 'myhosts.retry' already exists and will be overwritten!
+	================================================================================
+	OK to proceed [Y = yes; any other key = no] ? y
+	Connecting to 33 hosts ....................................................<7>.<10><12>....<13><14>.<18>.<20>.<25>...<26>............<27><28>..<29><32>.......<33> done!
+	Entering PrivExec on 33 hosts <6>....<19>..<26>.<33> done!
+	Executing CLI script on 33 hosts
+	- config term   ...<6>.<13>.<15>.<21>.<33> done!
+	- snmp-server location "test test"   ...<7>.<11>..<19>.<21>..<23>.<30>.<32>..............<33> done!
+	- snmp-server contact "Ludovico"   ....<8>.<13>.<19>.<22>.<27>.<28>.<33> done!
+	- end   ...<7>.<13>.<14>.<21>.<33> done!
+	Disconnecting from 33 hosts
+	Output saved to file output.log
+</pre>
+
+<p>Using $$ variable:</p>
+
+<pre>
+	acmd -l rwa -p rwa -f hosts.txt ssh "enable; config term; prompt $$; router isis; sys-name $$"
+</pre>
+
+<p>And &lt;script-file&gt; has:</p>
+
+<pre>
+	10.7.6.8   BEB-608
+	10.7.6.9   BEB-609
+	10.7.6.14  BEB-614
+	10.7.6.15  BEB-615
+	10.7.6.20  BEB-620
+	10.7.6.21  BEB-621
+</pre>
+
+<p>Using a spreadsheet file (xls, xlsx, xlsm, csv, ods, sxc):</p>
+
+<img src="../images/acmd-spreadsheet.png" />
+
+<pre>
+	C:\Users\lstevens\Scripts\acli\working-dir>acmd -l rwa -p rwa -x excel.csv!Switch ssh "enable; config term; prompt $name; router isis; sys-name $name; spbm 1 nickname $nickname"
+	================================================================================
+	Identified 2 hosts to run job against
+	Job consists of pushing CLI commands provided in command line (5 commands)
+	Performing job over single iteration
+	-> job will be performed by connecting to all 2 hosts at the same time
+	SSH will be used with 'rwa' username and password provided
+	Any output received from hosts will be discarded (config only script)
+	If the script succeeds on some hosts but fails on others
+	-> list of hosts which failed will be listed in file: acmd.retry
+	-> file 'acmd.retry' already exists and will be overwritten!
+	================================================================================
+	OK to proceed [Y = yes; any other key = no] ? y
+	Connecting to 2 hosts ..............................<1>.<2> done!
+	Entering PrivExec on 2 hosts ..<2> done!
+	Executing CLI script on 2 hosts
+	- config term   ..<2> done!
+	- prompt $name   ..<2> done!
+	- router isis   ..<2> done!
+	- sys-name $name   ..<2> done!
+	Disconnecting from 2 hosts
+</pre>
+
+</BODY>
+</HTML>

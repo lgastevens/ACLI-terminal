@@ -1,0 +1,16 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Unwrapping Lines</Title>
+</HEAD>
+<BODY>
+<h1>Unwrapping Lines</h1>
+
+<p>The Extreme Networks ERS (BaystackERS) platform CLI has a concept of screen width which is enforced on all lines of output. By default an ERS device will use a screen width of 80 characters. The ACLI terminal will always max that value out on the device to 131 (not the maximum 132 as this has other side effects). Increasing the screen width has the benefit of greatly reducing the number of lines of output which the ERS might have to wrap, as now only lines > 131 characters will be wrapped. However, even so, the ERS config files, particularly with eapol config lines, can often exceed even 131 characters; the same is true for the ERS and ISW log files.</p>
+<p>The ACLI terminal provides for easy grep capability of all output, whether we are displaying the running-config or displaying the log file. However the output lines must not be wrapped or else the grep function will not behave as expected.</p>
+<p>To solve this problem, ACLI is capable of detecting long lines (=131 characters on ERS, or wrapped ISW log lines) where the subsequent line is in fact a wraped portion of the same line. It is therefore capable of unwrapping these lines. However ACLI will only do this on CLI commands where the <i>-i</i> switch was provided (see section on ACLI command line switches).</p>
+<p>The pre-defined <i>cfg</i> and <i>log</i> aliases thus always automatically set the <i>-i</i> switch.</p>
+
+</BODY>
+</HTML>

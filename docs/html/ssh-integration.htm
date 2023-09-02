@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>SSH Integration</Title>
+</HEAD>
+<BODY>
+<h1>SSH Integration</h1>
+<h2>SSH known hosts</h2>
+
+<p>The ACLI terminal implements an SSH known hosts file, like any other SSH terminal. Note that the SSH server always supplies its public key, regardless of whether the SSH client then authenticates either via password or publickey authentication.</p>
+<p>When connecting via SSH, the host SSH server provides its public key, and the SSH client (ACLI) looks into the known_hosts file to see if it can find a record for the host IP/hostname it is connecting to and whether a cached public key for that host exists. If an existing public key was cached in the know_hosts file and that key matches the key provided by the SSH server, then the SSH connection is made.</p>
+<p>If instead no cached public key is found in the known_hosts file (or no konwn_hosts file exists yet) then the ACLI behaviour is determined by the <i>ssh_known_hosts_key_missing_val</i> ini key in the <i>acli.ini</i> file:</p>
+<ul>
+	<li><b>0</b> : SSH connection is refused</li>
+	<li><b>1</b> : User gets interactively prompted whether to add the key for the host in the known_hosts file, or to connect once without adding the key to known_hosts, or to abort the connection (this is the default behaviour)</li>
+	<li><b>2</b> : The key is automatically added to known_hosts file and a message is displayed to this effect (this used to be the default behaviour in ACLI versions up to 5.02 before this ini key was implemented)</li>
+</ul>
+<p>The default behaviour is for ACLI to interactively prompt the user whether to trust the device and add its key to the known_hosts file, or connect once without adding the key to the known_hosts file or to abort the connection:</p>
+
+<pre>
+	ACLI> ssh connect -l rwa 192.168.56.84
+	
+	Logging to file: C:\Users\lstevens\Local-Documents\ACLI-logs\192.168.56.84.log
+	Escape character is '^]'.
+	Trying 192.168.56.84 .
+	acli-dev.pl: Host SSH key verification failed in known_hosts file, the key is missing!
+	acli-dev.pl: SSH Server key fingerprint is: ssh-rsa 2048 4a:f3:9d:13:a4:c4:bd:ab:17:0b:7b:39:f9:95:96:ad
+	acli-dev.pl: Press 'Y' to trust host and add key in known_hosts file
+	             Press 'O' to connect once without adding the key to known_hosts file
+	             Press any other key to abort the connection
+	Choice : Y
+	
+	acli-dev.pl: Added SSH host key to known_hosts file
+	.
+	Enter Password:
+	.
+	Connected to 192.168.56.84 via SSH
+	acli-dev.pl: Performing login ............
+	acli-dev.pl: Detected an Extreme Networks device -> using terminal interactive mode
+	VSP-8284XSQ:1>enable
+	acli-dev.pl: Detecting device ...
+	acli-dev.pl: Detected VSP-8284-XSQ (00-51-00-91-f0-00) Single CPU system, 2 slots 84 ports
+	acli-dev.pl: Use '^T' to toggle between interactive & transparent modes
+	
+	VSP-8284XSQ:1#%
+</pre>
+
+<p>The importance of the known hosts file is to build trust of a given end system. The expectation is that whenever we connect to the same known host we receive the same key from that host. If this is not the case, then this can potentially indicate a compromised system or a man in the middle attack (though this usually also happens when the switch has been factory defaulted).</p>
+<p>If a cached public key is found in the known_hosts file and the key does not match the key supplied by the SSH server, in this case the ACLI behaviour is determined by the <i>ssh_known_hosts_key_changed_val</i> ini key in the <i>acli.ini</i> file:</p>
+<ul>
+	<li><b>0</b> : SSH connection is refused (this used to be the default behaviour in ACLI versions up to 5.02 before this ini key was implemented)</li>
+	<li><b>1</b> : User gets interactively prompted whether to update the key for the host in the known_hosts file, or to connect once without updating the key in known_hosts, or to abort the connection (this is the default behaviour)</li>
+	<li><b>2</b> : The key is automatically updated with the new key in the known_hosts file and a message is displayed to this effect (Note, this is not a safe option)</li>
+</ul>
+<p>The default behaviour is for ACLI to interactively prompt the user whether to trust the device and update its key in the known_hosts file, or connect once without updating the key in the known_hosts file or to abort the connection:</p>
+
+<pre>
+	ACLI> ssh connect -l rwa 192.168.56.84
+	
+	Logging to file: C:\Users\lstevens\Local-Documents\ACLI-logs\192.168.56.84.log
+	Escape character is '^]'.
+	Trying 192.168.56.84 .
+	acli-dev.pl: Host SSH key verification failed in known_hosts file, the key has changed!
+	acli-dev.pl: SSH Server key fingerprint is: ssh-rsa 2048 4a:f3:9d:13:a4:c4:bd:ab:17:0b:7b:39:f9:95:96:ad
+	acli-dev.pl: Press 'Y' to trust host and update key in known_hosts file
+	             Press 'O' to connect once without updating the key in known_hosts file
+	             Press any other key to abort the connection
+	Choice : Y
+	
+	acli-dev.pl: Updated SSH host key in known_hosts file
+	.
+	Enter Password:
+	.
+	Connected to 192.168.56.84 via SSH
+	acli-dev.pl: Performing login ............
+	acli-dev.pl: Detected an Extreme Networks device -> using terminal interactive mode
+	VSP-8284XSQ:1>enable
+	acli-dev.pl: Detecting device ...
+	acli-dev.pl: Detected VSP-8284-XSQ (00-51-00-91-f0-00) Single CPU system, 2 slots 84 ports
+	acli-dev.pl: Use '^T' to toggle between interactive & transparent modes
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>Note that with the above default behaviours where the user is prompted to press 'Y' or 'O' or any other key, if the user takes too long to press a key, it is possible for the SSH connection to timeout, not because ACLI is timing it out, but because the SSH server side will not hold the socket open indefinitely. In this case, simply re-connect again.</p>
+
+<p>If the default behaviour is changed to refuse the SSH connection (ini key set to <b>0</b>), then the only way to SSH connect to a host with missing or changed keys is to edit the SSH known hosts file and remove the existing entry and then reconnect. This can be done using the <i>'ssh known-hosts delete &lt;ip&gt;'</i> and <i>'reconnect'</i> commands under the ACLI control interface.</p>
+
+<pre>
+	ACLI> ssh known-hosts ?
+	Syntax: ssh known-hosts [delete]
+
+	ACLI> ssh known-hosts delete ?
+	Syntax: ssh known-hosts delete &lt;hostname/IP&gt; [&lt;tcp-port&gt;]
+	
+	 - Hostname or IP must exactly match entry in known_hosts file
+	ACLI>
+</pre>
+<p>The <i>known_hosts</i> file is looked for in the following paths in order:</p>
+<ul>
+	<li><i>%ACLI%\.ssh</i> (if you defined the <i>%ACLI%</i> path)</li>
+	<li><i>$HOME/.ssh</i> (on Unix systems)</li>
+	<li><i>%USERPROFILE%\.ssh</i> (on Windows)</li>
+	<li><i>%ACLIDIR%\.ssh</i> (ACLI install directory)</li>
+</ul>
+<p>If a <i>known_hosts</i> file is not found, one will be created in the first existing path of the above.</p>
+
+<p>Once connected via SSH, it is always possible to view the current SSH connection details via the embedded <i>'@ssh info'</i> command or the <i>'ssh info'</i> command under the ACLI control interface:</p>
+<pre>
+	VSP-8284XSQ:1#% @ssh info
+	SSH Version 2
+	SSH Connected to 192.168.56.84
+	SSH authentication used : password
+	Server key fingerprint : ssh-rsa 2048 4a:f3:9d:13:a4:c4:bd:ab:17:0b:7b:39:f9:95:96:ad
+	SSH known_hosts lookup result : verified
+</pre>
+
+<h2>SSH publickey authentication</h2>
+
+<p>To perform SSH publickey authenticayion the ACLI terminal needs to be pre-loaded with both the user's private and public keys. These keys need to be placed in any of the following directories:</p>
+<ul>
+	<li><i>%ACLI%\.ssh</i> (if you defined the <i>%ACLI%</i> path)</li>
+	<li><i>$HOME/.ssh</i> (on Unix systems)</li>
+	<li><i>%USERPROFILE%\.ssh</i> (on Windows)</li>
+	<li><i>%ACLIDIR%\.ssh</i> (ACLI install directory)</li>
+</ul>
+<p>The expected filename is <i>'id_rsa'</i> or <i>'id_dsa'</i> respectively for RSA and DSA private keys; the corresponding public key (which is also required) is expected with filenames <i>'id_rsa.pub'</i> / <i>'id_dsa.pub'</i>. The ACLI command line <i>-k</i> switch can still be used to override the default filename keys.</p>
+<p>The ACLI terminal SSH keys can be managed and inspected using either the embedded <i>'@ssh keys'</i> command or the <i>'ssh keys'</i> command under the ACLI control interface.</p>
+<pre>
+	ACLI> ssh keys info
+	SSH keys loaded:
+	        SSH Private key         : C:\Users\lstevens\.ssh\id_rsa
+	        SSH Public key          : C:\Users\lstevens\.ssh\id_rsa.pub
+	        SSH key type            : RSA
+	        Passphrase encrypted    : No
+	        Data Encryption (DEK)   :
+	        Key length              : 2048 bits
+	        Key MD5 fingerprint     : 72:23:a1:8b:b1:0b:2f:fa:d5:0b:2b:b2:74:a5:f9:e7
+	        Key comment             : rsa-key-20160306
+	ACLI>
+</pre>
+<p>Note that the ACLI terminal does not supply any utility to generate publickeys. But you can generate your own keys using most other SSH terminals (Putty comes with a nice utility called Puttygen). Note that the ACLI terminal requires the SSH public/private keys to be in OpenSSH format.</p>
+
+<h2>Setting up SSH publickey authentication on Extreme devices</h2>
+
+<p>To use SSH publickey authentication it is not enough to load one's public+private keys on the ACLI client terminal side. It is then necessary to place one's public key on the SSH server (hosts). This is usually a fiddly process which varies across the different products.</p>
+<p>For VOSS & PassportERS devices this process can be taken care of by ACLI. Simply connect to the target device (using either Telnet or SSH with password authentication) then issue the embedded commands <i>'@ssh device-keys'</i> to install your public key on the device.</p>
+<pre>
+	VSP-8284XSQ:1#% @ssh device-keys install ?
+	Syntax: @ssh device-keys install admin|auditor|operator|privilege|ro|rw|rwa|rwl1|rwl2|rwl3|security
+	
+	VSP-8284XSQ:1#% @ssh device-keys install rwa
+	Installing SSH Public key on switch .......done!
+	
+	VSP-8284XSQ:1#% @ssh device-keys list
+	Retrieving SSH Public keys on switch ....done!
+	
+	File              Idx  Acc Levl  Format   Type     Bits  Fingerprint              Comments
+	----------------  ---  --------  -------  -------  ----  -----------------------  ------------------------------
+	rsa_key_rwa         1  rwa       ietf     ssh-rsa  2048                           rsa-key-20160306
+	                                 72:23:a1:8b:b1:0b:2f:fa:d5:0b:2b:b2:74:a5:f9:e7
+
+	VSP-8284XSQ:1#%
+</pre>
+<p>Once done, you can now connect to the device using SSH publickey authentication.</p>
+<pre>
+	ACLI> ssh connect -l rwa 192.168.56.84
+	
+	Logging to file: C:\Users\lstevens\Local-Documents\ACLI-logs\192.168.56.84.log
+	Escape character is '^]'.
+	Trying 192.168.56.84 .
+	Connected to 192.168.56.84 via SSH
+	acli-dev.pl: Performing login .............
+	acli-dev.pl: Detected an Extreme Networks device -> using terminal interactive mode
+	VSP-8284XSQ:1>enable
+	acli-dev.pl: Detecting device ...
+	acli-dev.pl: Detected VSP-8284-XSQ (00-51-00-91-f0-00) Single CPU system, 2 slots 84 ports
+	acli-dev.pl: Use '^T' to toggle between interactive & transparent modes
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>Notice that in the above SSH login, no password was set nor asked for by the switch.</p>
+<p>To see how the SSH connection was performed, use the <i>'@ssh info'</i> embedded command or the <i>'ssh info'</i> command under the ACLI control interface:</p>
+<pre>
+	VSP-8284XSQ:1#% @ssh info
+	SSH Version 2
+	SSH Connected to 192.168.56.84
+	SSH authentication used : publickey
+	Server key fingerprint : ssh-rsa 2048 4a:f3:9d:13:a4:c4:bd:ab:17:0b:7b:39:f9:95:96:ad
+	SSH known_hosts lookup result : verified
+</pre>
+
+</BODY>
+</HTML>

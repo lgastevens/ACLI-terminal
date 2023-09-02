@@ -1,0 +1,61 @@
+# These steps install the necessary modules and dependencies for running ACLI terminal on the XMC underlying Ubuntu.
+# but only for the text based: acli, acmd, aftp, cfm-test, spb-ect, termtest
+# There is no point installing dependencies for acligui and xmcacli since these require a GUI which is not available on XMC's underlying ubuntu
+
+# NOTE: the steps below are modifying the XMC OS. Be aware that if you have problems with XMC and you report these to GTAC,
+# GTAC might request that you prove that the issue you are reporting also happens without these modifications.
+# ==> I.e. you might have to re-install XMC to satisfy that request
+
+# Initialize apt cache
+apt update
+# This seems required, else first apt install below will ask for it
+apt --fix-broken install
+
+# Install required Perl modules available via apt
+apt install libnet-telnet-perl
+apt install libnet-ssh2-perl
+apt install libio-socket-multicast-perl
+apt install libio-callback-perl
+
+# Install required Perl modules not available via apt
+cpan install Net::Ping::External
+cpan install Control::CLI
+cpan install Control::CLI::Extreme
+cpan install Control::CLI::AvayaData
+
+
+# Install the ACLI files
+mkdir -p /usr/local/acli
+cd /usr/local/acli
+wget http://www.oranda.fr/ACLI-terminal/downloads/ACLI-500-macos.zip
+unzip ACLI-500-macos.zip
+rm ACLI-500-macos.zip
+
+# make the files executable [only do the ones you will use]
+chmod a+x acli
+chmod a+x acmd
+chmod a+x aftp
+chmod a+x cfm-test
+chmod a+x spb-ect
+chmod a+x termtest
+
+# make all Perl files executable also
+chmod a+x *.pl
+
+# setup for all user the enviroment variable
+echo "export ACLIDIR=/usr/local/acli" > /etc/profile.d/all_user.sh
+
+# Copy the invoking files into /usr/local/bin/ which is in user's path [only do the ones you will use]
+cp /usr/local/acli/acli /usr/local/bin/
+cp /usr/local/acli/aftp /usr/local/bin/
+cp /usr/local/acli/acmd /usr/local/bin/
+cp /usr/local/acli/cfm-test /usr/local/bin/
+cp /usr/local/acli/spb-ect /usr/local/bin/
+cp /usr/local/acli/termtest /usr/local/bin/
+
+
+# Reboot, good idea
+init 6
+
+# Run ACLI
+acli -l <ssh-user> <switch-IP>

@@ -1,0 +1,14 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Terminal emulation</Title>
+</HEAD>
+<BODY>
+<h1>Terminal emulation</h1>
+<p>The ACLI terminal will by default negotiate for a vt100 terminal and a terminal size of 132x24 width/height. Though, unlike most other terminals, this has absolutely no correlation to how large you make the ConsoleZ window in which ACLI is running. Negotiation is performed over both SSH and Telnet and this is taken care of by the underlying <i>Control::CLI</i> module. The defaults can be overridden using the <i>-y &lt;term-type&gt;</i> & <i>-z &lt;w&gt;x&lt;h&gt;</i> switches when starting acli from the command line/shell. They can also be changed using the ACLI control interface using the <i>'terminal'</i> command, however these settings will only apply to new connections (not an existing connection). The vt100 & 132x24 defaults can also be overridden in the <i>acli.ini</i> file via the <i>terminal_emulation_str</i> and <i>terminal_window_size_lst2</i> keys; see the ACLI ini file section.</p>
+<p>Most devices will not care much about the terminal emulation in use. Though some will care. In the case of supported Extreme Networks devices, only the WLAN9100 cares about the negotiated terminal screen size which is then taken into account by the AP's CLI. The goal of the ACLI terminal is to treat all device output as simple text, where if lines are too large to fit in the window, the lines are wrapped by ConsoleZ/ACLI and not by the host device itself (if this happens ACLI has to try and unwrap them, otherwise this would compromise the ACLI grep functions). If a device takes notice of negotiated screen width, then setting this to 132 helps prevent that device from wrapping lines > 80 characters.</p>
+
+
+</BODY>
+</HTML>

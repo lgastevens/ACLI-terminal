@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Session Logging</Title>
+</HEAD>
+<BODY>
+<h1>Session Logging</h1>
+
+<p>The ACLI terminal can log CLI sessions to file. Logging to file can be specified either when first launching ACLI from command line, or when connecting from the ACLI> control interface using the <i>open/telnet/ssh</i> commands. Logging can also be started or stopped once already connected using either the embedded <i>@log</i> commands (if in interactive mode) or the <i>log</i> command in the ACLI control interface.</p>
+<pre>
+	@log start &lt;capture-file&gt; [-o|overwrite]
+</pre>
+<pre>
+	ACLI> log start &lt;capture-file&gt; [-o|overwrite]
+</pre>
+<p>An auto-logging is also available, where ACLI can be made to automatically log to file all connections. The functionality can be enabled via the <i>'@log auto-log'</i> command, or via the ACLI control interface <i>'log auto-log'</i> command, or command line switch (<i>-j</i>) and also via the <i>acli.ini</i> file.</p>
+<pre>
+	@log auto-log disable|enable|retry
+</pre>
+<pre>
+	ACLI> log auto-log disable|enable|retry
+</pre>
+<pre>
+	VSP-8284XSQ:1#% @log ?
+	Syntax: @log auto-log|info|path|start|stop
+	
+	VSP-8284XSQ:1#% @log info
+	
+	Logging path    : C:\Users\lstevens\Documents\ACLI-logs
+	Logging to file : C:\Users\lstevens\Documents\ACLI-logs\192.168.56.71.log
+	Auto-Logging    : enabled
+	
+	VSP-8284XSQ:1#%
+</pre>
+<p>The filename used is the IP address or hostname used for the connection which can be pre-pended with a timestamp string. The use and format of the timestamp string can be set in <i>acli.ini</i> via the <i>auto_log_filename_str</i> setting. See the ACLI ini file section.</p>
+<p>A logging path directory can also be set; if set, any logging will create the session log file in the provided path and not in the working directory. The logging directory can be set via the <i>'@log path'</i> embedded command, or via ACLI control interface <i>'log path'</i> command, or command line switch (<i>-i</i>) and via the <i>acli.ini</i> file using the <i>log_path_str</i> key.</p>
+<pre>
+	@log path set '&lt;directory to use for logging&gt;'
+</pre>
+<pre>
+	ACLI> log path set '&lt;directory to use for logging&gt;'
+</pre>
+</BODY>
+</HTML>

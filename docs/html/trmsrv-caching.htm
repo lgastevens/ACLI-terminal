@@ -1,0 +1,243 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Terminal Server caching</Title>
+</HEAD>
+<BODY>
+<h1>Terminal Server caching</h1>
+<p>The ACLI terminal has a caching functionality for remembering past connections to terminal servers. A terminal server is a device one connects to via Telnet (or SSH) in order to get access to a switch serial console port. These connections are generally made by opening a Telnet (or SSH) connection against a non-default TCP port number. The terminal server will allocate TCP port numbers against each serial port connection it can connect to. This is all very nice, but the pain with connecting via terminal servers is that one never remembers the TCP port number to use and what switch console port is connected to which terminal server serial port.</p>
+
+
+<h2>Terminal Server connection caching</h2>
+
+<p>ACLI solves this problem by maintaining a cache of all past connections to terminal servers. The cache information is augmented with details of the connected device, such as switch name, switch model, switch MAC address, CPU information or stack/unit information. The terminal server cache information is stored in file <i>%USERPROFILE%\.acli\acli.trmsrv</i> and can be verified using the <i>'trmsrv info'</i> command under the ACLI control interface:</p>
+<pre>
+	ACLI> trmsrv info
+	Remote terminal-server File : C:\Users\lstevens\.acli\acli.trmsrv
+	Sort mode                   : ip
+	Static mode                 : enabled
+	ACLI>
+</pre>
+<p>A new entry is added to the cache file whenever a new connection is made, via a terminal server, and that ACLI auto-discovery is run, resulting in ACLI entering interactive mode. The ACLI auto-discovery process allows ACLI to discover all the necessary switch information which is then added to the cache file. Note that it is usually a good idea to launch ACLI connections to a terminal server by setting the <i>-n</i> ACLI switch, to disable ACLI's auto-discovery upon connection (this is because ACLI's auto-discovery can be a bit slow, if the the connection is ultimately over a 9600 baud serial port connection, and may not work if the switch requires some key sequences before presenting a CLI prompt). In this case, the user will have to hit CTRL-T to force auto-discovery in order to get the terminal server connection to get cached.</p>
+<p>The information in the cache file can be viewed using the <i>'trmsrv list'</i> command in the ACLI control interface:</p>
+<pre>
+	ACLI> trmsrv list
+	
+	Known remote terminal-server sessions:
+	
+	Num  TrmSrv/IP ssh/tel  Port Name of attached device (details)                                      Comments
+	---  -----------------  ---- ---------------------------------------------------------------------- -------------------------
+	  1  10.8.3.239      t  2029 VSP-4850GTS (VSP-4850-GTS; c0-57-bc-b2-f0-00; CPU1)
+	  2  192.168.0.200   t  5011 ERS4800-Stk (ERS-4826-GTS; 50-61-84-FB-D8-01; Unit2)
+	  3  10.8.10.239     t  5007 SrvDist1 (ERS-8806; 00-0f-06-c9-d0-00; CPU5)
+	  4  10.8.10.239     t  5012 VSP7000XT-6 (VSP-7024-XT; A0-12-90-03-E8-00; Standalone)
+	  5  10.8.5.239      t  7001 X670G2-48x-4q (X670G2-48x-4q; 00-04-96-A0-9B-D2)
+	  6  10.8.5.239      t  7014 ERS4800-1 (ERS-4826-GTS-PWR+; 50-61-84-FB-BC-00; Standalone)
+	  7  10.8.5.239      t  7007 ERS5900-STK (ERS-5928-GTS-uPWR; D4-78-56-07-FC-01; Unit1)
+	  8  10.8.5.239      t  7005 ERS5900-FC (ERS-5928-MTS-uPWR; 70-7C-69-05-84-00; Standalone)
+	  9  10.8.5.239      t  7008 ERS4900-FC (ERS-4950-GTS-PWR+; B4-2D-56-53-CC-00; Standalone)
+	 10  10.8.5.239      t  7013 ERS3600-STK (ERS-3626-GTS-PWR+; C4-BE-D4-72-51-01; Unit2)
+	 11  10.8.5.239      t  7016 ERS4800-STK (ERS-4826-GTS-PWR+; 50-61-84-FB-D0-01; Unit1)
+	 12  10.8.5.239      t  7011 ERS4900-STK (ERS-4950-GTS-PWR+; B4-2D-56-55-64-01; Unit1)
+</pre>
+<p>Not all connections made with Telnet/SSH to non-default TCP numbers are connections via a terminal server. For example, a real SSH connection could be made towards a switch, but have to pass via some intermediate device which is performing port-forwarding. ACLI will only cache connections which are deemed genuine terminal server connections. ACLI will consider a connection as a terminal server connection under the following cases:</p>
+<ul>
+	<li>The connection protocol is either Telnet or SSH</li>
+	<li>And, a non default TCP port number is used</li>
+	<li>And, either the <i>-t</i> ACLI command line switch was set, indicating a terminal server connection</li>
+	<li>     or the <i>-n</i> ACLI command line switch was set, indicating a desire not to run auto-discovery upon connection</li>
+</ul>
+<p>A connection is also automatically classified as a terminal server connection is it was set up with these syntaxes:</p>
+<ul>
+	<li><i>C:\> acli -n  trmsrv:</i></li>
+	<li><i>ACLI> open -n  trmsrv:</i></li>
+	<li><i>ACLI> trmsrv connect &lt;index-number&gt;</i></li>
+</ul>
+<p>These syntaxes will be covered below.</p>
+
+
+<h2>Connecting to a cached Terminal Server entry</h2>
+
+<p>So ACLI keeps a handy cache list of past terminal server connections. But how to leverage this list to make it easy to re-establish one of these past connections ? There are two possible approaches.</p>
+<p>The first approach is to lauch ACLI using the following syntax:</p>
+<pre>
+	C:\> acli -n  trmsrv:[&lt;device-name&gt;|&lt;host/IP&gt;#&lt;port&gt;] [&lt;capture-file&gt;]
+</pre>
+<p>The same syntax is also available via the <i>open</i> command under ACLI control interface:</p>
+<pre>
+	ACLI> open -n  trmsrv:[&lt;device-name&gt;|&lt;host/IP&gt;#&lt;port&gt;] [&lt;capture-file&gt;]
+</pre>
+<p>Note that the <i>-t</i> switch does not need to be set with these commands, as a connection to a terminal server is exlpicit. Using the <i>-n</i> switch is optional, but highly recommended for the initial connection onto a switch console serial port.</p>
+<p>The <i>'trmsrv:'</i> keyword can be followed by an optional string. The string is used to try and identify a valid entry in the terminal server cache file. For example, if the <i>&lt;device-name&gt;</i> string matches a single entry in the cache file, then that entry will be used to open a connection to the corresponding terminal server IP and TCP port. If instead the string is not provided or matches multiple entries in the cache file, then the following interactive menu will be displayed:</p>
+<pre>
+	ACLI> open -n trmsrv:ers
+	
+	Multiple entries match selection "ers"
+	Known remote terminal-server sessions matching 'ers':
+	
+	Num  TrmSrv/IP ssh/tel  Port Name of attached device (details)                                      Comments
+	---  -----------------  ---- ---------------------------------------------------------------------- -------------------------
+	  2  192.168.0.200   t  5011 ERS4800-Stk (ERS-4826-GTS; 50-61-84-FB-D8-01; Unit2)
+	  3  10.8.10.239     t  5007 SrvDist1 (ERS-8806; 00-0f-06-c9-d0-00; CPU5)
+	  6  10.8.5.239      t  7014 ERS4800-1 (ERS-4826-GTS-PWR+; 50-61-84-FB-BC-00; Standalone)
+	  7  10.8.5.239      t  7007 ERS5900-STK (ERS-5928-GTS-uPWR; D4-78-56-07-FC-01; Unit1)
+	  8  10.8.5.239      t  7005 ERS5900-FC (ERS-5928-MTS-uPWR; 70-7C-69-05-84-00; Standalone)
+	  9  10.8.5.239      t  7008 ERS4900-FC (ERS-4950-GTS-PWR+; B4-2D-56-53-CC-00; Standalone)
+	 10  10.8.5.239      t  7013 ERS3600-STK (ERS-3626-GTS-PWR+; C4-BE-D4-72-51-01; Unit2)
+	 11  10.8.5.239      t  7016 ERS4800-STK (ERS-4826-GTS-PWR+; 50-61-84-FB-D0-01; Unit1)
+	 12  10.8.5.239      t  7011 ERS4900-STK (ERS-4950-GTS-PWR+; B4-2D-56-55-64-01; Unit1)
+	 18  192.168.0.199   t  5001 2550T-PWR (ERS-2550-T-PWR; 5C-E2-86-E8-40-00; Standalone)
+	 19  192.168.0.200   t  5005 ERS3600 (ERS-3626-GTS; C4-BE-D4-72-82-00; Standalone)
+	 23  192.168.0.200   t  5009 ERS5900 (ERS-5928-GTS; 00-1B-4F-FC-68-00; Standalone)
+	 24  192.168.0.200   t  5003 ERS4500 (ERS-4548-GT-PWR; 00-1C-9C-3F-88-00; Standalone)
+	 25  192.168.0.200   t  5004 ERS3500 (ERS-3549-GTS; B0-AD-AA-51-5C-00; Standalone)
+	 26  192.168.0.200   t  5002 ERS5600 (ERS-5650-TD-PWR; 5C-E2-86-28-E4-00; Standalone)
+	 27  192.168.0.200   t  5008 ERS4900 (ERS-4926-GTS-PWR+; 04-8A-15-60-88-00; Standalone)
+	 31  10.193.0.12     t  5015 Access-1 (ERS-5928-GTS-PWR+; 00-1B-4F-FC-F0-00; Standalone)
+	
+	Select entry number / device name glob / <entry|IP>#<port> :
+</pre>
+<p>If no string was provided, all entries in the cache file will be listed. In the example above a string of <i>'ers'</i> was provided which matches multiple entries and so only those entries are listed. Note that the string is used to match the entries against any field, not just the switch name column.</p>
+<p>At this point the user can either select one of the numbered entries, to connect to it, or can yet again enter a different search string to either narrow down the search even further or to look for some completely different entries. In the following example, a string of <i>'ers3'</i> is entered, resulting in:</p>
+<pre>
+	Select entry number / device name glob / <entry|IP>#<port> : ers3
+	
+	Known remote terminal-server sessions matching 'ers3':
+	
+	Num  TrmSrv/IP ssh/tel  Port Name of attached device (details)                                      Comments
+	---  -----------------  ---- ---------------------------------------------------------------------- -------------------------
+	 10  10.8.5.239      t  7013 ERS3600-STK (ERS-3626-GTS-PWR+; C4-BE-D4-72-51-01; Unit2)
+	 19  192.168.0.200   t  5005 ERS3600 (ERS-3626-GTS; C4-BE-D4-72-82-00; Standalone)
+	 25  192.168.0.200   t  5004 ERS3500 (ERS-3549-GTS; B0-AD-AA-51-5C-00; Standalone)
+	
+	Select entry number / device name glob / <entry|IP>#<port> :
+</pre>
+<p>Note, to come back to the full list, it is sufficient to provide a string consisting of just <i>'.'</i> (in Perl Regular expressions, the dot character matches any character)</p>
+<p>We shall assume that we have found the connection we want, and we shall pick the entry 10, for the ERS3600-STK:</p>
+<pre>
+	Select entry number / device name glob / <entry|IP>#<port> : 10
+	Logging to file: C:\Users\lstevens\Documents\ACLI-logs\10.8.5.239-7013.log
+	Escape character is '^]'.
+	Trying 10.8.5.239 port 7013 ...........
+</pre>
+<p>Note that ACLI will then connect to the corresponding IP and TCP port number.</p>
+<p>Coming back to the original command, we could have equally launched the connection using this syntax:</p>
+<pre>
+	C:\> acli -n  trmsrv:ERS3600-STK
+</pre>
+<p>Or via the <i>open</i> command under ACLI control interface:</p>
+<pre>
+	ACLI> open -n  trmsrv:ERS3600-STK
+</pre>
+<p>In this case, the connection would be made immediately, since the string 'ERS3600-STK' matches only one entry in the cache file:</p>
+<pre>
+	ACLI> open -n trmsrv:ERS3600-STK
+	
+	Logging to file: C:\Users\lstevens\Documents\ACLI-logs\10.8.5.239-7013.log
+	Escape character is '^]'.
+	Trying 10.8.5.239 port 7013 ........
+</pre>
+<p>The string provided can also take the format <i>&lt;entry|IP&gt;#&lt;port&gt;</i>. This syntax is a bit more exotic.</p>
+<ul>
+	<li>If string is in format <i>&lt;entry&gt;#&lt;port&gt;</i>, the corresponding entry number is looked up in the cache file, and the terminal server IP is extracted from this entry, but the TCP port to use will be the number provided after the '#' character. As a further twist, if the number provided is between 1 - 16, the TCP port used will be 5001 - 5016 (this is because the ACLI author still uses ancient Remote Annex terminal servers!)</li>
+	<li>If string is in format <i>&lt;IP&gt;#&lt;port&gt;</i>, a connection is made to that IP address with a TCP port specifed after the '#' character. Again, if the number provided is between 1 - 16, the TCP port used will be 5001 - 5016.</li>
+</ul>
+<p>The latter of the above syntaxes, is really no different from doing:</p>
+<pre>
+	ACLI> open -nt  &lt;IP&gt; &lt;tcp-port&gt;
+</pre>
+<p>The advantage of these syntaxes is that they can also be used at the <i>'Select entry number / device name glob / &lt;entry|IP&gt;#&lt;port&gt; :'</i> prompt. This is handy as one might want to use the cached list to find the IP address of the desired terminal server, but then specify a new TCP port to use with it.</p>
+
+<p>The second appoach for using the terminal server cache list, is to simply use the <i>'trmsrv list'</i> and <i>'trmsrv connect'</i> commands under the ACLI control interface.</p>
+<pre>
+	ACLI> trmsrv list ?
+	Syntax: trmsrv list [&lt;pattern&gt;]
+	ACLI> trmsrv list ers
+	
+	Known remote terminal-server sessions matching 'ers':
+	
+	Num  TrmSrv/IP ssh/tel  Port Name of attached device (details)                                      Comments
+	---  -----------------  ---- ---------------------------------------------------------------------- -------------------------
+	  2  192.168.0.200   t  5011 ERS4800-Stk (ERS-4826-GTS; 50-61-84-FB-D8-01; Unit2)
+	  3  10.8.10.239     t  5007 SrvDist1 (ERS-8806; 00-0f-06-c9-d0-00; CPU5)
+	  6  10.8.5.239      t  7014 ERS4800-1 (ERS-4826-GTS-PWR+; 50-61-84-FB-BC-00; Standalone)
+	  7  10.8.5.239      t  7007 ERS5900-STK (ERS-5928-GTS-uPWR; D4-78-56-07-FC-01; Unit1)
+	  8  10.8.5.239      t  7005 ERS5900-FC (ERS-5928-MTS-uPWR; 70-7C-69-05-84-00; Standalone)
+	  9  10.8.5.239      t  7008 ERS4900-FC (ERS-4950-GTS-PWR+; B4-2D-56-53-CC-00; Standalone)
+	 10  10.8.5.239      t  7013 ERS3600-STK (ERS-3626-GTS-PWR+; C4-BE-D4-72-51-01; Unit2)
+	 11  10.8.5.239      t  7016 ERS4800-STK (ERS-4826-GTS-PWR+; 50-61-84-FB-D0-01; Unit1)
+	 12  10.8.5.239      t  7011 ERS4900-STK (ERS-4950-GTS-PWR+; B4-2D-56-55-64-01; Unit1)
+	 18  192.168.0.199   t  5001 2550T-PWR (ERS-2550-T-PWR; 5C-E2-86-E8-40-00; Standalone)
+	 19  192.168.0.200   t  5005 ERS3600 (ERS-3626-GTS; C4-BE-D4-72-82-00; Standalone)
+	 23  192.168.0.200   t  5009 ERS5900 (ERS-5928-GTS; 00-1B-4F-FC-68-00; Standalone)
+	 24  192.168.0.200   t  5003 ERS4500 (ERS-4548-GT-PWR; 00-1C-9C-3F-88-00; Standalone)
+	 25  192.168.0.200   t  5004 ERS3500 (ERS-3549-GTS; B0-AD-AA-51-5C-00; Standalone)
+	 26  192.168.0.200   t  5002 ERS5600 (ERS-5650-TD-PWR; 5C-E2-86-28-E4-00; Standalone)
+	 27  192.168.0.200   t  5008 ERS4900 (ERS-4926-GTS-PWR+; 04-8A-15-60-88-00; Standalone)
+	 31  10.193.0.12     t  5015 Access-1 (ERS-5928-GTS-PWR+; 00-1B-4F-FC-F0-00; Standalone)
+	
+	ACLI> trmsrv connect ?
+	Syntax: trmsrv connect &lt;entry-index-number&gt;
+	ACLI> trmsrv connect 10
+	
+	Logging to file: C:\Users\lstevens\Documents\ACLI-logs\10.8.5.239-7013.log
+	Escape character is '^]'.
+	Trying 10.8.5.239 port 7013 ............
+</pre>
+<p>The <i>'trmsrv list'</i> command also accepts a pattern string to only display matching entries. But the <i>'trmsrv connect'</i> command will only work by providing a discrete entry number from the cached entries file and will always make the connection without auto-detection.</p>
+
+
+<h2>Manually modifying the terminal server cache file</h2>
+<p>Entries in the cache file can be added using the following ACLI control interface command:</p>
+<pre>
+	ACLI> trmsrv add telnet|ssh &lt;IP/hostname&gt; &lt;TCP-port&gt; &lt;Device-Name&gt; [&lt;Comments&gt;]
+</pre>
+<p>The command additionally allows a comment field to be added to the entries.</p>
+<p>To delete an entry use the following ACLI control interface command:</p>
+<pre>
+	ACLI> trmsrv remove telnet|ssh &lt;IP/hostname&gt; &lt;TCP-port&gt;
+</pre>
+
+<h2>Sorting entries in the terminal server cache file</h2>
+<p>By default, entries in the terminal server cache file are displayed in the same order in which they were added to the file. Furthermore, if an exiting entry is updated, then the original entry is deleted and the new updated entry is appended to the file. This means that the last entries in the file will be the most recently added or updated entries.</p>
+<p>It is however possible to sort the cache files, by setting a sort criteria via the <i>'trmsrv sort'</i> command:</p>
+<pre>
+	ACLI> trmsrv sort cmnt|disable|ip|name
+</pre>
+<p>There are three sort criteria allowed:</p>
+<ul>
+	<li><b>ip</b>  : Entries are sorted by terminal server IP address/hostname, then by TCP port</li>
+	<li><b>name</b>: Entries are sorted by switch name alone</li>
+	<li><b>cmnt</b>: Entries are sorted by comment field only</li>
+</ul>
+<p>The sort setting is actually stored within the cache file (a line beginnig with <i>':sort'</i>). When the sorting method is set, the <i>':sort'</i> line is added to the cache file and all the entries in the file are re-arranged according to the sort criteria. If sorting is disabled, then the <i>':sort'</i> line is removed from the cache file.</p>
+
+
+<h2>Using a pre-filled cache file</h2>
+<p>It is possible to provide a pre-defined terminal server cache file, by simply editing the approproate <i>acli.trmsrv</i> text file. In this case it is preferable to place the edited, master copy, of the <i>acli.trmsrv</i> file in the ACLI install directory, where it will never be overwritten. When ACLI looks for the <i>acli.trmsrv</i> file it will search for it in the following paths in order:</p>
+<ul>
+	<li>ENV path <i>%ACLI%</i> (if you defined it)</li>
+	<li>ENV path <i>$HOME/.acli</i> (on Unix systems)</li>
+	<li>ENV path <i>%USERPROFILE%\.acli</i> (on Windows)</li>
+	<li>ENV path <i>%ACLIDIR%</i> (the ACLI install directory)</li>
+</ul>
+<p>Whereas when ACLI updates or adds a new entry to the file, the file will be saved only to the first of the above paths (i.e. never in the last one, the ACLI instal directory).</p>
+<p>So once a custom <i>acli.trmsrv</i> file has been placed in the ACLI install directory, it is necessary to delete any previously saved cache files in the user directories, otherwise the custom cache file will never get loaded. Deleting the previously cached versions of the file can be done with the following command:</p>
+<pre>
+	ACLI> trmsrv delete file
+</pre>
+<p>This command will never delete the <i>acli.trmsrv</i> file in the ACLI install directory, but will delete any other <i>acli.trmsrv</i> files found in the other paths.</p>
+<p>Once the custom <i>acli.trmsrv</i> cache file gets loaded from the ACLI install directory, any new or updated entries added to the file, will result in a new <i>acli.trmsrv</i> file being saved in the user's personal path (or the <i>%ACLI%</i>, if defined). This new file will keep being used and updated by ACLI now, but it will now contain all the entries from the original <i>acli.trmsrv</i> file which remains located in the ACLI install directory, and acts as a master copy.</p>
+<p>To avoid having to go and delete the personal cached file every time the master copy file is updated it is possible to set the <i>master_trmsrv_file_str</i> key in <i>acli.ini</i>. This key should either point to a filename under the ACLI install directory or to the full path to any other file (if not located in the ACLI directory). Once set and the file exists, the date of the file will be compared with the date of the user's personal terminal-server file (under <i>%USERPROFILE%\.acli\acli.trmsrv</i>), if it exists, and whichever is the most recent will automatically be used.</p>
+
+
+<h2>Setting the static flag</h2>
+<p>The ACLI behaviour, when updating the terminal server cache file, is that any updated entry, which is found to have the same MAC addres as a previously cached entry (or it has the same switch name than an existing entry for which the MAC address was not recorded), will result in the existing entry being deleted from the cache file. This behaviuor of deleting existing entries, is not desireable if the entries were derived from a custom <i>acli.trmsrv</i> file. To prevent ACLI from deleting existing entries in the cache file it is possible to set a static flag for the cache file, using the following command:</p>
+<pre>
+	ACLI> trmsrv static disable|enable
+</pre>
+<p>Much like the <i>'trmsrv sort'</i> setting, the static flag setting is actually stored within the cache file (a line beginnig with <i>':static'</i>). When the static flag is enabled, the <i>':static'</i> line is added to the cache file. If static flag is disabled, then the <i>':static'</i> line is removed from the cache file.</p>
+
+</BODY>
+</HTML>

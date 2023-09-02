@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Pseudo terminal mode</Title>
+</HEAD>
+<BODY>
+<h1>Pseudo terminal mode</h1>
+<p>Pseudo terminal mode is a way to make the ACLI terminal run in interactive mode without any host device connection present. It was mainly a mode used by the ACLI author to debug ACLI bugs/problems offline (without having to be connected to a device). To enter pseudo mode use either of the following:</p>
+<ul>
+	<li>Execute ACLI from shell/command line using syntax: <i>acli pseudo:[&lt;name&gt;]</i>:
+	<pre>
+	C:\Users\lstevens\Scripts\acli\working-dir>acli pseudo:
+	Loading alias file: C:\Users\lstevens\Scripts\acli\acli.alias
+	Merging alias file: C:\Users\lstevens\.acli\merge.alias
+	PSEUDO#%
+	</pre>
+	</li>
+	<li>From the ACLI control interface, execute the <i>'pseudo'</i> command:
+	<pre>
+	ACLI> pseudo ?
+	Syntax: pseudo attribute|disable|echo|enable|info|list|load|name|port-range|prompt|type
+	ACLI> pseudo enable
+	PSEUDO#%
+	</pre>
+	</li>
+</ul>
+<p>Pseudo mode can be useful in emulating connected switches, either to use the grep functionality on multiple offline switch config file, or if using the dictionary functionality to translate config files in offline mode.</p>
+<p>A pseudo terminal can be named (earlier implementation would allow assigning a number, from 1-99 and default was 100, but these become names now), assigned a prompt to replace the default <i>PSEUDO#</i> prompt, assigned a Family Type, assigned attributes and a valid port-range.</p>
+<p>In the following example, a profile is created to emulate a 5520 switch with VIM module ports and in VOSS persona:</p>
+<pre>
+	PSEUDO#% @pseudo type ?
+	Syntax: @pseudo type boss|slx|voss|xos
+	
+	PSEUDO#% @pseudo type voss
+	PSEUDO#% @pseudo port-range 1/1-48,2/1-4
+	
+	Port Range: 1/1-1/48,2/1-2/4
+	
+	PSEUDO#% @pseudo prompt 5520-24W#
+	5520-24W#% @pseudo name 5520-48W-VIM-VOSS
+	
+	Pseudo terminal name(/id) set. To save terminal use '@save all'
+	
+	5520-24W#%
+</pre>
+<p>This has now setup the following pseudo settings and attributes:</p>
+<pre>
+	5520-24W#% @pseudo info
+	
+	        Pseudo Terminal     : enabled
+	        Pseudo Name/Id      : 5520-48W-VIM-VOSS
+	        Pseudo Prompt       : 5520-24W#
+	        Pseudo Command Echo : disabled
+	        Pseudo Family Type  : PassportERS
+	        Pseudo ACLI/NNCLI   : Yes
+	        Pseudo Port Range   : 1/1-1/48,2/1-2/4
+	
+	5520-24W#% @pseudo attribute info
+	
+	{is_ha}          = 0
+	{ports}          = ARRAY(0x37a8694)
+	{is_acli}        = 1
+	{cpu_slot}       = 1
+	{family_type}    = PassportERS
+	{is_master_cpu}  = 1
+	{is_dual_cpu}    = 0
+	{is_voss}        = 1
+	{slots}          = ARRAY(0x37a867c)
+	
+	5520-24W#% @vars attribute
+	
+	$_is_ha                = 0
+	$_ports                = ,ARRAY(0x4610ca4),ARRAY(0x4610d4c)
+	$_is_acli              = 1
+	$_cpu_slot             = 1
+	$_family_type          = PassportERS
+	$_is_master_cpu        = 1
+	$_is_dual_cpu          = 0
+	$_is_voss              = 1
+	$_slots                = 1,2
+	
+	5520-24W#%
+</pre>
+<p>Notice that the base attributes of a VOSS switch are automatically set, as they would be if a real switch was connected. The attributes are important so that alias and dictionary commands can be correctly dereferenced/translated as if the real switch was connected. Additional attributes can be manually set using the <i>@pseudo attribute set &lt;name&gt; = &lt;value&gt;</i> command.</p>
+<p>We can now save this Pseudo terminal profile using the <i>@save</i> command:</p>
+<pre>
+	5520-24W#% @save all
+	Variables, open sockets & working directory saved to:
+	 C:\Users\lstevens\.acli\.vars\pseudo.5520-48W-VIM-VOSS.vars
+	
+	5520-24W#%
+</pre>
+<p>Which will save all the Pseudo profile settings and attributes to file, as well as the usual variables, working directory and listening sockets if applicable:</p>
+<pre>
+	5520-24W#% @save info
+	
+	C:\Users\lstevens\.acli\.vars\pseudo.5520-48W-VIM-VOSS.vars:
+	
+	# acli-dev.pl saved on Sun Feb 14 21:32:25 2021
+	# Pseudo Terminal    : 5520-48W-VIM-VOSS
+	:prompt            = 5520-24W#
+	:cmdecho           = 0
+	:family-type       = PassportERS
+	:acli-type         = 1
+	:port-range        = 1/1-1/48,2/1-2/4
+	:wd                = C:\Users\lstevens\Scripts\acli\working-dir
+	{is_ha}            = 0
+	{is_acli}          = 1
+	{cpu_slot}         = 1
+	{family_type}      = PassportERS
+	{is_master_cpu}    = 1
+	{is_dual_cpu}      = 0
+	{is_voss}          = 1
+	
+	
+	5520-24W#%
+</pre>
+<p>Already saved Pseudo terminal profiles can be listed using the <i>@pseudo list</i> command:</p>
+<pre>
+	5520-24W#% @pseudo list
+	Available Saved Pseudo Terminals:
+	
+	   Name                   Origin    Family Type  Port Range
+	   --------------------   -------   -----------  ----------
+	   5520-48W-VIM-EXOS      private   ExtremeXOS   1-52
+	   5520-48W-VIM-VOSS      private   PassportERS  1/1-1/48,2/1-2/4
+	   X460G2                 private   ExtremeXOS
+	
+	5520-24W#%
+</pre>
+<p>And any Pseudo profile can be loaded using either the <i>@pseudo load &lt;name&gt;</i> command or directly when launching ACLI from the command line:</p>
+<pre>
+	C:\>acli pseudo:5520-48W-VIM-EXOS
+	Full Args: -d 0 pseudo:5520-48W-VIM-EXOS
+	Loading sed file: C:\Users\lstevens\Scripts\acli\acli.sed
+	Loading alias file: C:\Users\lstevens\Scripts\acli\acli.alias
+	Merging alias file: C:\Users\lstevens\.acli\merge.alias
+	Loading var file C:\Users\lstevens\.acli\.vars\pseudo.5520-48W-VIM-EXOS.vars
+	5520-48W-EXOS#% @pseudo info
+	
+	        Pseudo Terminal     : enabled
+	        Pseudo Name/Id      : 5520-48W-VIM-EXOS
+	        Pseudo Prompt       : 5520-48W-EXOS#
+	        Pseudo Command Echo : disabled
+	        Pseudo Family Type  : ExtremeXOS
+	        Pseudo ACLI/NNCLI   : No
+	        Pseudo Port Range   : 1-52
+	
+	5520-48W-EXOS#%
+</pre>
+
+</BODY>
+</HTML>
