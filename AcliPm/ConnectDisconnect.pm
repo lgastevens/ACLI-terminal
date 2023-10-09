@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ConnectDisconnect;
-our $Version = "1.03";
+our $Version = "1.04";
 
 use strict;
 use warnings;
@@ -166,6 +166,7 @@ sub connectToHost { # Connect to host
 	saveInputBuffer($term_io); # Will clear InputBuffQueue if set
 	$host_io->{LoopbackConnect} = undef;
 	$host_io->{SessionUpTime} = time + $host_io->{SessionTimeout}*60;	# Reset session inactivity timer
+	$host_io->{KeepAliveUpTime} = time + $host_io->{KeepAliveTimer}*60;	# Reset keepalive timer
 	$mode->{connect_stage} = 0;
 
 	if ($host_io->{ComPort} !~ /^(?:TELNET|SSH)$/) {

@@ -1248,3 +1248,20 @@ Revision history for acli.pl
 	* Control ACLI> interface was not able to set debug level > 999
 	* More paging output with error patters was producing unexpected lines between --more-- prompts
 	* Script xmcacli (v1.17) updated with missing XMC family "200 Series" for Series200 support
+6.02	2023-10-09
+	* Uses Control::CLI version 2.11 and Control::CLI::Extreme version 1.10
+	* More fixes around CLI tab expanson support for SD-WAN Ipanema family type
+	* Doing a highlight string (cmd ^ string) where there were more than 40 matches of that string in the output would
+	  crash ACLI
+	* Doing a highlight string (cmd ^ string) with a string ending with '?' would hang ACLI
+	* Added new VOSS9.0 "ip dhcp-server" context for grep of show running config
+	* When reconnecting to a VOSS switch, which was factory defaulted and prompts to set the username password, the
+	  keepalive function was kicking in and preventing user from actually providing the new password. As a workaround one
+	  had to force a reconnect and then it was possible to provide the new password and login. Now the keepalive timer
+	  is reset on every new connection, as should have always been the case.
+	* When logging to file, time stamp lines now indicate if logging file was closed or opened
+	* List variable assignment $var[] = (val1; val2) was not handled correctly if used in alias file
+	* Using serial port on Silicon Labs CP210x USB cable (for universal hardware USB port) was failing with error:
+	  invalid COMMPROP block length= 66 at C:/Strawberry/perl/site/lib/Control/CLI.pm line 296
+	* Update script updated to be able to use HTTPS to fetch updates and now only fetches updates from github.com
+	* VOSS .tgz/.voss image files are highlighted now in ls output of switch file system

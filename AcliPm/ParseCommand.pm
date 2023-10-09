@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ParseCommand;
-our $Version = "1.09";
+our $Version = "1.10";
 
 use strict;
 use warnings;
@@ -14,6 +14,7 @@ use AcliPm::CommandStructures;
 use AcliPm::DebugMessage;
 use AcliPm::GlobalConstants;
 use AcliPm::GlobalMatchingPatterns;
+use AcliPm::MaskUnmaskChars;
 use AcliPm::TabExpand;
 
 
@@ -566,7 +567,11 @@ sub mergeCommand { # Updates the parsed command hash with a new command update
 	# - apply forloop order: cmdParse, updateParsed(except if semicln list)
 
 	my @updatedParsed;
-	my @updatedCmdList = length $updatedCmd ? split(/[^\\]\K;\s*/, $updatedCmd) : (''); # Split the command into sections, if semicolon fragmented
+	my @updatedCmdList = ('');
+	if (length $updatedCmd) {
+		$updatedCmd = quoteCurlyMask($updatedCmd, ';');	# Mask semi-colons inside quotes/brackets/etc..
+		@updatedCmdList = map(quoteCurlyUnmask($_, ';'), split(/[^\\]\K;\s*/, $updatedCmd)); # Split the command into sections, if semicolon fragmented
+	}
 	my $colonMarkersExist = scalar @updatedCmdList && scalar grep {/:$/} @updatedCmdList;
 	debugMsg(4,"=mergeCommand: colonMarkersExist\n") if $colonMarkersExist;
 	my %turnIntoAppend;

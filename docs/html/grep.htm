@@ -543,8 +543,15 @@ VSP-8284XSQ:1#% show interfaces gigabitEthernet name || up
 	show running ||i-sid [&lt;isid-list&gt;]                  grep on i-sid config contexts
 	show running ||acl [&lt;acl-id-list&gt;]                  grep on filter acl ids
 	show running ||logical-intf [&lt;intf-list&gt;]           grep on ISIS logical interfaces
+	show running ||lintf|lisis|isl [&lt;intf-list&gt;]        same as above for logical-intf grep
 	show running ||mgmt [&lt;port-list or id-list&gt;]        grep on Mgmt interfaces
 	show running ||ssid [&lt;ssid-name-list&gt;]              grep on WLAN SSIDs
+	show running ||ovsdb                                grep on ovsdb config context
+	show running ||app                                  grep on application config context
+	show running ||dhcp-server [&lt;subnet-list&gt;]          grep on dhcp-server config context
+	show running ||dhcp-srv|dhcpsrv|dhcps [&lt;snet-list&gt;] same as above for dhcp-server grep
+
+
 </pre>
 <p>Some examples follow.</p>
 <p>Grep on MLTs:</p>

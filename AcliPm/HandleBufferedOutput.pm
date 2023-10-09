@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleBufferedOutput;
-our $Version = "1.09";
+our $Version = "1.10";
 
 use strict;
 use warnings;
@@ -1292,17 +1292,17 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 					my @hlGrep;
 					if ($term_io->{HLgrep}) { # Highlight is snipped before sedPatternReplace
 						my $hlCount = 0;
-						my $hlMarker = $HighlightMarker . chr($hlCount);
-						while ($bohLine =~ s/$term_io->{HLgrep}/$hlMarker/) {
+						my $hlMarker = $HighlightMarkerBeg . $hlCount . $HighlightMarkerEnd;
+						while ($bohLine =~ s/$term_io->{HLgrep}/$hlMarker/ && length($&)) { # Check length of replacement, to avoid going into infinite loop with 'x?' pats
 							push(@hlGrep, $&);
-							$hlMarker = $HighlightMarker . chr(++$hlCount);
+							$hlMarker = $HighlightMarkerBeg . ++$hlCount . $HighlightMarkerEnd;
 						}
 					}
 					# This is where we apply sed output colour patterns
 					sedPatternReplace($host_io, $term_io->{SedColourPats}, \$bohLine) if %{$term_io->{SedColourPats}};
 					if (@hlGrep) { # and after sedPatternReplace highlight replacement is made
 						for my $i (0 .. $#hlGrep) {
-							my $hlMarker = $HighlightMarker . chr($i);
+							my $hlMarker = $HighlightMarkerBeg . $i . $HighlightMarkerEnd;
 							$bohLine =~ s/$hlMarker/$term_io->{HLon}$hlGrep[$i]$term_io->{HLoff}/
 						}
 					}

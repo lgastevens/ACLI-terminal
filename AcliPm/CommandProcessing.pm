@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::CommandProcessing;
-our $Version = "1.09";
+our $Version = "1.10";
 
 use strict;
 use warnings;
@@ -345,8 +345,8 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 			foreach my $cnd (@{$alias->{$name}{SEL}}) {
 				cmdOutput($db, "   IF " . $cnd->{CND} . "\n      THEN:\n") unless $cnd->{CND} eq 1;
 				cmdOutput($db, "   ELSE:\n") if $cnd->{CND} eq 1;
-				(my $cmd = $cnd->{CMD}) =~ s/\s*;\s*/;/g;
-				cmdOutput($db, "         " . join("\n         ", split(";", $cmd)) . "\n\n");
+				(my $cmd = quoteCurlyMask($cnd->{CMD}, ';')) =~ s/\s*;\s*/;/g;
+				cmdOutput($db, "         " . join("\n         ", map(quoteCurlyUnmask($_, ';'), split(";", $cmd))) . "\n\n");
 			}
 		}
 		if ($namepat && !$matchFlag) {
@@ -4311,6 +4311,8 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		cmdOutput($db, "show running ||ssid [<ssid-name-list>]              grep on WLAN SSIDs\n");
 		cmdOutput($db, "show running ||ovsdb                                grep on ovsdb config context\n");
 		cmdOutput($db, "show running ||app                                  grep on application config context\n");
+		cmdOutput($db, "show running ||dhcp-server [<subnet-list>]          grep on dhcp-server config context\n");
+		cmdOutput($db, "show running ||dhcp-srv|dhcpsrv|dhcps [<snet-list>] same as above for dhcp-server grep\n");
 		cmdOutput($db, "show log [-i]                                       unwrap logfile on: ERS stackables, ISW\n");
 		$command = '';
 	};

@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleDeviceOutput;
-our $Version = "1.11";
+our $Version = "1.12";
 
 use strict;
 use warnings;
@@ -1183,11 +1183,15 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 			elsif ($mode->{dev_del} eq 'bs' || $mode->{dev_del} eq 'bt' || $mode->{dev_del} eq 'bx') { # Remove space+backspace sequences; used by device to delete a line of output
 				quit(1, "ERROR: backspace count not set in 'bs' dev_del mode", $db) unless $host_io->{BackspaceCount};
 				my $keepOutput;
-				if ($host_io->{Type} eq 'Ipanema' && $mode->{dev_del} eq 'bt' && $$outRef =~ s/^\cG\x0d\e\[\d+C([^\x00\x0d\n\cH\e]*)$/$1/) {
-					# Ipanema: eth<tab>  get back bell + "-diag"; same for other ? commands
-					print "\cG" unless length $1;
-					$host_io->{BackspaceCount} = 3 - length $1; # The length will always need to be 3: \e\[19C\e\[K\x00\x00\x00
-					debugMsg(2,"PreAdjustingTabExpansion-ipanema:>", $outRef, "<\n");
+				if ($host_io->{Type} eq 'Ipanema' && $mode->{dev_del} eq 'bt') {
+					if ($$outRef =~ s/^\cG?\x0d\e\[\d+C([^\x00\x0d\n\cH\e]+)/$1/) {
+						# Ipanema: eth<tab>  get back bell + "-diag"; same for other ? commands
+						print "\cG" unless length $1;
+						debugMsg(2,"PreAdjustingTabExpansion-ipanema:>", $outRef, "<\n");
+					}
+					if ($$outRef =~ s/^[^\x00\x0d\n\cH\e]*([^\x00\x0d\n\cH\e])\K\x0d\g{1}//) {
+						debugMsg(2,"PreAdjustingTabExpansion2-ipanema:>", $outRef, "<\n");
+					}
 				}
 				else {
 					print "\cG" if $$outRef =~ s/^\cG//; # Pass it on; PPCLI show sn<tab>
@@ -1262,6 +1266,9 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					}
 					debugMsg(2,"BackSpaceMode-OutputToCheckForBackspaces:\n>", $outRef, "<\n");
 				}
+				if ($host_io->{Type} eq 'Ipanema' && $mode->{dev_del} eq 'bt' && $$outRef =~ s/^\e\[A[^\x00\x0d\n\cH\e]+\e\[K\n//) {
+					debugMsg(2,"AvoidSafetyEscape-ipanema:>", $outRef, "<\n");
+				}
 				debugMsg(2,"BackspaceExpectedCount = $host_io->{BackspaceCount}\n");
 				my $bcntminus1 = $host_io->{BackspaceCount} - 1;
 				if (	(
@@ -1319,9 +1326,11 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					) || (
 						$host_io->{Type} eq 'Ipanema' &&
 						(
+							$$outRef =~ s/^\x0d\e\[K\e\[A$prompt->{Match}// ||
 							$$outRef =~ s/^\e\[$host_io->{BackspaceCount}D(?:\e\[K)?// ||
-							$$outRef =~ s/^\x0d\e\[19C\e\[K\x00{$host_io->{BackspaceCount}}// ||
-							$$outRef =~ s/^\cH{$host_io->{BackspaceCount}}\e\[K//
+							$$outRef =~ s/^\x0d\e\[\d+C\e\[K\x00{3,}// ||
+							$$outRef =~ s/^\cH{$host_io->{BackspaceCount}}\e\[K// ||
+							$$outRef =~ s/^\x0d$prompt->{Match}\e\[K//
 						)
 					)
 				    ) {
@@ -1563,6 +1572,9 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				elsif ($host_io->{Type} eq 'Wing' && $$outRef =~ s/^\e\[K//) { # Output might get preceded with \e[K if tab expansion was used in previous command
 					debugMsg(2,"Wing-tab-reformatting:\n>", $outRef, "<\n");
 				}
+				elsif ($host_io->{Type} eq 'Ipanema' && $$outRef =~ s/^[^\x00\x0d\n\cH\e]*([^\x00\x0d\n\cH\e])\K\x0d\g{1}//) {
+					debugMsg(2,"Ipanema-tab-reformatting:\n>", $outRef, "<\n");
+				}
 				my $tabSynMode = $TabSynMode{$host_io->{Type}}[$term_io->{AcliType}]&3;
 				debugMsg(2,"TabSynMode = ", \$tabSynMode, "\n");
 				if ($tabSynMode == 3) { # Ensure we have a prompt in the output + tail match (ERS & VSP)
@@ -1601,7 +1613,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					debugMsg(2,"ConvertingTab-to-Syntax with output:\n>", $outRef, "<\n");
 					redo; # Fall through to 'sx' processing below
 				}
-				if ($$outRef =~ s/\e.*$//) {
+				if ($host_io->{Type} eq 'ExtremeXOS' && $$outRef =~ s/\e.*$//) {
 					# On XOS, long commands, we see a \eE appended : configure lldp ports all advertise vendor-specific med policy application voice vlan Default E
 					debugMsg(2,"outRef after removing esc-E appended:\n>", $outRef, "<\n");
 				}

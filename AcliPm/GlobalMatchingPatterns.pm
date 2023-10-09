@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalMatchingPatterns;
-our $Version = "1.11";
+our $Version = "1.12";
 
 use strict;
 use warnings;
@@ -150,7 +150,7 @@ our %Grep = (
 				'^(?:locale)',	# level2
 				],
 		PassportERS	=> [
-				'^ *(?:interface |router \w+(?:\s+r\w+)?\s*$|router vrf|route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$|application|i-sid \d+|wireless|logical-intf isis \d+|mgmt [\dcvo]|ovsdb\s*$)', # level0
+				'^ *(?:interface |router \w+(?:\s+r\w+)?\s*$|router vrf|route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$|application|i-sid \d+|wireless|logical-intf isis \d+|mgmt [\dcvo]|ovsdb\s*$|(?:ip )?dhcp-server subnet)', # level0
 				'^ *(?:route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$)',	# level1
 				],
 		Series200	=> [
@@ -174,8 +174,9 @@ our %Grep = (
 		Mgmt		=> '^(?:mgmt [\dcvo]|interface mgmtEthernet|router vrf MgmtRouter)',
 		Ovsdb		=> '^ovsdb\s*$',
 		Application	=> '^application$',
+		DhcpSrv		=> '^(?:ip )?dhcp-server ',
 	},
-	CreateContext		=> '^(?:route-map |ip igmp profile |i-sid \d+|logical-intf isis \d+|ipv6 dhcp guard policy |ipv6 nd raguard policy |mgmt [\dcvo])',
+	CreateContext		=> '^(?:route-map |ip igmp profile |i-sid \d+|logical-intf isis \d+|ipv6 dhcp guard policy |ipv6 nd raguard policy |mgmt [\dcvo]|dhcp-server subnet)',
 	ExitInstance		=> '^ *(?:exit|back|end)\b',
 	DeltaPattern => {	# These patterns can capture and add to the current grep search patterns
 		PassportERS	=> {
@@ -288,6 +289,7 @@ our %Grep = (
 				'^logical-intf isis \d+ vid (?:\d+[,\-])+\d+ primary-vid \d+ (?:port \d+/\d+(?:/\d+)?|mlt \d+)(?: name "?[\w\d\._ -]+"?)?\s*\n\n?exit\s*\n',
 				'^mgmt (?:\d )?(?:.+)?\n\n?exit\s*\n',
 				'^ovsdb\s*\n\n?exit\s*\n',
+				'^(?:ip )?dhcp-server subnet [\d\.\/]+\s*\n\n?exit\s*\n',
 				],
 		Series200	=> [
 				'^line \w+\s*\n\n?exit\s*\n',

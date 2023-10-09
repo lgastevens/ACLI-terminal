@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::InputProcessing;
-our $Version = "1.09";
+our $Version = "1.10";
 
 use strict;
 use warnings;
@@ -525,6 +525,9 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 			push(@{$grep->{Instance}}, 'Vrf');
 			push(@{$grep->{RangeList}}, undef);
 			debugMsg(1,"-> Grep-Instance : set to Vrf\n");
+			# Allow Perl's metacharacters {}[]()^$.|*+?\ and backslash the rest
+			$grepString =~ s/([\/])/\\$1/g;
+			debugMsg(1,"-> Grep-String-after-backslashing : >", \$grepString, "<\n");
 			$grepString =~ s/^vrf\s+/vrf /i;
 			if ($grepString =~ s/^vrf ((?:[^,]+,)+[^,]+)$/vrf (?:$1)(?:\\s|\$)/i) {
 				$grepString =~ s/,/|/g;
@@ -533,9 +536,6 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 				$grepString =~ s/^vrf (.*)/vrf $1(?:\\s|\$)/i;
 			}
 			debugMsg(1,"-> Grep-String-Formatted : >", \$grepString, "<\n");
-			# Allow Perl's metacharacters {}[]()^$.|*+?\ and backslash the rest
-			$grepString =~ s/([\/])/\\$1/g;
-			debugMsg(1,"-> Grep-String-after-backslashing : >", \$grepString, "<\n");
 		}
 		elsif ($grepAdv && !$grepQuotes && $grepString =~ /^route-map(?:\s+((?:\S+,)*\S+))?$/i) { # Route-map
 			push(@{$grep->{Instance}}, 'RouteMap');
@@ -551,7 +551,7 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 				$grepString =~ s/^route-map .*$/route-map \.*?$matchString/i;
 			}
 			debugMsg(1,"-> Grep-String-Formatted : >", \$grepString, "<\n");
-			# Allow Perl's metacharacters {}[]()^$.|*+?\ and backslash the rest
+			# Allow Perl's metacharacters {}[]()^$.|*+?\ and backslash the rest - at the end so also applies to $matchString
 			$grepString =~ s/([\/])/\\$1/g;
 			debugMsg(1,"-> Grep-String-after-backslashing : >", \$grepString, "<\n");
 		}
@@ -657,6 +657,25 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 				$grepString =~ s/^mgmt$/(?:mgmt[ \-]|interface mgmtEthernet |router vrf MgmtRouter\$)/i;
 			}
 			debugMsg(1,"-> Grep-String-Formatted : >", \$grepString, "<\n");
+		}
+		elsif ($grepAdv && !$grepQuotes && $grepString =~ /^(?:dhcp-serv(?:er?)?|dhcp-?s(?:[er][rv]?)?)(?:\s+((?:\S+,)*\S+))?$/i) { # DHCP Server
+			push(@{$grep->{Instance}}, 'DhcpSrv');
+			push(@{$grep->{RangeList}}, undef);
+			debugMsg(1,"-> Grep-Instance : set to DhcpSrv\n");
+			my $matchString = defined $1 ? quoteCurlyUnmask($1, ' ') : '';
+			$matchString =~ s/[\'\"]//g;	# Remove all and any quotes
+			$grepString =~ s/^(?:dhcp-serv(?:er?)?|dhcp-?s(?:[er][rv]?)?)/dhcp-server/i;
+			$grepString =~ s/^dhcp-server\s+/dhcp-server /i;
+			if ($grepString =~ s/^dhcp-server (?:[^,]+,)+[^,]+$/dhcp-server \.*?(?:$matchString)/i) {
+				$grepString =~ s/,/|/g;
+			}
+			else {
+				$grepString =~ s/^dhcp-server .*$/dhcp-server \.*?$matchString/i;
+			}
+			debugMsg(1,"-> Grep-String-Formatted : >", \$grepString, "<\n");
+			# Allow Perl's metacharacters {}[]()^$.|*+?\ and backslash the rest - at the end so also applies to $matchString
+			$grepString =~ s/([\/])/\\$1/g;
+			debugMsg(1,"-> Grep-String-after-backslashing : >", \$grepString, "<\n");
 		}
 		elsif ($grepAdv && !$grepQuotes && $host_io->{Type} eq 'WLAN9100' && $grepString =~ /^ssid(?:\s+(\S+))?$/i) { # SSID list or range
 			push(@{$grep->{Instance}}, 'Ssid');

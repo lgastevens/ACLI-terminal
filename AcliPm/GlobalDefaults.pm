@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalDefaults;
-our $Version = "1.08";
+our $Version = "1.09";
 
 use strict;
 use warnings;
@@ -42,7 +42,8 @@ our $UnrecognizedLogins = 1;			# How many unrecognized logins to let user intera
 our $VarRangeUnboundMax = 299;			# When capturing > $var %n-  ; max range of columns to capture
 our $MaxSedPatterns = 20;			# We want to limit this (this default can be overridden in acli.sed file)
 our $CompleteLineMarker = "\x00";		# Marker we use for complete lines on which we have to cache the last \n
-our $HighlightMarker = "\x00\x00";		# Marker where for highlight text, while applying sed output patterns
+our $HighlightMarkerBeg = "\x01";		# Beginning marker for highlight text, while applying sed output patterns
+our $HighlightMarkerEnd = "\x02";		# Ending marker for highlight text, while applying sed output patterns
 our $PseudoDefaultSelection = 'voss';		# Pseudo default selection in %PseudoSelectionAttributes hash
 our $DotActivityUnbufferThreshold = 3;		# Number of consecutive only dots received from host which will make us switch to unbuffered mode
 

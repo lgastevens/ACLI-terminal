@@ -1,7 +1,7 @@
 ##############################
 # SED file for ACLI Terminal #
 ##############################
-# Version = 1.10
+# Version = 1.11
 #
 # This file is read when a new ACLI Terminal is launched and can be used to define SED (serial editor) patterns
 # It can be located in any of these directories in the following order:
@@ -88,10 +88,11 @@ category global
 category PassportERS
 'smlt   \Ksmlt'																colour green
 'smlt   \Knorm'																colour red
+'\d{8,} \w{3} +\d+ [\d:]+  \K\S+?\.(?:tgz|voss)'											colour red	# Highlight VOSS image files
 
 category BaystackERS,ISW
-'(?i)active(?=     (?:client|proxy|radius))'												colour green
-'(?i)reject(?=     (?:client|proxy|radius))'												colour red
+'(?i)active(?=     (?:client|proxy|radius|ring))'											colour green
+'(?i)reject(?=     (?:client|proxy|radius|ring))'											colour red
 
 category ExtremeXOS
 '(?:Client|Proxy|Radius|(?:Static|Dynamic) +\d+) +\KActive'										colour green

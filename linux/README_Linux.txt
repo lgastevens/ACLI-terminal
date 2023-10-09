@@ -1,4 +1,4 @@
-$Version = 1.00
+$Version = 6.00
 
 Install instructions
 ====================
@@ -57,14 +57,14 @@ Open a new tab (with Terminal or iTerm2):
 acli.pl command line options:
 ----------------------------
 ~$ acli -h
-acli.pl version 4.00
+acli.pl version 6.00
 
 Usage:
  acli.pl [-cehijkmnopqswxyz]
- acli.pl [-ceijklmnopqrstwxyz] <host/IP> [<tcp-port>] [<capture-file>]
- acli.pl [-ceijmnopqrswx]      serial:[<com-port>[@<baudrate>]] [<capture-file>]
- acli.pl [-ceijmnopqrswxyz]    trmsrv:[<device-name> | <host/IP>#<port>] [<capture-file>]
- acli.pl [-eimoqsw]            pseudo[1-99]:[<prompt>] [<capture-file>]
+ acli.pl [-ceijklmnopqrstwxyz] [<user>:<pwd>@]<host/IP> [<tcp-port>] [<capture-file>]
+ acli.pl [-ceijmnopqrswx]      [<user>:<pwd>@]serial:[<com-port>[@<baudrate>]] [<capture-file>]
+ acli.pl [-ceijmnopqrswxyz]    [<user>:<pwd>@]trmsrv:[<device-name> | <host/IP>#<port>] [<capture-file>]
+ acli.pl [-eimoqsw]            pseudo:[<name>] [<capture-file>]
  acli.pl -r <host/IP or serial or trmsrv syntaxes above> <"relay cmd" | IP> [<capture-file>]
  acli.pl [-f] -g <acli grep pattern> [<cfg-file or wildcard>] [<2nd file>] [...]
 
@@ -74,10 +74,11 @@ Usage:
  <"relay-cmd"/IP> : To execute on relay in form: "telnet|ssh [-l <user[:<pwd>]>] <[user[:<pwd>]@]IP>"
                     If single IP/Hostname provided then "telnet IP/Hostname" will be executed
  <capture-file>   : Optional output capture file of CLI session
+ <name>           : Loads up pseudo mode profile name (or legacy number 1-99)
  -c <CR|CRLF>     : For newline use CR+LF (default) or just CR
  -e escape_char   : CTRL+<char> for escape sequence; default is "^]"
  -f <type>        : Used with -g to force the Control::CLI::Extreme family_type
- -g               : Perform ACLI grep on offline config file or from STDIN (pipe)
+ -g <grep-string> : Perform ACLI grep on offline config file or from STDIN (pipe)
  -h               : Help and usage (this output)
  -i <log-dir>     : Path to use when logging to file
  -j               : Automatically start logging to file (<host/IP> used as filename)
@@ -89,7 +90,7 @@ Usage:
  -p               : Use factory default credentials to login automatically
  -q quit_char     : CTRL+<char> for quit sequence; default is "^Q"
  -r               : Connect via Relay; append telnet/ssh command to use on Relay to reach host
- -s <sockets>     : List of socket names for terminal to listen on
+ -s <sockets>     : List of socket names for terminal to listen on (0 to disable sockets)
  -t               : When tcp-port specified, flag to say we are connecting to a terminal server
  -w <work-dir>    : Run on provided working directory
  -x               : If connection lost, exit instead of offering to reconnect

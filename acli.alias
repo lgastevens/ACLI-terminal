@@ -1,6 +1,6 @@
 # acli.pl alias file
 #
-$Version = 1.61_001
+$Version = 1.62
 #
 # This file should be placed either in the same directory as acli.pl or else in your home directory (ENV paths HOME & USERPROFILE are checked)
 # If the file is present in multiple paths the order of preference is the following:
@@ -192,7 +192,7 @@ log [$unitOrName]
 	{family_type} eq 'WLAN9100'							= show log
 	{is_xos}									= show log chronological
 	{is_isw}									= do show logging -i
-	{is_sdwan}									= shell; cat /var/log/commd.log
+	{is_sdwan}									= shell; cat /var/log/commd.log:
 logt [$unitOrName]
 	~:"Show log file in reverse order; most recent events first"
 	?:"Alias syntax:\n	logt [<stackale:unit>|<VOSS:log file>]\n"
@@ -388,7 +388,7 @@ ztp
 ipsec $rt
 	~:"Show IPsec status of WAN Router tunnels of SD-WAN appliance"
 	!{is_sdwan}									= &noalias
-	1										= enable $rt; ipsec status
+	1										= enable $rt; ipsec status:
 fabric
 	~:"Show fabric config and status of SD-WAN appliance"
 	!{is_sdwan}									= &noalias
@@ -400,7 +400,7 @@ dws
 probe $siteMgmtIP $wan
 	~:"Tcpdump probing to selected remote site on selected WAN of SD-WAN appliance"
 	!{is_sdwan}									= &noalias
-	1										= enable; tcpdump -i $wan host $siteMgmtIP and port 19999 ^"19999:"
+	1										= enable; tcpdump -i $wan host $siteMgmtIP and port 19999 ^"19999:":
 apps [$search]
 	~:"Display App name and Id on SD-WAN appliance"
 	!{is_sdwan}									= &noalias
@@ -980,7 +980,10 @@ spb
 nick	~:"Show all SPB nodes in fabric"						= show isis spbm nick-name
 nicksrv	~:"Show nick-name server config & leases"					= @echo off; @print; show spbm|nick; show spbm nick-name server leases; @echo on
 
-isj	~:"Show SPB ISIS adjacencies"							= show isis adjacencies
+isj
+	~:"Show SPB ISIS adjacencies"
+	{is_sdwan}									= debug fabric show config
+	1										= show isis adjacencies
 isi	~:"Show SPB ISIS interfaces"							= show isis interface
 isa	~:"Show SPB ISIS interface authentication"					= show isis int-auth
 isl1	~:"Show SPB ISIS interface L1 counters"						= show isis int-l1-cntl-pkts
@@ -1217,43 +1220,42 @@ bgn [$vrf]
 	{family_type} eq 'PassportERS'							= show ip bgp summary [vrf $vrf]|STATE,^\d,---,- [\dI]!metric
 	{is_xos}									= show bgp neighbor !\(\w\),\s:\s,Stati
 	{is_slx}									= do show ip bgp summary
-#	{is_sdwan}									= enable $vrf
-#											; @echo off output off
-#											; @my $bg_*
-#											; $bg_cltList[] = ("/etc/bird.d/run/bird.ctl"; "/run/bird/bird.rt2.ctl")
-#											; @error disable
-#											; @for $bg_idx &$bg_cltList[]
-#											;    ls $bg_cltList[$bg_idx] > $bg_ctl %1
-#											;    @if $bg_ctl
-#											;        @echo off output on
-#											;        birdcl -s $bg_cltList[$bg_idx] show protocols
-#											;        @last
-#											;    @endif
-#											; @endfor
-#											; @error enable
-#											; @echo on
-	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.rt2.ctl show protocols
+	{is_sdwan}									= enable $vrf
+											; @echo off output off
+											; @my $bg_*
+											; $bg_cltList[] = ("/etc/bird.d/run/bird.ctl"; "/run/bird/bird.$vrf.ctl")
+											; @error disable
+											; @for $bg_idx &$bg_cltList[]
+											;    ls $bg_cltList[$bg_idx] > $bg_ctl %1
+											;    @if $bg_ctl eq $bg_cltList[$bg_idx]
+											;        @echo off output on
+											;        birdcl -s $bg_cltList[$bg_idx] show protocols:
+											;        @last
+											;    @endif
+											; @endfor
+											; netstat -tnap
+											; @error enable
+											; @echo on
 
 bgr [$vrf]
 	~:"Show BGP routes for a given VRF or GRT"
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip bgp route [vrfids $vrf]
 	{family_type} eq 'PassportERS'							= show ip bgp route [vrf $vrf]
 	{is_xos}									= show bgp route all!: \d,Stati
-#	{is_sdwan}									= enable $vrf
-#											; @my $bg_*
-#											; $bg_cltList[] = ("/etc/bird.d/run/bird.ctl"; "/run/bird/bird.rt2.ctl")
-#											; @error disable
-#											; @for $bg_idx &$bg_cltList[]
-#											;    ls $bg_cltList[$bg_idx] > $bg_ctl %1
-#											;    @if $bg_ctl
-#											;        @echo off output on
-#											;        birdcl -s $bg_cltList[$bg_idx] show route all
-#											;        @last
-#											;    @endif
-#											; @endfor
-#											; @error enable
-#											; @echo on
-	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.rt2.ctl show route all
+	{is_sdwan}									= enable $vrf
+											; @my $bg_*
+											; $bg_cltList[] = ("/etc/bird.d/run/bird.ctl"; "/run/bird/bird.$vrf.ctl")
+											; @error disable
+											; @for $bg_idx &$bg_cltList[]
+											;    ls $bg_cltList[$bg_idx] > $bg_ctl %1
+											;    @if $bg_ctl eq $bg_cltList[$bg_idx]
+											;        @echo off output on
+											;        birdcl -s $bg_cltList[$bg_idx] show route all:
+											;        @last
+											;    @endif
+											; @endfor
+											; @error enable
+											; @echo on
 
 ipff [$slots]
 	~:"Show IPFIX flows"
@@ -1283,7 +1285,7 @@ bfdn [$vrf]
 	{is_voss} && $vrf =~ /^\d+$/							= show ip bfd neighbors [vrfids $vrf]!
 	{is_voss}									= show ip bfd neighbors [vrf $vrf]!
 	{is_xos}									= show bfd session
-	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.rt2.ctl show bfd sessions
+	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.rt2.ctl show bfd sessions:
 bfds [$vrf]
 	~:"Show BFD statistics / counters"
 	{is_voss} && $vrf =~ /^\d+$/							= show ip bfd stats [vrfids $vrf]!

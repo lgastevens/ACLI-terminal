@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::Logging;
-our $Version = "1.02";
+our $Version = "1.03";
 
 use strict;
 use warnings;
@@ -17,7 +17,7 @@ use AcliPm::GlobalDefaults;
 
 sub closeLogFile { # Handles closing log file
 	my $script_io = shift;
-	printf { $script_io->{LogFH} } "\n=~=~=~=~=~=~=~=~=~=~= %s log %s =~=~=~=~=~=~=~=~=~=~=\n", $ScriptName, scalar localtime;
+	printf { $script_io->{LogFH} } "\n=~=~=~=~=~=~=~=~=~=~= %s CLOSE log %s =~=~=~=~=~=~=~=~=~=~=\n", $ScriptName, scalar localtime;
 	close $script_io->{LogFH};
 	$script_io->{LogFile} = $script_io->{LogFH} = undef;
 }
@@ -78,7 +78,7 @@ sub openLogFile { # Handles opening log file
 			}
 		}
 		if ( open($script_io->{LogFH}, $script_io->{OverWrite}, $logfile) ) {
-			printf { $script_io->{LogFH} } "\n=~=~=~=~=~=~=~=~=~=~= %s log %s =~=~=~=~=~=~=~=~=~=~=\n", $ScriptName, scalar localtime;
+			printf { $script_io->{LogFH} } "\n=~=~=~=~=~=~=~=~=~=~= %s OPEN  log %s =~=~=~=~=~=~=~=~=~=~=\n", $ScriptName, scalar localtime;
 			$script_io->{AutoLogFail} = 0 if $script_io->{AutoLog};
 			return 1; # File opened successfully
 		}
