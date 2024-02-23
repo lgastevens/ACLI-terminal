@@ -37,3 +37,7 @@ ACLI Terminal is written in Perl. The Windows installer includes [ConsoleZ](http
 
 [Change log](https://github.com/lgastevens/ACLI-terminal/blob/main/Changes)
 
+# Download
+
+[download link](https://github.com/lgastevens/ACLI-terminal/releases)
+
