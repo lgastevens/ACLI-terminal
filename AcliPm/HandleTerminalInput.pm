@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleTerminalInput;
-our $Version = "1.08";
+our $Version = "1.09";
 
 use strict;
 use warnings;
@@ -96,7 +96,7 @@ sub enterACLImode { # Action when entering ACLI> prompt
 		setPromptSuffix($db);
 	}
 	%$cacheMode = %$mode;	# Cache mode settings
-	changeMode($mode, {term_in => 'tm', dev_inp => 'ds', buf_out => 'ds'}, '#92');
+	changeMode($mode, {term_in => 'tm', dev_inp => 'ds', buf_out => 'ds'}, '#HTI1');
 	print "\n", $ACLI_Prompt;
 	saveInputBuffer($term_io);
 	$term_io->{SourceNoHist} = 0;
@@ -233,10 +233,10 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 				$script_io->{ConnectFailMode} = 1;
 				connectToHost($db) or return;
 				if ($term_io->{AutoDetect}) {
-					changeMode($mode, {term_in => 'rk', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#65');
+					changeMode($mode, {term_in => 'rk', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HTI2');
 				}
 				else {
-					changeMode($mode, {term_in => 'sh', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#66');
+					changeMode($mode, {term_in => 'sh', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HTI3');
 				}
 			}
 			return;
@@ -262,7 +262,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 				$host_io->{SendBuffer} .= $term_io->{Newline};	# Send a carriage return to host
 				$host_io->{CLI}->poll_reset; # Safety, make sure any Control::CLI polling methods are reset
 				$mode->{connect_stage} = 0; # As above, in case we hit CTRL-T in the middle of handleDeviceConnect
-				changeMode($mode, {term_in => 'sh', dev_inp => 'rd', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#17');
+				changeMode($mode, {term_in => 'sh', dev_inp => 'rd', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HTI4');
 			}
 			elsif ($host_io->{Discovery}) { # Transparent mode; try to do a fast switch to interact mode
 				$term_io->{Mode} = $host_io->{CapabilityMode};
@@ -273,7 +273,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			else { # Transparent mode; switch to interact mode the slow way
 				printOut($script_io, "\n");
 				$host_io->{SendBuffer} .= $term_io->{Newline} unless $host_io->{Console}; # On console we automatically send wake_console (bug22)
-				changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#18');
+				changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#HTI5');
 			}
 			while (readKeyPress) {} # Read and trash any further queued input
 			return;
@@ -528,7 +528,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 						# $term_io->{DelayCharProcPs} = Time::HiRes::time + $DelayCharProcPs; # Delay term input after CR, in ps mode (bug1)
 						# line below effectively disables line above; but $DelayCharProcPs functionality still works after command initially sent to host
 						# basically if user starts interacting with output then assume we have to go into unbuffered mode
-						changeMode($mode, {term_in => 'sh', dev_out => 'ub'}, '#252'); # Switch to unbuffered mode
+						changeMode($mode, {term_in => 'sh', dev_out => 'ub'}, '#HTI6'); # Switch to unbuffered mode
 						debugMsg(1,"-> Switching to unbuffered output as RETURN key hit in ps mode!\n");
 						# If socket tied, we might be holding on to a prompt; so flush that too
 						$term_io->{DelayPrompt} = 0 if defined $term_io->{DelayPrompt};
@@ -641,7 +641,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 							$script_io->{AcliControl} = 0;
 							printOut($script_io, "\n");
 							$host_io->{OutBuffer} .= $host_io->{Prompt};
-							changeMode($mode, {term_in => 'ps', dev_out => 'bf', buf_out => 'eb'}, '#274');
+							changeMode($mode, {term_in => 'ps', dev_out => 'bf', buf_out => 'eb'}, '#HTI7');
 						}
 						else { # For CTRL-C get a fresh prompt from host
 							$host_io->{SendBuffer} .= $term_io->{Newline};
@@ -756,10 +756,10 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 								$termbuf->{TabMatchTail} = quotemeta(substr($termbuf->{TabCmdSent}, -10));
 								debugMsg(4,"=TabMatchTail-set-to: /", \$termbuf->{TabMatchTail}, "/\n");
 							}
-							changeMode($mode, {dev_del => 'ft'}, '#20') if $TabSynMode{$host_io->{Type}}[$term_io->{AcliType}] & 4;
-							changeMode($mode, {dev_del => 'te'}, '#20') if $TabSynMode{$host_io->{Type}}[$term_io->{AcliType}] & 8;
+							changeMode($mode, {dev_del => 'ft'}, '#HTI8') if $TabSynMode{$host_io->{Type}}[$term_io->{AcliType}] & 4;
+							changeMode($mode, {dev_del => 'te'}, '#HTI9') if $TabSynMode{$host_io->{Type}}[$term_io->{AcliType}] & 8;
 							$termbuf->{TabMatchSent} = quotemeta($termbuf->{TabCmdSent});
-							changeMode($mode, {term_in => 'ib', dev_fct => 'tb'}, '#40');
+							changeMode($mode, {term_in => 'ib', dev_fct => 'tb'}, '#HTI10');
 							debugMsg(4,"=Tab-PromptMatch-was-originally-set-to: /", \$prompt->{Match}, "/\n");
 						}
 					}
@@ -831,7 +831,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 									$termbuf->{Linebuf1} = $command;	# Pre-load buffers with what we already had
 									($termbuf->{Bufback1} = $termbuf->{Linebuf1}) =~ s/./\cH/g;
 									$termbuf->{Linebuf2} = $termbuf->{Bufback2} = '';
-									changeMode($mode, {term_in => 'ib', dev_del => 'fl', dev_fct => 'sx', dev_out => 'bf', buf_out => 'eb'}, '#30');
+									changeMode($mode, {term_in => 'ib', dev_del => 'fl', dev_fct => 'sx', dev_out => 'bf', buf_out => 'eb'}, '#HTI11');
 									return; 
 								}
 							}
@@ -885,7 +885,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 	if ($mode->{term_in} eq 'us' || $mode->{term_in} eq 'pw') { # ------> Username OR Password entry <-----
 		$host_io->{Username} = $command if $mode->{term_in} eq 'us';
 		$host_io->{Password} = $command if $mode->{term_in} eq 'pw';
-		changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#14');
+		changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#HTI12');
 		$host_io->{SendBuffer} = $term_io->{Newline} unless length $command; # If no username or password was entered, feed a carriage return
 		return;
 	}
@@ -896,20 +896,20 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			$script_io->{ConnectFailMode} = 2;
 			if (processControlCommand($db, $command)) {
 				if ($term_io->{PseudoTerm}) { # Pseudo terminal mode
-					changeMode($mode, {term_in => 'tm', dev_inp => 'ds', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#69');
+					changeMode($mode, {term_in => 'tm', dev_inp => 'ds', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HTI13');
 				}
 				elsif (!$host_io->{Connected}) { # if reconnect or open command was executed
 					print "\n";
 					connectToHost($db) or return;
 					if ($term_io->{AutoDetect}) {
-						changeMode($mode, {term_in => 'rk', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#67');
+						changeMode($mode, {term_in => 'rk', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HTI14');
 					}
 					else {
-						changeMode($mode, {term_in => 'sh', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#68');
+						changeMode($mode, {term_in => 'sh', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HTI15');
 					}
 				}
 				else {
-					changeMode($mode, $cacheMode, '#93');	# Restore mode settings
+					changeMode($mode, $cacheMode, '#HTI16');	# Restore mode settings
 				}
 				$script_io->{AcliControl} = 0;
 				$script_io->{ConnectFailMode} = 0;
@@ -934,10 +934,10 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 				$script_io->{ConnectFailMode} = 1;
 				connectToHost($db) or return; # No need to check; automatically handled by connectionError
 				if ($term_io->{AutoDetect}) {
-					changeMode($mode, {term_in => 'rk', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#167');
+					changeMode($mode, {term_in => 'rk', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HTI17');
 				}
 				else {
-					changeMode($mode, {term_in => 'sh', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#168');
+					changeMode($mode, {term_in => 'sh', dev_inp => 'ct', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HTI18');
 				}
 				$script_io->{AcliControl} = 0;
 				$history->{Current} = $history->{HostRecall};
@@ -956,7 +956,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			$script_io->{AcliControl} = 0;
 			printOut($script_io, "\n");
 			$host_io->{OutBuffer} .= $host_io->{Prompt};
-			changeMode($mode, {term_in => 'ps', dev_out => 'bf', buf_out => 'eb'}, '#74');
+			changeMode($mode, {term_in => 'ps', dev_out => 'bf', buf_out => 'eb'}, '#HTI19');
 		}
 		else { # Normal connection mode
 			printOut($script_io, undef, $command) unless $term_io->{EchoOff} && $term_io->{Sourcing}; # Send to log file, if logging
@@ -971,6 +971,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			$host_io->{SyntaxError} = 0;
 			$host_io->{SendMasterCP} = 1; # Set these defaults; they might get changed in processLocalOptions() below
 			$host_io->{SendBackupCP} = 0; # "
+			$host_io->{GrepCache} = '';
 			$term_io->{CmdOutputLines} = 0;
 			$term_io->{RecordsMatched} = $term_io->{RecordCountFlag} = 0;
 			$term_io->{BannerDetected} = 1;	# Set this for var capture processing on output
@@ -1066,11 +1067,11 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 						$history->{Current} = $history->{ACLI};
 						$termbuf->{Linebuf1} = $termbuf->{Linebuf2} = $termbuf->{Bufback1} = $termbuf->{Bufback2} = '';
 						%$cacheMode = %$mode;	# Cache mode settings
-						changeMode($mode, {term_in => 'tm', dev_inp => 'ds', buf_out => 'ds'}, '#89');
+						changeMode($mode, {term_in => 'tm', dev_inp => 'ds', buf_out => 'ds'}, '#HTI20');
 					}
 					elsif ($embCmd eq '@rediscover') { # @rediscover was the embedded command
 						$host_io->{SendBuffer} .= $term_io->{Newline} unless $host_io->{Console}; # On console we automatically send wake_console (bug22)
-						changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#73');
+						changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#HTI21');
 					}
 					elsif ($embCmd eq '@varsprompt') { # @vars prompt was the embedded command
 						$script_io->{AcliControl} = 8;
@@ -1078,7 +1079,13 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 						saveInputBuffer($term_io); # In case we were sourcing
 					}
 					elsif ($embCmd eq '@sleep') { # @sleep was the embedded command
-						changeMode($mode, {dev_out => 'bf', buf_out => 'eb'}, '#75');
+						changeMode($mode, {dev_out => 'bf', buf_out => 'eb'}, '#HTI22');
+					}
+					elsif ($embCmd eq '@read') { # @read was the embedded command
+						changeMode($mode, {term_in => 'ps', dev_inp => 'rd', dev_out => 'bf', buf_out => 'eb'}, '#HTI23');
+					}
+					elsif ($embCmd eq '@read unbuffer') { # @read was the embedded command
+						changeMode($mode, {term_in => 'ps', dev_inp => 'rd', dev_out => 'ub', buf_out => 'ds'}, '#HTI24');
 					}
 					else { # Any other embedded command
 						if ($command ne '@?' && $command =~ s/\?$//) { # So that we get the command reloaded, without ?, in buffer at next prompt
@@ -1090,7 +1097,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 								($termbuf->{Bufback1} = $termbuf->{Linebuf1}) =~ s/./\cH/g;
 							}
 						}
-						changeMode($mode, {term_in => 'ps', dev_out => 'bf', buf_out => 'eb'}, '#71');
+						changeMode($mode, {term_in => 'ps', dev_out => 'bf', buf_out => 'eb'}, '#HTI25');
 					}
 					$term_io->{BannerDetected} = 0;	# No output banner processing for embedded commands
 					undef $command;
@@ -1104,7 +1111,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 					printOut($script_io, "\n");
 					$host_io->{OutBuffer} .= $host_io->{Prompt};
 					debugMsg(4,"=Pseudo mode dictionary loaded; stopping source mode as not a dictionary command\n");
-					changeMode($mode, {dev_out => 'bf', buf_out => 'eb'}, '#722');
+					changeMode($mode, {dev_out => 'bf', buf_out => 'eb'}, '#HTI26');
 					return;
 				}
 
@@ -1121,6 +1128,9 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 					$host_io->{CommandCache} = '';
 				}
 
+				# This is where we apply sed input patterns; after all interactive input processing and just before sending
+				sedPatternReplace($host_io, $term_io->{SedInputPats}, \$command) if %{$term_io->{SedInputPats}};
+
 				# If we get here, $command is what will be sent to the host; add to history of device-sent commands
 				push(@{$history->{DeviceSent}}, $command);
 				push(@{$history->{DeviceSentNoErr}}, $command);
@@ -1128,15 +1138,12 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 				$host_io->{LastCommand} = 'telnet' if $host_io->{LastCommand} =~ /^tel(?:n(?:et?)?)?$/;
 				$host_io->{LastCommand} = 'ssh' if $host_io->{LastCommand} =~ /^ssh?$/;
 				$host_io->{LastCommand} = 'peer' if $host_io->{LastCommand} =~ /^pe(?:er?)?$/;
-
-				# This is where we apply sed input patterns; after all interactive input processing and just before sending
-				sedPatternReplace($host_io, $term_io->{SedInputPats}, \$command) if %{$term_io->{SedInputPats}};
 			}
 			if ($term_io->{PseudoTerm}) { # Special case of empty command in Pseudo Terminal mode
 				printOut($script_io, "\nCommand = $command") if length $command && $term_io->{PseudoTermEcho};
 				printOut($script_io, "\n") unless $term_io->{EchoOff} == 1 && $term_io->{Sourcing};
 				$host_io->{OutBuffer} .= $host_io->{Prompt};
-				changeMode($mode, {dev_out => 'bf', buf_out => 'eb'}, '#72');
+				changeMode($mode, {dev_out => 'bf', buf_out => 'eb'}, '#HTI27');
 				return;
 			}
 			# Else we send the command to the host
@@ -1158,12 +1165,12 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 				) && ( $command =~ /$ChangePromptCmds{$host_io->{Type}}/i ) ) {
 
 				# This command will change the device prompt
-				changeMode($mode, {term_in => 'rk', dev_inp => 'cp'}, '#100');
+				changeMode($mode, {term_in => 'rk', dev_inp => 'cp'}, '#HTI28');
 			}
 			else { # No prompt change expected
-				changeMode($mode, {term_in => 'ps', dev_del => 'fl', dev_out => 'bf', buf_out => 'eb'}, '#4');
+				changeMode($mode, {term_in => 'ps', dev_inp => 'rd', dev_del => 'fl', dev_out => 'bf', buf_out => 'eb'}, '#HTI29');
 			}
-			changeMode($mode, {dev_fct => 'yp'}, '#50') if $term_io->{YnPrompt};
+			changeMode($mode, {dev_fct => 'yp'}, '#HTI30') if $term_io->{YnPrompt};
 		}
 	}
 	elsif ($mode->{term_in} eq 'sh') { # ------------> Send to Host mode <-------------

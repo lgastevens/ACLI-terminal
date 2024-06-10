@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::CommandStructures;
-our $Version = "1.05";
+our $Version = "1.06";
 
 use strict;
 use warnings;
@@ -29,8 +29,8 @@ our $ControlCmds = { # Hash of commands available under ACLI control mode
 			show						=> '\S*',
 	},
 	cd								=> '.+',
-	close								=> '',
 	clear								=> '',
+	close								=> '',
 	cls								=> '',
 	ctrl		=> {
 			'clear-screen'	=> {
@@ -731,6 +731,10 @@ our $EmbeddedCmds = {	# Hash of local acli commands available under regular host
 	'@pwd'								=> '',
 	'@put'								=> '.*',
 	'@quit'								=> '',
+	'@read'	=> {
+			''						=> '',
+			unbuffer					=> '',
+	},
 	'@rediscover'							=> '',
 	'@resume'	=> {
 			''						=> '',

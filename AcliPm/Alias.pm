@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::Alias;
-our $Version = "1.05";
+our $Version = "1.06";
 
 use strict;
 use warnings;
@@ -13,6 +13,7 @@ use lib $FindBin::Bin.$::Sub;
 use AcliPm::GlobalDefaults;
 use AcliPm::GlobalMatchingPatterns;
 use AcliPm::DebugMessage;
+use AcliPm::MaskUnmaskChars;
 use AcliPm::ParseCommand;
 use AcliPm::Print;
 use AcliPm::Prompt;
@@ -290,7 +291,8 @@ sub deAlias { # Dereference an alias command
 	my $command = $cmdParsed->{command}->{str}; # Make a copy before making mods
 	$command =~ s/(\S)\?$/$1 ?/; # If command ends with ? make sure space before ?
 	$command =~ s/\s+/ /g; # Replace consecutive spaces with single space or it will mess up split below
-	my @command = split($Space, $command);
+	my @command = split($Space, doubleQuoteMask($command, $Space));
+	@command = map { doubleQuoteUnmask($_, $Space) } @command;
 	my $aliascmd = tabExpand($alias, $command[0]);
 	debugMsg(4,"=De-alias: - tabExpand returned: >$aliascmd<\n");
 	return 0 unless $aliascmd;
@@ -311,13 +313,14 @@ sub deAlias { # Dereference an alias command
 	}
 
 	# Check request for syntax '?'
+	my $aliasSyntaxMsg;
 	if ($#command == 1 && $command[1] eq '?') {
 		return 0 if $command[0] =~/$AliasPreventSyntax/;
 		if (defined $alias->{$aliascmd}{SYN}) { # We have syntax string for this alias
-			printOut($script_io, "\n$alias->{$aliascmd}{SYN}\n$prompt") unless $silent;
-			return;
+			$aliasSyntaxMsg = "\n$alias->{$aliascmd}{SYN}\n$prompt";
+			# Cache the message, we print it only if we don't get &noalias below
 		}
-		if ($alias->{$aliascmd}{FLG}) { # We have no syntax string for it; so we build it based on what we have
+		elsif ($alias->{$aliascmd}{FLG}) { # We have no syntax string for it; so we build it based on what we have
 			my $aliasSyntax = '';
 			my $mvr = $alias->{$aliascmd}{MVR};
 			my $ovr = $alias->{$aliascmd}{OVR};
@@ -326,15 +329,17 @@ sub deAlias { # Dereference an alias command
 				elsif ($ovr) { $aliasSyntax .= " [\$$var]"; $ovr-- }
 				else { $aliasSyntax .= " - Inconsistency: more vars than expected !: $var" }
 			}
-			printOut($script_io, "\n$aliasEcho$aliascmd$aliasSyntax\n$prompt") unless $silent;
-			return;
+			$aliasSyntaxMsg = "\n$aliasEcho$aliascmd$aliasSyntax\n$prompt";
+			# Cache the message, we print it only if we don't get &noalias below
 		}
-		return 0;	# No alias
+		else {
+			return 0;	# No alias
+		}
 	}
 	return 0 if ($alias->{$aliascmd}{MVR} + $alias->{$aliascmd}{OVR}) < $#command; # We have more args than alias wants; come out
 
 	# Now check it has been supplied with all mandatory variables
-	if ($alias->{$aliascmd}{MVR} > $#command) { # We are missing some vars
+	if (!$aliasSyntaxMsg && $alias->{$aliascmd}{MVR} > $#command) { # We are missing some vars
 		printOut($script_io, "\n$aliasEcho$aliascmd <requires $alias->{$aliascmd}{MVR} variables; only $#command provided>\n$prompt") unless $silent;
 		stopSourcing($db);
 		return;
@@ -356,15 +361,22 @@ sub deAlias { # Dereference an alias command
 			}
 		}
 	}
-	unless ($dealiascmd) {
+	unless ($aliasSyntaxMsg || $dealiascmd) {
 		printOut($script_io, "\n$aliasEcho$aliascmd <no conditions match>\n$prompt") unless $silent;
 		return;
 	}
 	debugMsg(4,"=De-alias: $aliascmd / de-alias cmd: ", \$dealiascmd, "\n");
 
-	# Check if command is just syntax output
-	if ($dealiascmd =~ s/^&(\S+)\s*//) {
-		my $aliasdo = $1;
+	# Check if command is &<local command>
+	my $termIoAliasEcho = $term_io->{AliasEcho};
+	my $aliasdo = $1 if $dealiascmd =~ s/^&([^\s;]+);?\s*//;
+	if (defined $aliasSyntaxMsg && (!defined $aliasdo || $aliasdo ne 'noalias')) {
+		# In this case, send the syntax message which we had delayed..
+		printOut($script_io, $aliasSyntaxMsg) unless $silent;
+		return;
+	}
+	# Now process &<local command>
+	if (defined $aliasdo) {
 		if ($aliasdo eq 'print') {
 			$dealiascmd =~ s/"//g; # Remove " quotes
 			$dealiascmd =~ s/\\n/\n/g; # Restore newlines
@@ -374,6 +386,9 @@ sub deAlias { # Dereference an alias command
 		}
 		elsif ($aliasdo eq 'noalias') { # Skip de-aliasing and send to host as is
 			return 0;
+		}
+		elsif ($aliasdo eq 'noecho') { # Disable alias echo for this command only
+			$termIoAliasEcho = 0;
 		}
 		else {
 			printOut($script_io, "\n$aliasEcho$aliascmd <&$aliasdo is unrecognized>\n$prompt") unless $silent;
@@ -402,7 +417,7 @@ sub deAlias { # Dereference an alias command
 	debugMsg(4,"=deAlias setting SourceActive: alias / ", \$aliascmd, "\n");
 
 	# Show alias de-referencing on output
-	if ($term_io->{AliasEcho} && !($silent || $term_io->{InputBuffQueue}->[0] eq 'RepeatCmd') ) {
+	if ($termIoAliasEcho && !($silent || $term_io->{InputBuffQueue}->[0] eq 'RepeatCmd') ) {
 		if ($term_io->{EchoOff} && $term_io->{Sourcing}) {
 			$host_io->{CommandCache} .= "\n$aliasEcho" . $cmdParsed->{fullcmd};
 			debugMsg(4,"=adding to CommandCache:\n>",\$host_io->{CommandCache}, "<\n");

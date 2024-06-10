@@ -1,6 +1,6 @@
 # acli.pl alias file
 #
-$Version = 1.62
+$Version = 1.63
 #
 # This file should be placed either in the same directory as acli.pl or else in your home directory (ENV paths HOME & USERPROFILE are checked)
 # If the file is present in multiple paths the order of preference is the following:
@@ -88,6 +88,7 @@ $Version = 1.62
 #
 #		&print "text to print"	: The alias command will simply print out the text provided; useful for giving syntax
 #		&noalias		: This will bybass aliasing alltogether; useful to avoid clashes with switch commands
+#		&noecho			: This will disable the alias echo for the command entered; place this as 1st command
 #
 #	You can also provide a syntax output string by adding a line starting with space or tab then '?:' like this:
 #
@@ -118,19 +119,23 @@ cfg [$mode]
 	~:"Show running-config with no banners and indentation"
 	{family_type} =~ /^(?:SecureRouter|WLAN9100)$/					= show running-config -b
 	{family_type} eq 'Series200'							= show running-config -ib
+	{is_isw_marvell}								= show runningcfg -ib
 	{is_isw} || {is_slx}								= do show running-config -b
 	{is_acli}									= show running-config [mode $mode] -ib
 	{is_xos}									= show configuration -b
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show config [mode $mode] -ib
+	{is_hiveos}									= show config running
 cfgv [$mode]
 	~:"Show verbose running-config including non-default values, but no banners"
 	{family_type} eq 'WLAN9100'							= show running-config inc-defaults
+	{is_isw_marvell}								= show runningcfg default -ib
 	{is_isw}									= do show running-config all-defaults -b
 	{is_acli}									= show running-config verbose [mode $mode] -ib
 	{is_xos}									= show configuration detail -b
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show config verbose [mode $mode] -ib
 cfgf [$mode]
 	~:"Show normal running-config, as displayed by device, including banners"
+	{is_isw_marvell}								= show runningcfg
 	{family_type} =~ /^(?:SecureRouter|WLAN9100|ISW)$/				= show running-config
 	{is_acli}									= show running-config [mode $mode]
 	{is_xos}									= show configuration
@@ -141,6 +146,7 @@ sfg
 	{family_type} eq 'PassportERS'							= more config.cfg -ib
 	{family_type} eq 'WLAN9100'							= show saved-config -b
 	{is_slx}									= do show startup-config -b
+	{is_isw}									= more flash:startup-config -b
 ofg $file
 	~:"Show offline config file with no banners and indentation"
 	{family_type} eq 'PassportERS'							= more $file -ib
@@ -185,12 +191,14 @@ log [$unitOrName]
 	{family_type} eq 'SecureRouter' && $unitOrName eq 'clear'			= clear event_log
 	{family_type} eq 'WLAN9100' && $unitOrName eq 'clear'				= clear log
 	{is_xos} && $unitOrName eq 'clear'						= clear log
+	{is_isw_marvell} && $unitOrName eq 'clear'					= configure; event clear -y; exit
 	{is_isw} && $unitOrName eq 'clear'						= clear logging
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= @echo off output off; @sed output add '(?:- )?00000000 |GlobalRouter ' ''; @echo on; show log file [name-of-file $unitOrName]:
 	{family_type} eq 'BaystackERS'							= show log [unit $unitOrName] -i
 	{family_type} eq 'SecureRouter'							= show event_logs
 	{family_type} eq 'WLAN9100'							= show log
 	{is_xos}									= show log chronological
+	{is_isw_marvell}								= show event
 	{is_isw}									= do show logging -i
 	{is_sdwan}									= shell; cat /var/log/commd.log:
 logt [$unitOrName]
@@ -214,6 +222,7 @@ sv [$file]
 	{family_type} eq 'Series200'							= copy system:running-config nvram:startup-config -y
 	{is_xos} && length($file)							= save configuration {(split('\.', "$file"))[0]} // y // n
 	{is_xos}									= save configuration -y
+	{is_isw_marvell}								= configure; runningcfg save [$file]; exit
 	{is_isw} && length($file)							= do copy running-config flash:$file
 	{is_isw}									= do copy running-config startup-config
 	{is_slx}									= do copy running-config startup-config -y
@@ -225,6 +234,7 @@ svv [$file]
 	{family_type} eq 'WLAN9100'							= save [$file]; @save all
 	{is_xos} && length($file)							= save configuration {(split('\.', "$file"))[0]} // y // n; @save all
 	{is_xos}									= save configuration -y; @save all
+	{is_isw_marvell}								= configure; runningcfg save [$file]; exit; @save all
 	{is_isw}									= do copy running-config startup-config; @save all
 	{is_slx}									= do copy running-config startup-config -y; @save all
 fl
@@ -316,7 +326,9 @@ shell
 											; debug mode
 											; @send line "execute bash"
 											; @send line "cd /intflash"
+											; @read unbuffer
 	{is_xos}									= @send line "run script shell.py"
+											; @read unbuffer
 	{is_sdwan}									= @echo off output off
 											; @if $> =~ /^\[/
 											;     @echo on; shell; @echo off output off
@@ -396,7 +408,7 @@ fabric
 dws
 	~:"Show app sessions and their DWS decisions on SD-WAN appliance"
 	!{is_sdwan}									= &noalias
-	1										= tail -f /tmp/obps_choice*.log ^\bC=\d\b
+	1										= enable; tail -f /tmp/obps_choice*.log ^\bC=\d\b:
 probe $siteMgmtIP $wan
 	~:"Tcpdump probing to selected remote site on selected WAN of SD-WAN appliance"
 	!{is_sdwan}									= &noalias
@@ -421,27 +433,40 @@ if [$ports]
 	{family_type} eq 'PassportERS'							= show port inf interface [port $ports]
 	{family_type} eq 'BaystackERS'							= show interfaces [$ports]
 	{is_xos}									= show ports [$ports] information port-number
+	{is_isw_marvell}								= show interface all status
 	{is_isw}									= do show interface * status
 	{is_slx}									= do show interface status [|| $ports]
 	{is_sdwan}									= eth-diag
+	{is_hiveos}									= show interface
 ifl1 [$ports]
 	~:"Show port L1 config"
 	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet l1-config [$ports]
 	{is_xos}									= show ports [$ports] configuration no-refresh
 ifen
-	~:"Show enabled port"
+	~:"Show enabled ports"
 	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet interface ||\S\sup
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show port inf interface ||\S\sup
 	{family_type} eq 'BaystackERS'							= show interfaces ||Enable\s
 	{is_xos}									= show ports information port-number ||\d\s+E -s
+	{is_isw_marvell}								= show interface all status ||Enabled -s
 	{is_isw}									= do show interface * status ||enabled  \S
 	{is_slx}									= do show interface status !!adminDown
+ifdis
+	~:"Show disabled ports"
+	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet interface ||\S\sdown
+	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show port inf interface ||\S\sdown
+	{family_type} eq 'BaystackERS'							= show interfaces ||Disable\s
+	{is_xos}									= show ports information port-number ||\d\s+D -s
+	{is_isw_marvell}								= show interface all status ||Disabled -s
+	{is_isw}									= do show interface * status ||disabled  \S
+	{is_slx}									= do show interface status ||adminDown
 ifup
 	~:"Show ports with link up"
 	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet interface ||up\s+up
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show port inf interface ||up\s+up
 	{family_type} eq 'BaystackERS'							= show interfaces ||up
 	{is_xos}									= show ports information port-number ||active
+	{is_isw_marvell}								= show interface all status !!down
 	{is_isw}									= do show interface * status !!Down
 	{is_slx}									= do show interface status ||connected \(up\)
 ifdown
@@ -449,8 +474,9 @@ ifdown
 	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet interface ||up\s+down
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show port inf interface ||up\s+down
 	{family_type} eq 'BaystackERS'							= show interfaces ||Enable\s+Down
-	{is_xos}									= show ports information port-number ||\d\s+D -s
-	{is_isw}									= do show interface * status ||Down
+	{is_xos}									= show ports information port-number ||\d\s+E -s !!active
+	{is_isw_marvell}								= show interface all status ||Enabled -s ||down
+	{is_isw}									= do show interface * status ||enabled  \S||Down
 	{is_slx}									= do show interface status ||notconnected
 ifst
 	~:"Show ports which have been shutdown for an exceoption"
@@ -493,15 +519,17 @@ if% [$ports]
 fi
 	~:"Show fabric-interconnect (rear) interfaces (VSP7024 only)"
 	{family_type} eq 'BaystackERS' && {model} =~ /^VSP/				= show interfaces||^3[3-9],^40
-ife $ports [$gigorfasteth]
+ife $ports
 	~:"Enter ports configuration context"
+	?:"Alias syntax:\n	ife <port(s)>\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
 	{family_type} eq 'PassportERS' && {is_acli}					= interface gigabitEthernet $ports
 	{family_type} eq 'PassportERS'							= config ethernet $ports
 	{family_type} eq 'BaystackERS'							= interface fastEthernet $ports
 	{family_type} eq 'SecureRouter'							= interface ethernet $ports
 	{is_slx}									= interface Ethernet $ports
-	{is_isw} && $gigorfasteth =~ /^g/i						= interface GigabitEthernet $ports
-	{is_isw} && $gigorfasteth =~ /^f/i						= interface FastEthernet $ports
+	{is_isw} && $ports =~ /^[fF]-/							= interface fastEthernet {(split('-', "$ports"))[1]}
+	{is_isw} && $ports =~ /^[gG]-/							= interface gigabitEthernet {(split('-', "$ports"))[1]}
+	{is_isw} && $ports =~ /^10[gG]-/						= interface 10GigabitEthernet {(split('-', "$ports"))[1]}
 ifv $vlan
 	~:"Enter VLAN configuration context"
 	{family_type} eq 'SecureRouter'							= interface vlan vlan$vlan
@@ -570,11 +598,11 @@ mstat2 [$ports]
 qstat [$ports]
 	~:"Show ports QoS/CoS stats"
 	?:"Alias syntax:\n	qstat [<ports>]\n	qstat clear\n"
-	{family_type} eq 'PassportERS' && {model} =~ /^VSP-[478]/ && $ports eq 'clear'	= clear qos cosq-stats
-	$ports eq 'clear'								= &noalias
-	{family_type} eq 'PassportERS' && {model} =~ /^VSP-[478]/			= show qos cosq-stats interface [$ports]
+	{family_type} eq 'PassportERS' && {model} =~ /^VSP-9/ && $ports eq 'clear'	= &print "Cannot clear QoS/CoS stats on VSP9k"
 	{family_type} eq 'PassportERS' && {model} =~ /^VSP-9/ && $ports			= config term; int gig $ports; fabric statistics enable; end
 	{family_type} eq 'PassportERS' && {model} =~ /^VSP-9/				= show fabric statistics
+	{family_type} eq 'PassportERS' && {is_voss} && $ports eq 'clear'		= clear qos cosq-stats
+	{family_type} eq 'PassportERS' && {is_voss}					= show qos cosq-stats interface [$ports]
 	{family_type} eq 'PassportERS' && {is_acli}					= show interfaces gigabitEthernet statistics egress-queues [$ports]
 	{family_type} eq 'PassportERS' && $ports					= show qos stats egress-queue-set port $ports
 	{family_type} eq 'PassportERS'							= show qos stats egress-queue-set all
@@ -594,6 +622,7 @@ mlt
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show mlt info|===,Mlt Info,norm,smlt   smlt,ist    ist,vist -s
 	{is_xos}									= show sharing !\w ?-,#,Layer,Flags
 	{is_slx}									= do show port-channel summary
+	{is_isw_marvell}								= show interface lag
 	{is_isw}									= do show aggregation
 lag
 	~:"Show LACP LAG interfaces"
@@ -601,6 +630,7 @@ lag
 	{is_acli} && {family_type} eq 'BaystackERS'					= show lacp port ||Active,Passive
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ports info lacp actor-oper ||\d\s+true
 	{is_xos}									= show sharing !\w ?-,#,Layer,Flags
+	{is_isw_marvell}								= show interface lag
 	{is_isw}									= do show aggregation
 ist
 	~:"Show SMLT IST status"
@@ -619,7 +649,7 @@ slt
 
 eap [$ports]
 	~:"Show EAP port"
-	$ports =~ /\?$/ || (length($ports) && $ports !~ /^[\d\/,-]+$/)			= &noalias
+	length($ports) && $ports !~ /^[\d\/,-]+$/					= &print "Alias input error: invalid port(s)"
 	{is_voss}									= show eapol port interface
 	{is_acli}									= show eapol [port $ports]
 	{is_xos}									= show netlogin [port $ports]
@@ -684,69 +714,80 @@ lldn [$ports]
 	{is_xos}									= show lldp neighbors
 	{is_slx}									= do show lldp neighbors
 	{is_wing}									= show lldp neighbors |Chassis,System Name,Platform,Local Interface
-	{is_isw}									= do show lldp neighbors ||Local Interface,Port Description,System Name,System Description
+	{is_isw_marvell}								= do show lldp neighbors!Chassis,TTL [|| $ports]
+	{is_isw}									= do show lldp neighbors ||Local Interface,Port Description,System Name,System Description [|| $ports]
 	{is_sdwan}									= lldpcli show neighbors
 lldpn [$ports]
 	~:"Show LLDP neighbours verbose"
 	{is_voss}									= show lldp neighbor detail [port $ports]
 	{family_type} eq 'BaystackERS'							= show lldp [port $ports] neighbor detail
 	{family_type} eq 'PassportERS'							= show lldp [port $ports] neighbor
-	{is_xos}									= show lldp neighbors detailed
-	{is_wing}									= show lldp neighbors
-	{is_isw}									= show lldp neighbors
-up $ports [$gigorfasteth]
+	{is_xos}									= show lldp neighbors detailed [|| $ports]
+	{is_wing}									= show lldp neighbors 
+	{is_isw}									= show lldp neighbors [|| $ports]
+up $ports
 	~:"Enable port"
-	$ports !~ /^[\d\$]/								= &noalias
+	?:"Alias syntax:\n	up <port(s)>\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
+	$ports !~ /^(?:10[gG]-|[fFgG]-)?[\d]/						= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; int fast $ports; no shut; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; no shut; end
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports state enable
 	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; no shut; end
 	{is_xos}									= enable ports $ports
-	{is_isw} && $gigorfasteth =~ /^g/i						= configure terminal; interface GigabitEthernet $ports; no shut; end
-	{is_isw} && $gigorfasteth =~ /^f/i						= configure terminal; interface FastEthernet $ports; no shut; end
-	{is_isw}									= configure terminal; interface * $ports; no shut; end
+	{is_isw_marvell} && $ports =~ /^[gG]-/						= configure; interface gigabitEthernet {(split('-', "$ports"))[1]}; port enable; exit; exit
+	{is_isw_marvell} && $ports =~ /^10[gG]-/					= configure; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; port enable; exit; exit
+	{is_isw} && $ports =~ /^[fF]-/							= configure terminal; interface FastEthernet {(split('-', "$ports"))[1]}; no shut; end
+	{is_isw} && $ports =~ /^[gG]-/							= configure terminal; interface GigabitEthernet {(split('-', "$ports"))[1]}; no shut; end
+	{is_isw} && $ports =~ /^10[gG]-/						= configure terminal; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; no shut; end
 	{is_slx}									= configure terminal; @my $up_p; @for $up_p &$ports; interface Ethernet $up_p; no shut; exit; @endfor; end
-down $ports [$gigorfasteth]
+down $ports
 	~:"Disable port"
-	$ports !~ /^[\d\$]/								= &noalias
+	?:"Alias syntax:\n	down <port(s)>\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
+	$ports !~ /^(?:10[gG]-|[fFgG]-)?[\d]/						= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; int fast $ports; shut; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; shut; end
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports state disable
-	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; shut; end
+	{family_type} eq 'Secure1Router'						= config term; int ethernet $ports; shut; end
 	{is_xos}									= disable ports $ports
-	{is_isw} && $gigorfasteth =~ /^g/i						= configure terminal; interface GigabitEthernet $ports; shut; end
-	{is_isw} && $gigorfasteth =~ /^f/i						= configure terminal; interface FastEthernet $ports; shut; end
-	{is_isw}									= configure terminal; interface * $ports; shut; end
+	{is_isw_marvell} && $ports =~ /^[gG]-/						= configure; interface gigabitEthernet {(split('-', "$ports"))[1]}; port disable; exit; exit
+	{is_isw_marvell} && $ports =~ /^10[gG]-/					= configure; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; port disable; exit; exit
+	{is_isw} && $ports =~ /^[fF]-/							= configure terminal; interface FastEthernet {(split('-', "$ports"))[1]}; shut; end
+	{is_isw} && $ports =~ /^[gG]-/							= configure terminal; interface GigabitEthernet {(split('-', "$ports"))[1]}; shut; end
+	{is_isw} && $ports =~ /^10[gG]-/						= configure terminal; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; shut; end
 	{is_slx}									= configure terminal; @my $dw_p; @for $dw_p &$ports; interface Ethernet $dw_p; shut; exit; @endfor; end
-bounce $ports [$gigorfasteth]
+bounce $ports
 	~:"Bounce port"
-	$ports !~ /^[\d\$]/								= &noalias
+	?:"Alias syntax:\n	bounce <port(s)>\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
+	$ports !~ /^(?:10[gG]-|[fFgG]-)?[\d]/						= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; int fast $ports; shut; @sleep 2; no shut; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; shut; @sleep 2; no shut; end
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports state disable; @sleep 2; config ethernet $ports state enable
 	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; shut; @sleep 2; no shut; end
 	{is_xos}									= disable ports $ports; @sleep 2; enable ports $ports
-	{is_isw} && $gigorfasteth =~ /^g/i						= configure terminal; interface GigabitEthernet $ports; shut; @sleep 2; no shut; end
-	{is_isw} && $gigorfasteth =~ /^f/i						= configure terminal; interface FastEthernet $ports; shut; @sleep 2; no shut; end
-	{is_isw}									= configure terminal; interface * $ports; shut; @sleep 2; no shut; end
+	{is_isw_marvell} && $ports =~ /^[gG]-/						= configure; interface gigabitEthernet {(split('-', "$ports"))[1]}; port disable; @sleep 2; port enable; exit; exit
+	{is_isw_marvell} && $ports =~ /^10[gG]-/					= configure; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; port disable; @sleep 2; port enable; exit; exit
+	{is_isw} && $ports =~ /^[fF]-/							= configure terminal; interface FastEthernet {(split('-', "$ports"))[1]}; shut; @sleep 2; no shut; end
+	{is_isw} && $ports =~ /^[gG]-/							= configure terminal; interface GigabitEthernet {(split('-', "$ports"))[1]}; shut; @sleep 2; no shut; end
+	{is_isw} && $ports =~ /^10[gG]-/						= configure terminal; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; shut; @sleep 2; no shut; end
 	{is_slx}									= configure terminal; interface Ethernet $ports; shut; @sleep 2; no shut; end
 tag $ports
 	~:"Enable q-tagging on port"
-	$ports !~ /^[\d\$]/								= &noalias
+	$ports !~ /^[\d\$]/								= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; vlan port $ports tagging tagAll; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; encapsulation dot1q; end
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports perform-tagging enable
 	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; switchport mode trunk; end
 untag $ports
 	~:"Untag (no q-tagging) port"
-	$ports !~ /^[\d\$]/								= &noalias
+	$ports !~ /^[\d\$]/								= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; vlan port $ports tagging untagAll; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; no encapsulation dot1q; end
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports perform-tagging disable
 	{family_type} eq 'SecureRouter'							= config term; int ethernet $ports; switchport mode access; end
 pvid $vid $ports
 	~:"Set PVID on port"
-	$vid !~ /^[\d\$]/ || $ports !~ /^[\d\$]/					= &noalias
+	$vid !~ /^[\d\$]/								= &print "Alias input error: invalid PVID"
+	$ports !~ /^[\d\$]/								= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; vlan port $ports pvid $vid; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; default-vlan-id $vid; end
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= config ethernet $ports default-vlan-id $vid
@@ -760,19 +801,19 @@ msec [$ports]
 	{is_xos}									 = @echo off; show macsec ports all configuration; @print; show macsec ports all; @echo on
 poff $ports
 	~:"Disable PoE on port"
-	$ports !~ /^[\d\$]/								= &noalias
+	$ports !~ /^[\d\$]/								= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; int fast $ports; poe poe-shutdown; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; poe poe-shutdown; end
 	{is_xos}									= disable inline-power ports $ports
 pon $ports
 	~:"Enable PoE on port"
-	$ports !~ /^[\d\$]/								= &noalias
+	$ports !~ /^[\d\$]/								= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; int fast $ports; no poe-shutdown; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; no poe-shutdown; end
 	{is_xos}									= enable inline-power ports $ports
 pbounce $ports
 	~:"Bounce PoE on port"
-	$ports !~ /^[\d\$]/								= &noalias
+	$ports !~ /^[\d\$]/								= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'BaystackERS'							= config term; int fast $ports; poe poe-shutdown; @sleep 2; no poe-shutdown; end
 	{family_type} eq 'PassportERS' && {is_acli}					= config term; int gig $ports; poe poe-shutdown; @sleep 2; no poe-shutdown; end
 	{is_xos}									= disable inline-power ports $ports; @sleep 2; enable inline-power ports $ports
@@ -829,7 +870,12 @@ fdb [$vidorport] [$port]
 	{family_type} eq 'PassportERS' && {is_acli} && $vidorport eq 'port'		= show vlan mac-address-entry [port $port]
 	{family_type} eq 'PassportERS' && !{is_acli} && $vidorport eq 'port'		= show vlan info fdb-entry [port $port]
 	{is_xos} && $vidorport eq 'port'						= show fdb ports [$port]
-	{is_isw} && $vidorport eq 'port'						= do show mac address-table interface * [$port]
+	{is_isw_marvell} && $vidorport eq 'port' && $port =~ /:[fF]$/			= show fdb interface fastEthernet {(split('-', "$ports"))[1]}
+	{is_isw_marvell} && $vidorport eq 'port' && $port =~ /:[gG]$/			= show fdb interface gigabitEthernet {(split('-', "$ports"))[1]}
+	{is_isw_marvell} && $vidorport eq 'port' && $port =~ /:10[gG]$/			= show fdb interface 10GigabitEthernet {(split('-', "$ports"))[1]}
+	{is_isw} && $vidorport eq 'port' && $port =~ /:[fF]$/				= do show mac address-table interface fastEthernet {(split('-', "$ports"))[1]}
+	{is_isw} && $vidorport eq 'port' && $port =~ /:[gG]$/				= do show mac address-table interface gigabitEthernet {(split('-', "$ports"))[1]}
+	{is_isw} && $vidorport eq 'port' && $port =~ /:10[gG]$/				= do show mac address-table interface 10GigabitEthernet {(split('-', "$ports"))[1]}
 	#---
 	{family_type} eq 'BaystackERS' && $vidorport eq 'flush'				= clear mac-address-table
 	{family_type} eq 'SecureRouter' && $vidorport eq 'flush'			= clear bridge mac
@@ -846,6 +892,7 @@ fdb [$vidorport] [$port]
 	{family_type} eq 'PassportERS' && !{is_acli}					= show vlan info fdb-entry [$vidorport]
 	{family_type} eq 'Accelar'							= show vlan info fdb-entry [$vidorport]
 	{is_xos}									= show fdb [vlan $vidorport]
+	{is_isw_marvell}								= show fdb [vlan $vidorport]
 	{is_isw}									= do show mac address-table [vlan $vidorport]
 ifdb [$isid] [$flushorsync]
 	~:"Show I-SID MAC table"
@@ -865,14 +912,20 @@ vln [$vid]
 	{family_type} eq 'SecureRouter'							= show bridge vlan [$vid]
 	{family_type} eq 'WLAN9100'							= show vlan [$vid]
 	{is_xos}									= show vlan !\(.\)
+	{is_isw_marvell}								= show vlan status
 	{is_isw}									= do show vlan brief
 	{is_slx}									= do show vlan brief
 vlni [$ports]
 	~:"Show ports VLAN membership"
+	?:"Alias syntax:\n	vlni [<port(s)>]\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
+	$ports && $ports !~ /^(?:10[gG]-|[fFgG]-)?[\d]/					= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'SecureRouter'							= show bridge port [$ports]
 	{family_type} eq 'BaystackERS'							= @echo off output on; show vlan interface info [$ports]; @print; show vlan interface vids [$ports]; @echo on
-	{is_isw} && $ports 								= do show interface * [$ports] switchport ||Name:,Administrative mode:,Access Mode VLAN:
-	{is_isw}									= do show interface * switchport ||Name:,Administrative mode:,Access Mode VLAN:
+	{is_isw_marvell}								= show vlan status detail [|| $ports]
+	{is_isw} && $ports =~ /^[fF]-/							= do show interface fastEthernet {(split('-', "$ports"))[1]} switchport ||Name:,Administrative mode:,Access Mode VLAN:
+	{is_isw} && $ports =~ /^[gG]-/							= do show interface gigabitEthernet {(split('-', "$ports"))[1]} switchport ||Name:,Administrative mode:,Access Mode VLAN:
+	{is_isw} && $ports =~ /^10[gG]-/						= do show interface 10gigabitEthernet {(split('-', "$ports"))[1]} switchport ||Name:,Administrative mode:,Access Mode VLAN:
+	{is_isw}									= do show interface * switchport ||Name:,Administrative mode:,Access Mode VLAN: [|| $ports]
 	{is_acli}									= show interfaces gigabitEthernet vlan [$ports]
 	{family_type} eq 'PassportERS' && {model} =~ /^ERS-16/				= show ports info vlans [$ports]
 	{family_type} eq 'PassportERS'							= show ports info vlans [port $ports]
@@ -908,8 +961,12 @@ stp
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= show rstp status
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= show mstp status
 	{is_xos}									= show stpd detail
+	{is_isw_marvell}								= show stp ||^System !^\s+System,^Interface
+	{is_isw}									= show spanning-tree
 spi [$ports]
 	~:"Show Spanning Tree ports status"
+	?:"Alias syntax:\n	spi [<port(s)>]\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
+	$ports && $ports !~ /^(?:10[gG]-|[fFgG]-)?[\d]/					= &print "Alias input error: invalid port(s)"
 	{family_type} eq 'SecureRouter'							= show spanning-tree
 	{is_acli} && {stp_mode} eq 'stpg'						= show spanning-tree port [$ports]
 	{is_acli} && {stp_mode} eq 'rstp'						= show spanning-tree rstp port role [$ports]
@@ -919,15 +976,21 @@ spi [$ports]
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= show ports info rstp role [$ports]
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= show ports info mstp cist role [$ports]
 	{is_xos}									= show stpd s0 ports [$ports] !^\d+: ,= edgeport,Flags: -s
+	{is_isw_marvell}								= show stp ||^Interface !^\s*System [|| $ports]
+	{is_isw} && $ports =~ /^[fF]-/							= do show spanning-tree interface fastEthernet {(split('-', "$ports"))[1]}
+	{is_isw} && $ports =~ /^[gG]-/							= do show spanning-tree interface gigabitEthernet {(split('-', "$ports"))[1]}
+	{is_isw} && $ports =~ /^10[gG]-/						= do show spanning-tree interface 10gigabitEthernet {(split('-', "$ports"))[1]}
+	{is_isw}									= do show spanning-tree interface * [|| $ports]
 spe [$ports]
 	~:"Show Spanning Tree faststart or edge enabled ports"
 	{is_acli} && {stp_mode} eq 'rstp'						= show spanning-tree rstp port config [$ports]|^[= ],^Port,Edge -s
 	{is_acli} && {stp_mode} eq 'mstp'						= show spanning-tree mstp port config [$ports]|^[= ],^Port,Edge -s
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= show ports info rstp config [$ports]|^[= ],^Port,Edge -s
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= show ports info mstp cist config [$ports]|^[= ],^Port,Edge -s
-stpon [$ports]
+stpon $ports
 	~:"Enable Spanning Tree on ports"
-	$ports eq ''					= &print "Alias syntax:\n	stpon <ports>\n"
+	?:"Alias syntax:\n	stpon [<port(s)>]\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
+	$ports && $ports !~ /^(?:10[gG]-|[fFgG]-)?[\d]/					= &print "Alias input error: invalid port(s)"
 	{is_acli} && {stp_mode} eq 'stpg' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree learning enable; exit
 	{is_acli} && {stp_mode} eq 'rstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree rstp learning enable; exit
 	{is_acli} && {stp_mode} eq 'mstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree mstp learning enable; exit
@@ -938,9 +1001,15 @@ stpon [$ports]
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= config ethernet $ports rstp stp enable
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= config ethernet $ports mstp cist forceportstate enable
 	{is_xos}									= enable stpd s0 ports $ports
-stpoff [$ports]
+	{is_isw_marvell} && $ports =~ /^[gG]-/						= configure; interface gigabitEthernet {(split('-', "$ports"))[1]}; stp enable; exit; exit
+	{is_isw_marvell} && $ports =~ /^10[gG]-/					= configure; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; stp enable; exit; exit
+	{is_isw} && $ports =~ /^[fF]-/							= configure terminal; interface FastEthernet {(split('-', "$ports"))[1]}; spanning-tree; end
+	{is_isw} && $ports =~ /^[gG]-/							= configure terminal; interface GigabitEthernet {(split('-', "$ports"))[1]}; spanning-tree; end
+	{is_isw} && $ports =~ /^10[gG]-/						= configure terminal; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; spanning-tree; end
+stpoff $ports
 	~:"Disable Spanning Tree on ports"
-	$ports eq ''					= &print "Alias syntax:\n	stpoff <ports>\n"
+	?:"Alias syntax:\n	stpoff [<port(s)>]\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
+	$ports && $ports !~ /^(?:10[gG]-|[fFgG]-)?[\d]/					= &print "Alias input error: invalid port(s)"
 	{is_acli} && {stp_mode} eq 'stpg' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree learning disable; exit
 	{is_acli} && {stp_mode} eq 'rstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree rstp learning disable; exit
 	{is_acli} && {stp_mode} eq 'mstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree mstp learning disable; exit
@@ -951,9 +1020,15 @@ stpoff [$ports]
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= config ethernet $ports rstp stp disable
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= config ethernet $ports mstp cist forceportstate disable
 	{is_xos}									= disable stpd s0 ports $ports
-stpfast [$ports]
+	{is_isw_marvell} && $ports =~ /^[gG]-/						= configure; interface gigabitEthernet {(split('-', "$ports"))[1]}; stp disable; exit; exit
+	{is_isw_marvell} && $ports =~ /^10[gG]-/					= configure; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; stp disable; exit; exit
+	{is_isw} && $ports =~ /^[fF]-/							= configure terminal; interface FastEthernet {(split('-', "$ports"))[1]}; no spanning-tree; end
+	{is_isw} && $ports =~ /^[gG]-/							= configure terminal; interface GigabitEthernet {(split('-', "$ports"))[1]}; no spanning-tree; end
+	{is_isw} && $ports =~ /^10[gG]-/						= configure terminal; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; no spanning-tree; end
+stpfast $ports
 	~:"Enable Spanning Treefaststart/edge mode on ports"
-	$ports eq ''					= &print "Alias syntax:\n	stpfast <ports>\n"
+	?:"Alias syntax:\n	stpfast [<port(s)>]\n\nFor ISW specify ports as f-1/1 or g-1/2 or g-3 or 10g-8\nWhere f = fastEthernet; g = gigabitEthernet; 10g = 10gigabitEthernet\n"
+	$ports && $ports !~ /^(?:10[gG]-|[fFgG]-)?[\d]/					= &print "Alias input error: invalid port(s)"
 	{is_acli} && {stp_mode} eq 'stpg' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree learning fast; exit
 	{is_acli} && {stp_mode} eq 'rstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree rstp edge-port true; exit
 	{is_acli} && {stp_mode} eq 'mstp' && {family_type} eq 'BaystackERS'		= interface fastEthernet $ports; spanning-tree mstp edge-port true; exit
@@ -964,6 +1039,10 @@ stpfast [$ports]
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'rstp'				= config ethernet $ports rstp edge-port true
 	{family_type} eq 'PassportERS' && {stp_mode} eq 'mstp'				= config ethernet $ports mstp cist edge-port true
 	{is_xos}									= configure stpd s0 ports link-type edge $ports
+	{is_isw_marvell}								= &noalias
+	{is_isw} && $ports =~ /^[fF]-/							= configure terminal; interface FastEthernet {(split('-', "$ports"))[1]}; spanning-tree edge; end
+	{is_isw} && $ports =~ /^[gG]-/							= configure terminal; interface GigabitEthernet {(split('-', "$ports"))[1]}; spanning-tree edge; end
+	{is_isw} && $ports =~ /^10[gG]-/						= configure terminal; interface 10GigabitEthernet {(split('-', "$ports"))[1]}; spanning-tree edge; end
 slp
 	~:"Show SLPP enabled ports"
 	{family_type} eq 'PassportERS' && {is_acli}					= show slpp; show slpp interface gigabitEthernet
@@ -1002,7 +1081,7 @@ dbisid	[$isid]
 
 l2vsn $isid
 	~:"Verify if L2 I-SID has state on node"
-	$isid =~ /\?$/ || (length($isid) && $isid !~ /^\d+$/)				= &noalias
+	length($isid) && $isid !~ /^\d+$/						= &print "Alias input error: invalid I-SID"
 	1										= show isis spbm i-sid all id $isid
 l3vsn $isid	~:"Verify if L3 I-SID has state on node"				= show isis lsdb detail||$isid|Host_name:,Vrf ISID
 
@@ -1060,6 +1139,7 @@ dropstat [$ports]
 
 rng
 	~:"Show ISW ring state (ISW only)"
+	{is_isw_marvell}	= show ringv2 detail ^blocked
 	{is_isw}		= do show ringv2 ^blocked
 	1			= &noalias
 
@@ -1144,9 +1224,11 @@ ipi [$vrf]
 	{family_type} eq 'BaystackERS'							= show vlan ip
 	{family_type} eq 'SecureRouter'							= show ip interfaces
 	{is_xos}									= show vlan !\(.\),auto-move,Active router,/Total||\d+\.\d+\.\d+\.\d+
+	{is_isw_marvell}								= show interface vlan ||IPv4
 	{is_isw}									= do show ip interface brief
 	{is_slx}									= do show ip interface brief !!unassigned
 	{is_sdwan}									= ipconfig -d
+	{is_hiveos}									= show l3 interface
 ipv [$vrf]
 	~:"Show IP interfaces across all VRFs/GRT"
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show interfaces vlan ip [vrfids $vrf]!disable    -,dvr,gw
@@ -1356,6 +1438,7 @@ igi [$vrfORvid]
 	{family_type} eq 'PassportERS' 							= show ip igmp interface [vrf $vrfORvid] ||active
 	{family_type} eq 'BaystackERS'							= show ip igmp interface [vlan $vrfORvid]
 	{is_xos}									= show igmp
+	{is_isw_marvell}								= show igmp snooping
 	{is_isw}									= do show ip igmp snooping detail
 igg [$vrfORvid]
 	~:"Show IGMP groups (receivers) for a given VRF or GRT"
@@ -1759,7 +1842,7 @@ tgz [$delete]
 	!{is_voss}						= &noalias
 	$delete eq '?'						= &print "Alias syntax:\n	tgz [delete]\n"
 	$delete eq 'delete'					= delete *.tgz -y; delete *.voss -y
-	$delete eq ''						= @echo off; ls /intflash/*.tgz !Listing; ls /intflash/*.voss !Listing; @echo on
+	$delete eq ''						= @echo off; ls /intflash/*.tgz !Listing; ls /intflash/*.voss !Listing; ls /intflash/*.xos !Listing; @echo on
 
 cpycfg $newconf
 	~:"Overwrite config.cfg with specified config"

@@ -519,7 +519,29 @@
 <p><i>'@send ctrl'</i> will send a CTRL+&lt;character&gt; sequence</p>
 <p><i>'@send line'</i> will send a line of text, to which the a newline will automatically be added</p>
 <p><i>'@send string'</i> will send a string of text; newlines can be included in the text by specifying <i>"\n"</i></p>
-<p>Examples of where these can come in useful are for example when entering the debug shell of a device (which will not present a normal CLI prompt) and navigating within such interface. Also if one wanted to reboot the switch from the ACLI script, it would be safer to do:</p>
+<p>All of the above <i>@send</i> commands will stop reading output from the connected device, and after each <i>@send</i> command an artificial prompt is obtained. That it so that multiple send sequences can be executed in sequence without any output from the switch interfering with them. To restart reading output from the connected device either interactively hit the Return key, or else withing the same script use the <i>@read</i> command.</p>
+<pre>
+	@read [unbuffer]
+</pre>
+<p>Examples of where these can come in useful are for example when entering the debug shell of a device (which will not present a normal CLI prompt) and navigating within such interface. For example, the <i>shell</i> alias for VOSS uses these commands:</p>
+<pre>
+	dbg enable
+	debug mode
+	@send line "execute bash"
+	@send line "cd /intflash"
+	@read unbuffer
+</pre>
+<p>The last <i>@read unbuffer</i> restarts reading device output and unbuffers all output since we know that from then on we won't detect a CLI prompt anymore.</p>
+<p>Whereas if it was required to do some commands in the shell and come out, one would do (EXOS example):</p>
+<pre>
+	@send line "run script shell.py"
+	@send line &lt;other stuff&gt;
+	@send line "exit"
+	@read
+	[...] script continues...
+</pre>
+<p>The <i>@read</i> command will resume reading device output, and since the last <i>@send</i> command exited the shell, we expect a CLI prompt to be forthcoming for the script to continue.</p>
+<p>Finally if one wanted to reboot the switch from the ACLI script, it would be safer to do:</p>
 <pre>
 	@send line "reset -y"
 </pre>

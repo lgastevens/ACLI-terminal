@@ -1,7 +1,7 @@
 ##############################
 # SED file for ACLI Terminal #
 ##############################
-# Version = 1.11
+# Version = 1.12
 #
 # This file is read when a new ACLI Terminal is launched and can be used to define SED (serial editor) patterns
 # It can be located in any of these directories in the following order:
@@ -41,7 +41,7 @@ start-id = 5
 #
 #
 #	A max-id can be supplied to override the default value of 20 which is otherwise hardcoded in ACLI terminal.
-#	It is not a good idea to have too many sed patterns, this can affect performance. Up to 20 seems ok.
+#	It is not a good idea to have too many sed patterns, this can affect performance. Up to 30 seems ok.
 #
 max-id = 30
 #
@@ -88,7 +88,7 @@ category global
 category PassportERS
 'smlt   \Ksmlt'																colour green
 'smlt   \Knorm'																colour red
-'\d{8,} \w{3} +\d+ [\d:]+  \K\S+?\.(?:tgz|voss)'											colour red	# Highlight VOSS image files
+'\d{8,} \w{3} +\d+ [\d:]+  \K\S+?\.(?:tgz|voss|xos)'											colour red	# Highlight VOSS image files
 
 category BaystackERS,ISW
 '(?i)active(?=     (?:client|proxy|radius|ring))'											colour green
@@ -104,6 +104,7 @@ category ISW
 'Ring \(\KComplete'															colour green	# VPEX
 'Ring \(\KConfiguring'															colour warning	# VPEX
 'Ring \(\KSevered'															colour red	# VPEX
+',\K\d\d?(?:-\d\d?)?'															colour port	# Complements global port pattern below
 
 category global
 '(?i)(?:error|fatal)\b'															colour error

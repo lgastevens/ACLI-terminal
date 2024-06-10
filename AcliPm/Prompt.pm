@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::Prompt;
-our $Version = "1.02";
+our $Version = "1.03";
 
 use strict;
 use warnings;
@@ -70,7 +70,7 @@ sub checkFragPrompt { # Takes into account fragment cache and paced chars sent f
 			debugMsg(2,"PacedSentPendng:>", \$host_io->{PacedSentPendng}, "<\n");
 			$host_io->{PacedSentChars} = $charsOutstanding;
 			$host_io->{SendBuffer} .= $CTRL_U; # And remove it from device's buffer
-			changeMode($mode, {dev_del => 'bs'}, '#311');
+			changeMode($mode, {dev_del => 'bs'}, '#P1');
 		}
 		return 1;
 	}
@@ -100,7 +100,7 @@ sub checkForPrompt { # Matches output reference for presence of a prompt without
 
 
 sub switchname { # Extract switchname from prompt and ensure resulting name can be used as a filename, with none of these: /\:*?"<>|
-	my $host_io = shift;
+	my ($host_io, $asis) = @_;
 	my $switchName;
 
 	if (defined $host_io->{Sysname}) { # On Standby CPUs this will not be defined...
@@ -116,7 +116,9 @@ sub switchname { # Extract switchname from prompt and ensure resulting name can 
 			$switchName =~ s/\.\d+\s*$//;				 # 		(X460-Stack.7  -> X460-Stack)
 		}
 	}
-	$switchName =~ s/[\/\\\:\*\?\"\<\>\|]/_/g; # Characters not allowed in filenames, replace with underscore
+	unless ($asis) {
+		$switchName =~ s/[\/\\\:\*\?\"\<\>\|]/_/g; # Characters not allowed in filenames, replace with underscore
+	}
 	return $switchName;
 }
 

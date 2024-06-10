@@ -26,7 +26,7 @@ cpan install Crypt::Digest::MD5 module
 # load the ACLI files
 mkdir -p /usr/local/acli
 cd /usr/local/acli
-wget http://www.oranda.fr/ACLI-terminal/downloads/ACLI-600-linux.zip
+wget https://github.com/lgastevens/ACLI-terminal/releases/download/v6.02/ACLI-602-linux.zip
 unzip ACLI-600-linux.zip
 rm ACLI-600-linux.zip
 

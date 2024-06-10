@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::CommandProcessing;
-our $Version = "1.10";
+our $Version = "1.11";
 
 use strict;
 use warnings;
@@ -217,6 +217,7 @@ sub cacheBlock { # Parses input buffer caching lines until it finds a valid keyw
 
 sub processCommonCommand { # Process a control/embedded command which exists on both
 	my ($db, $command) = @_;
+	my $mode = $db->[0];
 	my $term_io = $db->[2];
 	my $host_io = $db->[3];
 	my $script_io = $db->[4];
@@ -1757,6 +1758,7 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 	$command eq 'send brk' && do {
 		if ($host_io->{Connected}) {
 			$host_io->{CLI}->break;
+			changeMode($mode, {dev_inp => 'ds'}, '#CP1'); # Stop reading device; @read required to resume
 		}
 		else {
 			cmdMessage($db, "No active connection to send to\n");
@@ -1773,6 +1775,7 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 		if ($host_io->{Connected}) {
 			$host_io->{CLI}->put($char);
 			return if $host_io->{ConnectionError};
+			changeMode($mode, {dev_inp => 'ds'}, '#CP2'); # Stop reading device; @read required to resume
 		}
 		else {
 			cmdMessage($db, "No active connection to send to\n");
@@ -1793,6 +1796,7 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 		elsif ($host_io->{Connected}) {
 			$host_io->{CLI}->put(chr($ctrl));
 			return if $host_io->{ConnectionError};
+			changeMode($mode, {dev_inp => 'ds'}, '#CP3'); # Stop reading device; @read required to resume
 		}
 		else {
 			cmdMessage($db, "No active connection to send to\n");
@@ -1810,6 +1814,7 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 		if ($host_io->{Connected}) {
 			$host_io->{CLI}->put($string);
 			return if $host_io->{ConnectionError};
+			changeMode($mode, {dev_inp => 'ds', dev_del => 'fl'}, '#CP4'); # We will want to delete the echoed line
 		}
 		else {
 			cmdMessage($db, "No active connection to send to\n");
@@ -1827,6 +1832,7 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 		if ($host_io->{Connected}) {
 			$host_io->{CLI}->put($string);
 			return if $host_io->{ConnectionError};
+			changeMode($mode, {dev_inp => 'ds'}, '#CP5'); # Stop reading device; @read required to resume
 		}
 		else {
 			cmdMessage($db, "No active connection to send to\n");
@@ -2557,6 +2563,7 @@ sub processControlCommand { # Process a command under ACLI Control
 		print "reconnect       reconnect previous connection\n";
 		print "rmdir           delete directory\n";
 		print "save            save device variables and data\n";
+		print "sed             stream editor of device input/output\n";
 		print "send            transmit special characters\n";
 		print "serial          set serial port parameters\n";
 		print "socket          link this terminal instance to others\n";
@@ -3749,7 +3756,7 @@ sub processControlCommand { # Process a command under ACLI Control
 			$host_io->{OutBuffer} = ''; # Flush BufferedOutput buffer, in case it's not empty
 			$host_io->{SendBuffer} .= $term_io->{Newline};	# Send a carriage return to host
 			# Change the cache mode directly
-			changeMode($cacheMode, {term_in => 'sh', dev_inp => 'rd', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#C17');
+			changeMode($cacheMode, {term_in => 'sh', dev_inp => 'rd', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#CP6');
 		}
 		$command = '';
 	};
@@ -4190,6 +4197,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		cmdOutput($db, "\@put [<text>]                                       print some text; unlike \@print, has no trailing carriage return\n");
 		cmdOutput($db, "\@pwd                                                print working directory\n");
 		cmdOutput($db, "\@quit                                               quit terminal\n");
+		cmdOutput($db, "\@read [unbuffer]                                    read output from device (typically used after \@send)\n");
 		cmdOutput($db, "\@rediscover                                         force a full rediscovery of device\n");
 		cmdOutput($db, "\@resume [buffer]                                    resume previously interrputed sourcing or view buffer\n");
 		cmdOutput($db, "\@rmdir <directory to delete>                        delete a directory\n");
@@ -4395,7 +4403,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		$script_io->{AcliControl} = 1;
 		$host_io->{OutBuffer} = '';
 		print $ACLI_Prompt;
-		return '@acli';
+		return $command;
 	};
 	#
 	# @cat & @type command
@@ -5194,10 +5202,16 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		$command = '';
 	};
 	#
+	# @read command
+	#
+	$command =~ /^\@read(?: unbuffer)?$/ && do {
+		return $command;
+	};
+	#
 	# @rediscover command
 	#
 	$command eq '@rediscover' && do {
-		return '@rediscover' unless $term_io->{PseudoTerm};
+		return $command unless $term_io->{PseudoTerm};
 		$command = '';
 	};
 	#

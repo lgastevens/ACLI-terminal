@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GeneratePortListRange;
-our $Version = "1.05";
+our $Version = "1.06";
 
 use strict;
 use warnings;
@@ -202,8 +202,16 @@ sub generatePortList { # Takes an unordered port list/range, and produces an ord
 			my $maxSlotPort = $host_io->{PortUnconstrain} ? 99 : 8; # ISW has at most 8 ports per slot type (gig/fast)
 			my $startPort = $slot == $slotN ? $portX : 1;
 			my $endPort = $slot == $slotM ? $portY : $maxSlotPort;
-			for my $port ($startPort .. $endPort) {
-				&$processPort("$slot$sep$port");
+			if ($startPort == $endPort && defined $chanV && defined $chanW) { 
+				# For now handle only cases: slotX/portY[/channelZ] & slot/port/channelX-channelY
+				for my $chan ($chanV .. $chanW) {
+					&$processPort("$slot$sep$startPort$sep$chan");
+				}
+			}
+			else {
+				for my $port ($startPort .. $endPort) {
+					&$processPort("$slot$sep$port");
+				}
 			}
 		}
 		else {
@@ -224,7 +232,7 @@ sub generatePortList { # Takes an unordered port list/range, and produces an ord
 					next if $slot == $slotN && defined $chanV;
 					next if $slot == $slotN && $port < $portX;
 					last if $slot == $slotM && $port > $portY;
-					$port =~ s/^10(\d)$/s$1/; # Restore Insight port beffore appending
+					$port =~ s/^10(\d)$/s$1/; # Restore Insight port before appending
 					&$processPort("$slot$sep$port");
 				}
 			}

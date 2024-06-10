@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalMatchingPatterns;
-our $Version = "1.12";
+our $Version = "1.13";
 
 use strict;
 use warnings;
@@ -13,6 +13,7 @@ use Control::CLI::Extreme;
 our %ErrorPatterns = %{Control::CLI::Extreme::ErrorPatterns};
 our %MoreSkipWithin = %{Control::CLI::Extreme::MoreSkipWithin};
 our $CmdConfirmPrompt = $Control::CLI::Extreme::CmdConfirmPrompt;
+our %CmdConfirmSendY = %{Control::CLI::Extreme::CmdConfirmSendY};
 our $CmdInitiatedPrompt = $Control::CLI::Extreme::CmdInitiatedPrompt;
 
 #my $VarCapturePortRegex = '(?:^|\s|Port\-?)((?:\d{1,2}\/\d{1,2}(?:\-\d{1,2}(?:\/\d{1,2})?)?,)*\d{1,2}\/\d{1,2}(?:\-\d{1,2}(?:\/\d{1,2})?)?)(?:\s|$)';
@@ -53,7 +54,11 @@ our %Grep = (
 					. '|(?:VRF\s+VRF|NAME\sID)'			# show ip vrf
 				. ')',
 		ExtremeXOS	=> '^(?:[-=]{2,}|#)',
-		ISW		=> '^(?:[-=]{2,}|[#!])',
+		ISW		=> '^(?:[-=]{2,}|[#!]'
+					. '|ID          Level          Time & Message'	# show logging
+					. '|[A-Z][a-z]+ *: \d+$'			# show logging
+				. ')',
+		ISWmarvell	=> '^(?:\s*[-=]{2,}|[#!])',
 		Series200	=> '^(?:[-=!])',
 		Wing		=> '^(?:[-=\*]{2,}|[!])',
 		SLX		=> '^(?:[-=]|\s*!'
@@ -79,6 +84,7 @@ our %Grep = (
 					. '|\s{40,}\S'			# show inline-power info ports 2:*
 					. ')',
 		ISW		=> '^(?:[A-Z]|#? +\/?[A-Z])',
+		ISWmarvell	=> '^(?:[A-Z])',
 		Series200	=> '^ *(?:[A-Z][A-Za-z]+[\s\/]*)+$',
 		Wing		=> '^ *(?:[A-Z]{2,}[\s\/]*)+$',
 		SLX		=> '^(?:\s{2,})?[A-Z][A-Za-z]+(?: \w+)*(?:(?:\s{2,})?[A-Za-z]+(?: \w+)*)+$', # show interface stats brief
@@ -100,21 +106,21 @@ our %Grep = (
 		PassportERS	=> '(?:(?:^|[^\(\d -]|[^:] )\d{2,}|^(?:'	# any line with 2 or more consecutive digits; except these banners:
 										# from ipa: IP_ADDRESS      MAC_ADDRESS        VLAN  PORT                 TYPE    TTL(10 Sec) TUNNEL
 										# from show isis spbm ip-multicast-route vrf green detail: SPBM IP-MULTICAST ROUTE INFO - VRF NAME : green, VSN-ISID : 30001
-					. '(?:Port(?::? )?|Mlt|Vlan|Clip)\d'
+					. '[A-Z].*?:\s*$'		# Any line ending with ':' # lldpn 1/9 ||ZTF; sys||temperature; isdb ||<something>
+					. '|(?:Port(?::? )?|Mlt|Vlan|Clip)\d'
 					. '|[VP]\d'
 					. '|CPU?\d'
 					. '|(?:IO|SF)\d'
 					. '|GRT'
 					. '|MgmtVirtIp'
 					. '|[d-](?:[r-][w-][x-]){3}\s'
-					. '|Level-1	LspID:'
 					. '|\S+\s+[\da-f]{32}\s'	# macsec
 					. '|AsExternal'			# show ip ospf ase
-					. '|[A-Z][\w ]+: ?$'		# sys||temperature
 					. '|GlobalRouter '		# show ip vrf
 				. '))',
 		ExtremeXOS	=> '(?:\d{2,}|\d \/\d|\t: |: +\S)',	# any line with 2 or more cosecutive digits, or '3 /3' (from show vlan), or a line with "<tab>: ", or a line with ": "
-		ISW		=> '(?:\d{2,}|\d\/\d|\S: +)',		# any line with 2 or more cosecutive digits, or '3 /3' (from show vlan), or a line with "text: "
+		ISW		=> '(?:\d{2,}|\d\/\d|\S\s*: +)',		# any line with 2 or more cosecutive digits, or '3 /3' (from show vlan), or a line with "text: "
+		ISWmarvell	=> '(?:\d{2,}|GigabitEthernet \d|\S: +)',	# any line with 2 or more cosecutive digits, or 'GigabitEthernet' (from if), or a line with "text: "
 #		Series200	=> '',
 #		Wing		=> '',
 		SLX		=> '(?:\d{2,}|^(?:'			# any line with 2 or more cosecutive digits
@@ -145,23 +151,26 @@ our %Grep = (
 	ContextPatterns	=> { # Only required for family types set to true in %DeviceCfgParse
 		# Have seen VSP9k put trailing spaces at end of some config lines, like "router isis     "; so include \s* in patterns below
 		BaystackERS	=> [
-				'^(?:interface |router \w+\s*$|route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$|ip igmp profile \d+\s*$|wireless|application|ipv6 dhcp guard policy |ipv6 nd raguard policy )', # level0
-				'^(?:security|crypto|ap-profile |captive-portal |network-profile |radio-profile )',	# level1
-				'^(?:locale)',	# level2
+				'^(?i:interface |router \w+\s*$|route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$|ip igmp profile \d+\s*$|wireless|application|ipv6 dhcp guard policy |ipv6 nd raguard policy )', # level0
+				'^(?i:security|crypto|ap-profile |captive-portal |network-profile |radio-profile )',	# level1
+				'^(?i:locale)',	# level2
 				],
 		PassportERS	=> [
-				'^ *(?:interface |router \w+(?:\s+r\w+)?\s*$|router vrf|route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$|application|i-sid \d+|wireless|logical-intf isis \d+|mgmt [\dcvo]|ovsdb\s*$|(?:ip )?dhcp-server subnet)', # level0
-				'^ *(?:route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$)',	# level1
+				'^ *(?i:interface |router \w+(?:\s+r\w+)?\s*$|router vrf|route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$|application|i-sid \d+|wireless|logical-intf isis \d+|mgmt [\dcvo]|ovsdb\s*$|(?:ip )?dhcp-server subnet)', # level0
+				'^ *(?i:route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$)',	# level1
 				],
 		Series200	=> [
-				'^ *(?:line |vlan database|interface |route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) (?:permit|deny) \d+\s*$)', # level0
+				'^ *(?i:line |vlan database|interface |route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) (?:permit|deny) \d+\s*$)', # level0
+				],
+		ISWmarvell	=> [
+				'^ *(?:ringv2-group |interface )', # level0
 				],
 	},
 	ContextPatternsExcept => { # Contexts which we must not check at previous level
-		PassportERS	=> '^ *(?:i-sid \d+)',
+		PassportERS	=> '^ *(?i:i-sid \d+)',
 	},
 	InstanceContext	=> { # These patterns are used with the corresponding advanced grep type used $grep->{Instance}
-		Port		=> '^(?:interface (?:GigabitEthernet |fastEthernet |mgmtEthernet |ethernet )?\d|logical-intf isis \d+)', # \d to prevent it matching an ALL
+		Port		=> '^(?:interface (?:(?:10)?GigabitEthernet |fastEthernet |mgmtEthernet |ethernet )?\d|logical-intf isis \d+)', # \d to prevent it matching an ALL
 		Vlan		=> '^interface vlan ',
 		Mlt		=> '^interface mlt ',
 		Loopback	=> '^interface loopback ',
@@ -210,6 +219,7 @@ our %Grep = (
 	},
 	IndentSkip => { # Special lines where we do not want to calculate any indentation, and leave them at indent = 0
 		ExtremeXOS	=> '^(?: [ >][ei?]  \d)', # show bgp route all: otherwise absence of flags results in indented records
+		ISW		=> '^(?: +\d+  [A-Z][a-z]+ +\d{4}-\d{2}-\d{2}T)', # show logging
 	},
 	IndentAdjust => { # Lines which need special indentation adjustment for correct processing
 				# Each array holds: pattern / level adjustment / flag for newline to be inserted
@@ -250,6 +260,9 @@ our %Grep = (
 					['Policy index    : ', -3],					# "
 					['Session timeout : ', -2],					# "
 					['Idle timeout    : ', -1],					# "
+				],
+		ISWmarvell	=> [
+					['^        Local Port         : ', -1],	# show lldp neighbors
 				],
 	},
 	IndentExit => { # Lines which need special indent processing to be preserved
@@ -297,6 +310,11 @@ our %Grep = (
 				'^interface [\d\\-/,]+\s*\n\n?exit\s*\n',
 				'^interface \w+ \d+\s*\n\n?exit\s*\n',
 				],
+		ISWmarvell	=> [
+				'^ringv2-group \d\s*\n\n?exit\s*\n',
+				'^interface \w+(?: \d+)?\s*\n\n?exit\s*\n',
+				'^interface mgmt-port\s*\n\n?exit\s*\n',
+				],
 	},
 	MultilineBanner	=> {
 		BaystackERS	=> '^\s*[A-Z].+\n(?:.*\n)*?-+[\s-]*?-$',
@@ -322,7 +340,7 @@ our %Grep = (
 	UnwrapAnchors		=> '^(?:no|default|interface|router|exit|[A-Z])$',
 );
 
-our %RecordCountSkip = ( # Patterns which define outputlines which must not be counted towards $term_io->{RecordsMatched}
+our %RecordCountSkip = ( # Patterns which define output lines which must not be counted towards $term_io->{RecordsMatched}
 	PassportERS	=>	'(?:'
 				. '^[\da-f]{1,4}(?::[\da-f]{1,4}){7}                     \d+$'	# 2nd line of entries from cmd "show ipv6 route static"
 				. '|^\s{55,}\S'							# 2nd line of entries from cmd "show ipv6 ospf interface"
@@ -333,7 +351,7 @@ our %BannerPatterns = ( # Patterns to check for during device login; originally 
 	SecureRouter	=>	'\((?:Secure Router|VSP4K)',
 	PassportERS	=>	'(?:\x0d\\*{36}\n|\x0d\\* Ethernet Routing Switch|\x0d\\* Passport [18]|\n\x0d?(?:AVAYA|NORTEL|EXTREME NETWORKS)(?: VOSS)? COMMAND LINE INTERFACE\n|VSP[49]000)',
 	ExtremeXOS	=>	'ExtremeXOS',
-	ISW		=>	'Product: ISW',
+	ISW		=>	'Product: ISW', # This will also work for ISWmarvell
 );
 
 our %WarningPatterns = ( # Patterns to check to determine if previous command generated a warning = command executed but with warnings
@@ -353,6 +371,7 @@ our %ChangePromptCmds = ( # Commands which change the device prompt; for which w
 												# ACLI:  snmp-server name OR prompt
 	ExtremeXOS	=> '^\s*co(?:n(?:f(?:i(?:g(?:u(?:re?)?)?)?)?)?)? +snmp +sysn',		# configure snmp sysname
 	ISW		=> '^\s*ho',								# hostname
+	ISWmarvell	=> '^\s*(?:prom|system-(?:i(?:n(?:fo?)?)?)? n)',			# prompt / system-info name
 	Series200	=> '^\s*(?:(?:no )?ho|set +p)',						# hostname / set prompt (both in privExec only)
 	Wing		=> '^\s*com',								# commit (hostname is the command, but it gets applied after commit, so does not work)
 	SLX		=> '^\s*sw(?:i(?:t(?:c(?:h(?:-(?:a(?:t(?:t(?:r(?:i(?:b(?:u(?:t(?:es?)?)?)?)?)?)?)?)?)?)?)?)?)?)? +h',	# switch-attributes host-name
@@ -379,6 +398,25 @@ our $RelayAgentFailPatterns = '(?:'
 			. '|Connection to .* closed by remote host'	#(bug16)# VSP SSH Client fails with error: ssh_client/1219: SSHC_connect Fails, status = -6912
 			. '|Sorry, session limit reached\.\s*\n+Closed connection' # To a Stackable ERS with no more Telnet sessions
 		. ')';
+
+our %CmdConfirmPrompt = ( # We declare it per family type, to make exceptions to Control::CLI::Extreme's single patterns
+	BaystackERS	=> $CmdConfirmPrompt,
+	PassportERS	=> $CmdConfirmPrompt,
+	ExtremeXOS	=> $CmdConfirmPrompt,
+	SLX		=> $CmdConfirmPrompt,
+	ISW		=> $CmdConfirmPrompt,
+	ISWmarvell	=> $CmdConfirmPrompt,
+	Series200	=> $CmdConfirmPrompt,
+	Wing		=> $CmdConfirmPrompt,
+	HiveOS		=> $CmdConfirmPrompt,
+	Ipanema		=> '(?:(?:^|\n).*' . $CmdConfirmPrompt
+			 . '|cp: overwrite \'[^\']+\'\? $' # These are Linux prompts really..
+			 . ')',
+	SecureRouter	=> $CmdConfirmPrompt,
+	WLAN2300	=> $CmdConfirmPrompt,
+	WLAN9100	=> $CmdConfirmPrompt,
+	Accelar		=> $CmdConfirmPrompt,
+);
 
 # Patterns which if seen, make us switch from buffered (grep & more processing) to unbuffered (no caching either)
 our %UnbufferPatterns = (
@@ -412,6 +450,8 @@ our %UnbufferPatterns = (
 	SLX		=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
 			 . ')',
 	ISW		=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
+			 . ')',
+	ISWmarvell	=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
 			 . ')',
 	Series200	=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
 			 . ')',
@@ -455,7 +495,7 @@ our $RemoteAnnex = 'Enter Annex port name or number: $';
 our $RemoteAnnexPort = 'Attached to port (\d+)$';
 
 # Patters of common switch commands we never want de-Aliasing to overrule for ? syntax
-our $AliasPreventSyntax = '^(?:show|default|no|sys|fa|mlt|poe|dvr|eap|vr)$';
+our $AliasPreventSyntax = '^(?:show|default|no|sys|fa|mlt|poe|dvr|eap|vr|list)$';
 
 # ACLI valid -options to be extracted by parseCommand()
 our $AcliMinusOptions = '(?:[oynegsbihf]+|[oi]\d+|peer(?:c(?:pu?)?)?|both(?:c(?:p(?:us?)?)?)?)'; # Initial '-' is already matched

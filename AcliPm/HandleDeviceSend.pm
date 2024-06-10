@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleDeviceSend;
-our $Version = "1.01";
+our $Version = "1.02";
 
 use strict;
 use warnings;
@@ -46,7 +46,7 @@ sub handleDeviceSend { # Handles transmission to connected device
 			}
 			$peercp_io->{SendBuffer} = '';			# We are done
 			$host_io->{SendBackupCP} = 0;			# Make sure we don't get back in here
-			changeMode($mode, {dev_del => 'ft'}, '#97');	# Do not print \n when removing first line on master
+			changeMode($mode, {dev_del => 'ft'}, '#HDS1');	# Do not print \n when removing first line on master
 			if ($host_io->{SendMasterCP}) { # There will be output from active CP as well..
 				appendOutDeltaBuffers($db, \"\nOutput from Master CPU:\n"); #"
 			}
@@ -87,7 +87,7 @@ sub handleDeviceSend { # Handles transmission to connected device
 		debugMsg(2,"KeepAliveSent!\n");
 		return if $script_io->{AcliControl} & 7;
 		$mode->{term_in_cache} = $mode->{term_in};
-		changeMode($mode, {term_in => 'ib', dev_del => 'kp'}, '#98') unless $term_io->{Mode} eq 'transparent';
+		changeMode($mode, {term_in => 'ib', dev_del => 'kp'}, '#HDS2') unless $term_io->{Mode} eq 'transparent';
 	}
 }
 

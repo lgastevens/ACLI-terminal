@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::InputProcessing;
-our $Version = "1.10";
+our $Version = "1.11";
 
 use strict;
 use warnings;
@@ -658,7 +658,7 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 			}
 			debugMsg(1,"-> Grep-String-Formatted : >", \$grepString, "<\n");
 		}
-		elsif ($grepAdv && !$grepQuotes && $grepString =~ /^(?:dhcp-serv(?:er?)?|dhcp-?s(?:[er][rv]?)?)(?:\s+((?:\S+,)*\S+))?$/i) { # DHCP Server
+		elsif ($grepAdv && !$grepQuotes && $grepString =~ /^(?:dhcp-serv(?:er?)?|dhcp-?(?:s(?:[er][rv]?)?)?)(?:\s+((?:\S+,)*\S+))?$/i) { # DHCP Server
 			push(@{$grep->{Instance}}, 'DhcpSrv');
 			push(@{$grep->{RangeList}}, undef);
 			debugMsg(1,"-> Grep-Instance : set to DhcpSrv\n");

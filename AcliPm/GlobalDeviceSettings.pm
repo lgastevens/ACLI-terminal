@@ -1,10 +1,10 @@
 # ACLI sub-module
 package AcliPm::GlobalDeviceSettings;
-our $Version = "1.02";
+our $Version = "1.03";
 
 use strict;
 use warnings;
-
+use AcliPm::GlobalConstants;
 
 ############################
 # Global Device Settings   #
@@ -27,6 +27,9 @@ our %DeviceMorePaging = ( # These settings determine the more paging mode per de
 					[".",		0, 1],
 		],
 		ISW		=> [
+					[".",		0, 1],
+		],
+		ISWmarvell		=> [
 					[".",		0, 1],
 		],
 		Series200	=> [
@@ -63,6 +66,7 @@ our %DeviceComment = ( # This structure holds the character which acts as commen
 		PassportERS	=> '#',
 		ExtremeXOS	=> '#',
 		ISW		=> '!',
+		ISWmarvell	=> '#',
 		Series200	=> '!',
 		Wing		=> '!',
 		SLX		=> '!',
@@ -79,6 +83,7 @@ our %DeviceCfgParse = ( # True for device types where we need to track config co
 		PassportERS	=> 1,
 		ExtremeXOS	=> 0,	# No configuration contexts (like PPCLI)
 		ISW		=> 0,	# Uses indentation on config file, so we leverage that
+		ISWmarvell	=> 1,	# No indentation on show run, we have to add that
 		Series200	=> 1,	# No indentation on show run, we have to add that
 		Wing		=> 0,	# Indentation is provided in show run
 		SLX		=> 0,	# Indentation is provided in show run
@@ -98,6 +103,7 @@ our %DevicePortRange = ( # Determines whether and how the device consolidates co
 		PassportERS	=> 6,	# VOSS will list port ranges like this: 1/1-1/24
 		ExtremeXOS	=> 5,	# XOS can list port ranges in both ways: 4:4-4:14 & 4:4-14
 		ISW		=> 1,	# ISW will list port ranges like this: 1/1-8
+		ISWmarvell	=> 0,	# n/a
 		Series200	=> 2,	# Port ranges in this format 0/1-0/5
 		Wing		=> 0,	# n/a
 		SLX		=> 1,	# SLX seems to accept 1/1-5 as range, but no lists 1/1,4/1 are supported, bah..
@@ -114,6 +120,7 @@ our %DeviceSlotPortSep = ( # Determines the slot/port or slot:port separator use
 		PassportERS	=> '/',
 		ExtremeXOS	=> ':',
 		ISW		=> '/',
+		ISWmarvell	=> '/', # n/a
 		Series200	=> '/',
 		Wing		=> '/', # n/a
 		SLX		=> '/',
@@ -123,6 +130,25 @@ our %DeviceSlotPortSep = ( # Determines the slot/port or slot:port separator use
 		WLAN2300	=> '/',
 		WLAN9100	=> '/', # n/a
 		Accelar		=> '/',
+);
+
+our %CleanPromptCtrl = ( # CTRL character to use to get a clean CLI prompt from the connected device
+		# $CTRL_U generally was preferred and cleans the current prompt, with no new line
+		# $CTRL_C produces a new clean prompt on a new line; might work better actually
+		BaystackERS	=> $CTRL_U,
+		PassportERS	=> $CTRL_U,
+		ExtremeXOS	=> $CTRL_U,
+		ISW		=> $CTRL_U,
+		ISWmarvell	=> $CTRL_C,	# Because does not support CTRL_C
+		Series200	=> $CTRL_U,
+		Wing		=> $CTRL_U,
+		SLX		=> $CTRL_U,
+		HiveOS		=> $CTRL_U,
+		Ipanema		=> $CTRL_U,
+		SecureRouter	=> $CTRL_U,
+		WLAN2300	=> $CTRL_U,
+		WLAN9100	=> $CTRL_U,
+		Accelar		=> $CTRL_U,
 );
 
 our %TabSynMode = ( # How to behave for tab expansions and syntax? [non-acli, acli]
@@ -136,10 +162,11 @@ our %TabSynMode = ( # How to behave for tab expansions and syntax? [non-acli, ac
 		ExtremeXOS	=> [9,  undef],
 		SecureRouter	=> [undef,  0],
 		ISW		=> [undef,  8],
+		ISWmarvell	=> [undef,  0],
 		Series200	=> [undef,  0],
 		Wing		=> [undef,  0],
 		SLX		=> [undef,  0],
-		HiveOS		=> [5,  undef],
+		HiveOS		=> [7,  undef],
 		Ipanema		=> [16, undef],
 		WLAN2300	=> [undef,  0],
 		WLAN9100	=> [undef,  0],
@@ -151,6 +178,7 @@ our %DefaultCredentials = (
 		PassportERS	=> 'rwa',
 		ExtremeXOS	=> 'admin',
 		ISW		=> 'admin',
+		ISWmarvell	=> 'admin',
 		Series200	=> 'admin',
 		Wing		=> 'admin',
 		SLX		=> 'admin',
@@ -164,6 +192,7 @@ our %DefaultCredentials = (
 		PassportERS	=> 'rwa',
 		ExtremeXOS	=> '',
 		ISW		=> '',
+		ISWmarvell	=> '',
 		Series200	=> '',
 		Wing		=> 'admin123',
 		SLX		=> 'password',

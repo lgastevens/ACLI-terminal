@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleBufferedOutput;
-our $Version = "1.10";
+our $Version = "1.11";
 
 use strict;
 use warnings;
@@ -323,7 +323,7 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 					# We don't unwrap
 				}
 				# ISW log wrapped line processing
-				if ($host_io->{Type} eq 'ISW' && (length($line)-27)%52 == 0 && $line =~ /^ {27}[A-Z-]+:.+$/) {
+				if ($host_io->{Type} eq 'ISW' && (length($line) == 79 || length($line) == 80) && $line =~ /^ {27}[A-Z].+$/) { # 168xx 27+51=79; 4W-4WS-4X 27+52 = 80
 					debugMsg(2,"ISW LogUnwrap-Check\n");
 					if ($i == $#buffer) { # Last line in buffer
 						push(@grepbf, $line); # Keep it, will be pushed onto next buffer
@@ -366,7 +366,7 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 					}
 					# Config context processing
 					my $context;
-					if (defined $Grep{ContextPatterns}{$host_io->{Type}}[$nestedLevel] && $line =~ /$Grep{ContextPatterns}{$host_io->{Type}}[$nestedLevel]/i) {
+					if (defined $Grep{ContextPatterns}{$host_io->{Type}}[$nestedLevel] && $line =~ /$Grep{ContextPatterns}{$host_io->{Type}}[$nestedLevel]/) {
 						if ($g == 0 && defined $grep->{CfgContextTyp}->[0] && $grep->{CfgContextTyp}->[0] eq (split(' ', $line))[0]) { # Same context type nesting
 							debugMsg(2,"DetectedSameInstanceTypeNested: ", \$grep->{CfgContextTyp}->[0], "\n");
 						}
@@ -374,8 +374,8 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 							$context = 1; # New context level
 						}
 					}
-					if (!$context && $g == 0 && $nestedLevel > 0 && $line =~ /$Grep{ContextPatterns}{$host_io->{Type}}[$nestedLevel - 1]/i) {
-						if (defined $Grep{ContextPatternsExcept}{$host_io->{Type}} && $line =~ /$Grep{ContextPatternsExcept}{$host_io->{Type}}/i) {
+					if (!$context && $g == 0 && $nestedLevel > 0 && $line =~ /$Grep{ContextPatterns}{$host_io->{Type}}[$nestedLevel - 1]/) {
+						if (defined $Grep{ContextPatternsExcept}{$host_io->{Type}} && $line =~ /$Grep{ContextPatternsExcept}{$host_io->{Type}}/) {
 							debugMsg(2,"IgnoringLowerLevelContextMatch\n");
 						}
 						else {
@@ -391,10 +391,14 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 								push(@grepbf, $exit);
 								debugMsg(2,"PreviousConfigContextNotClosed-pushing:>exit<'\n");
 								shift(@{$grep->{CfgContextTyp}});
-								$line = $grep->{Indent} . $line for 1 .. ($grep->{CfgContextLvl} - 1);
+								if ($line !~ /^\s/) {
+									$line = $grep->{Indent} . $line for 1 .. ($grep->{CfgContextLvl} - 1);
+								}
 							}
 							else { # Normal case
-								$line = $grep->{Indent} . $line for 1 .. $grep->{CfgContextLvl};
+								if ($line !~ /^\s/) {
+									$line = $grep->{Indent} . $line for 1 .. $grep->{CfgContextLvl};
+								}
 								$grep->{CfgContextLvl}++;
 							}
 							unshift(@{$grep->{CfgContextTyp}}, (split(' ', $line))[0]); # 1st word of line
@@ -455,7 +459,9 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 								next; # We don't push this exit
 							}
 							shift(@{$grep->{CfgContextTyp}});
-							$line = $grep->{Indent} . $line for 1 .. $grep->{CfgContextLvl};
+							if ($line !~ /^\s/) {
+								$line = $grep->{Indent} . $line for 1 .. $grep->{CfgContextLvl};
+							}
 							debugMsg(2,"RevertingConfigContextLevel = ", \$grep->{CfgContextLvl}, " ; ");
 							debugMsg(2,"type = ", \$grep->{CfgContextTyp}->[0], "\n");
 							# Reset InsertIndent to apply indentation within a config instance
@@ -729,25 +735,33 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 	# Grep single line last line processing
 	#
 	if (defined $lastLine) { # Applies even if lastLine == ''
+		my $grepCacheTemp = '';
 		if ($grep->{String} && $grepBuffer =~ /\n/ && $grepBuffer !~ /\n\n$/ && !checkForPrompt($host_io, \$lastLine, $prompt)) {
 			# If we are not done with advanced grep, push last line onto grep cache...
+			my $pushPreviousLine;
 			STRIPTOCACHE: while ($grepBuffer =~ s/(.*)\n$//) { # Remove last line (but does not work if line ends in /n/n; hence condition above)
 				my $lastBufferLine = $1;
 				debugMsg(2,"LastBufferLineRemovedToCheck:\n>", \$lastBufferLine, "<\n");
-				if ($DeviceCfgParse{$host_io->{Type}} && $grep->{CfgContextLvl} > 0 && $lastBufferLine =~ /$Grep{ContextPatterns}{$host_io->{Type}}[$grep->{CfgContextLvl}-1]/i) { # if a context line
+				if ($pushPreviousLine) {
+					$grepCacheTemp = "$lastBufferLine\n" . $grepCacheTemp;
+					undef $pushPreviousLine;
+					debugMsg(2,"GrepLastBufferLinePushingOntoGrepCache-reasonPreviousLine:\n>", \$grepCacheTemp, "<\n");
+				}
+				elsif ($DeviceCfgParse{$host_io->{Type}} && $grep->{CfgContextLvl} > 0 && $lastBufferLine =~ /$Grep{ContextPatterns}{$host_io->{Type}}[$grep->{CfgContextLvl}-1]/) { # if a context line
 					$grep->{CfgContextLvl}--;
 					shift(@{$grep->{CfgContextTyp}});
-					$host_io->{GrepCache} = "$lastBufferLine\n" . $host_io->{GrepCache};
-					debugMsg(2,"GrepLastBufferLinePushingOntoGrepCache-reasonConfigContext:\n>", \$host_io->{GrepCache}, "<\n");
+					$grepCacheTemp = "$lastBufferLine\n" . $grepCacheTemp;
+					debugMsg(2,"GrepLastBufferLinePushingOntoGrepCache-reasonConfigContext:\n>", \$grepCacheTemp, "<\n");
 					debugMsg(2,"LastBufferLine-RevertingConfigContextLevel = ", \$grep->{CfgContextLvl}, " ; ");
 				}
 				elsif ($host_io->{Type} eq 'BaystackERS' && length($lastBufferLine) == $TermWidth) {# or a long line
-					$host_io->{GrepCache} = "$lastBufferLine\n" . $host_io->{GrepCache};
-					debugMsg(2,"GrepLastBufferLinePushingOntoGrepCache-reasonBaystackLongLine:\n>", \$host_io->{GrepCache}, "<\n");
+					$grepCacheTemp = "$lastBufferLine\n" . $grepCacheTemp;
+					debugMsg(2,"GrepLastBufferLinePushingOntoGrepCache-reasonBaystackLongLine:\n>", \$grepCacheTemp, "<\n");
 				}
-				elsif ($host_io->{Type} eq 'ISW' && $lastBufferLine =~ /^ {27}[A-Z-]+:.+$/) {# or a long line
-					$host_io->{GrepCache} = "$lastBufferLine\n" . $host_io->{GrepCache};
-					debugMsg(2,"GrepLastBufferLinePushingOntoGrepCache-reasonISWLongLogLine:\n>", \$host_io->{GrepCache}, "<\n");
+				elsif ($host_io->{Type} eq 'ISW' && $lastBufferLine =~ /^ {27}[A-Z].+?:.+$/) {# or a long line
+					$grepCacheTemp = "$lastBufferLine\n" . $grepCacheTemp;
+					debugMsg(2,"GrepLastBufferLinePushingOntoGrepCache-reasonISWLongLogLine:\n>", \$grepCacheTemp, "<\n");
+					$pushPreviousLine = 1;
 				}
 				else { # else don't; slap it back on and come out
 					$grepBuffer .= "$lastBufferLine\n";
@@ -755,6 +769,21 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 					last STRIPTOCACHE;
 				}
 			}
+		}
+		if (length $grepCacheTemp) {
+			if (!$grep->{ConfigACLI}) {
+				# If we have some indentParents cached, we need to extract them and throw them into the cache, after the lines cached above
+				# Otherwise the lines cached above get re-rdered after any indentPatterns
+				GREPPAT: for my $g ( 0 .. $#{$grep->{Regex}} ) { # For every grep string
+					if (defined $grep->{IndentParents}[$g] && @{$grep->{IndentParents}[$g]}) { # Only if indentParents exist
+						while (my $parent = shift @{$grep->{IndentParents}[$g]}) { # Here we empty indentParents array
+							$grepCacheTemp .= "$parent->[1]\n";
+						}
+					}
+				}
+			}
+			$host_io->{GrepCache} = $grepCacheTemp . $host_io->{GrepCache};
+			debugMsg(2,"GrepLastBufferLinePushingOntoGrepCache-final:\n>", \$host_io->{GrepCache}, "<\n");
 		}
 		if (!$grep->{String} || checkForPrompt($host_io, \$lastLine, $prompt) || $grep->{CompleteOutput}) { # If grep finished, re-append lastRecord
 			$grep->{String} = 0;
@@ -813,7 +842,6 @@ sub pruneBuffer { # In handleBufferedOutput 'mp' & 'qp' modes will prune the out
 			debugMsg(2,"pruneBuffer-LINE: >", \$line, "<\n");
 			if ($line =~ /$Grep{SummaryPatterns}{$host_io->{Type}}/i) {
 				$tailBuffer = $line . $tailBuffer;	# A summary line; preserve it
-				last;
 			}
 			last if ++$tailCount > $SummaryTailLinesLimit;
 		}
@@ -860,7 +888,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 			delete($socket_io->{TieEchoSeqNumb}->{$socket_io->{TieEchoPartial}});
 			$socket_io->{TieEchoPartial} = undef;
 		}
-		changeMode($mode, {term_in => $mode->{term_in_cache}, buf_out => 'eb'}, '#107');
+		changeMode($mode, {term_in => $mode->{term_in_cache}, buf_out => 'eb'}, '#HBO1');
 		($term_io->{DelayCharProcPs}, $term_io->{DelayCharProcDF}) = (Time::HiRes::time + $DelayCharProcPs, 1);
 	}
 	elsif ($mode->{buf_out} eq 'mp') { # ----------------> More Pause mode (mp) <--------------
@@ -891,7 +919,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 			unless ($gotPrompt) {
 				keepLastXLines($host_io, \$host_io->{OutBuffer}, $SummaryTailLinesLimit);
 				$term_io->{BufMoreAction} = 'q';
-				changeMode($mode, {term_in => 'sh', buf_out => 'qp'}, '#9');
+				changeMode($mode, {term_in => 'sh', buf_out => 'qp'}, '#HBO2');
 				return;
 			}
 			if (defined $socket_io->{ListenEchoMode} && $term_io->{Key} eq 'qs') {	# Needed if command was received from listening socket...
@@ -899,14 +927,14 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 			}
 		}
 		# Space, Return, CtrlMoreChr, or Q(with prompt already received)
-		changeMode($mode, {term_in => $mode->{term_in_cache}, buf_out => 'eb'}, '#7');
+		changeMode($mode, {term_in => $mode->{term_in_cache}, buf_out => 'eb'}, '#HBO3');
 		($term_io->{DelayCharProcPs}, $term_io->{DelayCharProcDF}) = (Time::HiRes::time + $DelayCharProcPs, 1);
 	}
 	elsif ($mode->{buf_out} eq 'qp') { # ---------------> Quit More Pause mode (qp) <----------
 		if ($host_io->{DeviceReadFlag}) {
 			if ( checkForPrompt($host_io, \$host_io->{OutBuffer}, $prompt) ) {
 				$host_io->{OutBuffer} = pruneBuffer($host_io, \$host_io->{OutBuffer});
-				changeMode($mode, {buf_out => 'eb'}, '#10');
+				changeMode($mode, {buf_out => 'eb'}, '#HBO4');
 				if (defined $socket_io->{ListenEchoMode}) {	# Needed if command was received from listening socket...
 					releaseInputBuffer($term_io);		# ... but this term was stuck in more prompt
 				}
@@ -1057,7 +1085,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 									else { # There is no data in it... so we have to make a choice..
 										print $EchoMorePrompt;
 										$mode->{term_in_cache} = $mode->{term_in};
-										changeMode($mode, {term_in => 'rk', buf_out => 'se'}, '#106');
+										changeMode($mode, {term_in => 'rk', buf_out => 'se'}, '#HBO5');
 										$socket_io->{TieEchoBuffers}->{$socket_io->{TieEchoPartial}} = $lastLine;
 										$host_io->{OutBuffer} .= $bohLine; # Re-add prompt to it..
 										return;
@@ -1128,7 +1156,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 							$bohLine =~ s/ *$/$term_io->{LtPromptSuffix}/ if $term_io->{LtPrompt};
 							($term_io->{DelayCharProcTm}, $term_io->{DelayCharProcDF}) = (Time::HiRes::time + $DelayCharProcTm, 1);
 							debugMsg(4,"=Set DelayCharProcTm expiry time = ", \$term_io->{DelayCharProcTm}, "\n");
-							changeMode($mode, {term_in => 'tm', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#8');
+							changeMode($mode, {term_in => 'tm', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HBO6');
 							if ($term_io->{PseudoTerm} && length $host_io->{PacedSentChars}) {
 								$termbuf->{Linebuf1} .= $host_io->{PacedSentChars}; # Add to buffer
 								($termbuf->{Bufback1} = $termbuf->{Linebuf1}) =~ s/./\cH/g;
@@ -1136,7 +1164,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 								$host_io->{PacedSentChars} = '';
 							}
 						}
-						else { 	changeMode($mode, {dev_out => 'ub', buf_out => 'ds'}, '#16') }
+						else { 	changeMode($mode, {dev_out => 'ub', buf_out => 'ds'}, '#HBO7') }
 						if (defined $term_io->{CacheFeedInputs} && @{$term_io->{CacheFeedInputs}}) { # Complete FeedInput caching
 							cacheFeedInputs($db, $term_io->{CacheInputCmd}, $term_io->{CacheInputKey}, $term_io->{CacheFeedInputs});
 							$term_io->{CacheInputCmd} = $term_io->{CacheInputKey} = $term_io->{CacheFeedInputs} = undef;
@@ -1174,7 +1202,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 					}
 					elsif ( ( ($socket_io->{Tie} && $socket_io->{TieEchoMode}) || $socket_io->{ListenEchoMode}) && $socket_io->{HoldIncLines} &&
 						 lastLine(\$bohLine) && length $bohLine < $MaxPromptLength ) {
-						if ($bohLine =~ /.*$CmdConfirmPrompt/o || $bohLine =~ /.*$CmdInitiatedPrompt/o) { # If a yn prompt don't hold it
+						if ($bohLine =~ /.*$CmdConfirmPrompt{$host_io->{Type}}/o || $bohLine =~ /.*$CmdInitiatedPrompt/o) { # If a yn prompt don't hold it
 							$socket_io->{HoldIncLines} = 0;	 # And don't hold anymore characters which will follow
 						}
 						else {
@@ -1281,7 +1309,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 
 					if (@{$term_io->{VarCapture}}) { # We have a port list/range in the line, we capture it
 						if ( $notBanner || grep(!$_, @{$grep->{Advanced}}) ) { # Not a banner line or simple grep exists
-							variablesStoreValues($term_io, $line) unless $line =~ /$Grep{SocketEchoBanner}/ || $line =~ /^\cGError from \S+: Cannot process command /;
+							variablesStoreValues($term_io, $line) unless $line =~ /$Grep{SocketEchoBanner}/ || $line =~ /^\cGError from \S*: Cannot process command /;
 						}
 					}
 				}
@@ -1314,7 +1342,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 						if (!$script_io->{CmdLogOnly} && $term_io->{MorePaging} && --$term_io->{PageLineCount} <= 0) {
 							print $term_io->{LocalMorePrompt};
 							$mode->{term_in_cache} = $mode->{term_in};
-							changeMode($mode, {term_in => 'rk', buf_out => 'mp'}, '#6');
+							changeMode($mode, {term_in => 'rk', buf_out => 'mp'}, '#HBO8');
 							last BUFFER;
 						}
 					}

@@ -1242,15 +1242,15 @@ Revision history for acli.pl
 	* New ACLI control command "terminal ini" and embedded "@terminal ini" shows settings of all ini keys which can be
 	  set via the acli.ini file
 	* Added support for new SD-WAN Ipanema "router 1-3" CLI contexts
-	* Improved CLI tab expanson support for SD-WAN Ipanema family type
+	* Improved CLI tab expansion support for SD-WAN Ipanema family type
 	* Windows installer now automatically launches uninstaller of previous version if already installed
 	* Windows uninstaller now deletes any residual updates directory, so these do not interfere with a new installation
 	* Control ACLI> interface was not able to set debug level > 999
-	* More paging output with error patters was producing unexpected lines between --more-- prompts
+	* More paging output with error patterns was producing unexpected lines between --more-- prompts
 	* Script xmcacli (v1.17) updated with missing XMC family "200 Series" for Series200 support
 6.02	2023-10-09
 	* Uses Control::CLI version 2.11 and Control::CLI::Extreme version 1.10
-	* More fixes around CLI tab expanson support for SD-WAN Ipanema family type
+	* More fixes around CLI tab expansion support for SD-WAN Ipanema family type
 	* Doing a highlight string (cmd ^ string) where there were more than 40 matches of that string in the output would
 	  crash ACLI
 	* Doing a highlight string (cmd ^ string) with a string ending with '?' would hang ACLI
@@ -1265,3 +1265,35 @@ Revision history for acli.pl
 	  invalid COMMPROP block length= 66 at C:/Strawberry/perl/site/lib/Control/CLI.pm line 296
 	* Update script updated to be able to use HTTPS to fetch updates and now only fetches updates from github.com
 	* VOSS .tgz/.voss image files are highlighted now in ls output of switch file system
+6.03	2024-06-10
+	* Uses Control::CLI version 2.11 and Control::CLI::Extreme version 1.12
+	* Updates to support new ISW-24W-4X model which has to be handled as a different ISWmarvell family type
+	* On quitting a more prompt, if there were more than one summary lines counting number of records in output, only
+	  one, the last such line was shown
+	* Alias syntax is no longer shown on devices where the alias does not apply, because alias resolves to "&noalias"
+	* Command sed was not listed in ACLI> "help" output
+	* When pasting many commands into tied terminal, it could happen that some listening terminals might miss a command
+	* Grep of "dhcp" on VOSS now will show all of dhcp config, including dhcp-server config contexts
+	* On ISW-4W-4WS-4X "show logging -i" was not unwrapping log message lines
+	* Doing a grep on ISW log file, was showing issues with the indentation based grep, now resolved
+	* New Universal Hardware series 4120 and 4220 have a restricted CLI, which has a prompt ending in "="; made changes
+	  to work with modified prompt
+	* In some rare cases the config indentation of PassportERS/VOSS configs could be wrong on some lines
+	* All @send embedded commands now halt reading connected device output; hitting the Return key interactively will
+	  resume device output reading
+	* New @read embedded command, allows a resuming reading of device output following write operations using the @send
+	  command; if no prompt is expected after the read (e.g. entering shell) then the command can be executed as
+	  "@read unbuffer"
+	* New &noecho instruction, allowed as first command of dereferenced alias command, prevents alias echoing of the
+	  command
+	* Tab expansion and syntax browsing was not working well on HiveOS APs over serial port
+	* Incorrect processing of grep patters applied to an alias command which dereferenced a semicolon separated list
+	  of commands where some have the ':' marker but not the first command
+	* Alias arguments can now be double quoted if the argument contains space characters
+	* Capturing of variables no longer happens from tied terminals reporting an error if those terminals were never able
+	  to connect
+	* Socket tied terminals when reporting messages now use the real switcxh sysname, not the switchname version which
+	  replaces with underscore, characters which cannot be used in filenames
+	* Channelized ports in format 1/2/3 were not processed properly in portrange unconstrain mode (@terminal portrange
+	  unconstrain enable)
+	* History of device-sent messages was not accurate if sed input patterns were in use

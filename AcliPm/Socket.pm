@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::Socket;
-our $Version = "1.05";
+our $Version = "1.06";
 
 use strict;
 use warnings;
@@ -440,7 +440,7 @@ sub socketEchoBuffer { # Checks whether need to buffer some echo output
 						"\n",
 						$socket_io->{ListenEchoMode} == 1 ? "Error":"Output",
 						" from ",
-						switchname($host_io),
+						switchname($host_io, 1),
 						":\n",
 						$socket_io->{OutBuffer});
 	}
@@ -453,7 +453,7 @@ sub socketEchoBuffer { # Checks whether need to buffer some echo output
 sub socketEchoBufferDisconnect { # Sends an echo message to controlling terminal indicating that this terminal has lost the connection
 	my ($host_io, $socket_io) = @_;
 
-	$socket_io->{SendBuffer} = "\nConnection lost on " . switchname($host_io) . "\n\n";
+	$socket_io->{SendBuffer} = "\nConnection lost on " . switchname($host_io, 1) . "\n\n";
 	# Set sequence number & final flag for datagram
 	$socket_io->{EchoSeqNumb} = ++$socket_io->{EchoSeqNumb} & 127;	# Increase sequence number (on 7 bits 1-127)
 	$socket_io->{EchoSeqNumb}++ if $socket_io->{EchoSeqNumb} == 0; # Skip 0 on roll over (otherwise we prepend again above)
@@ -640,7 +640,7 @@ sub handleSocketIO {	# Handle tied sockets (to which we echo keyboard input from
 			return if $script_io->{AcliControl}; 							# Don't respond if in ACLI> mode or in Annex/Serial Selection modes
 			return if !defined $socket_io->{ListenEchoMode} && $term_io->{InputBuffQueue}->[0];	# Don't respond if we are currently processing local commands
 			return unless $mode->{term_in} eq 'tm' || $mode->{buf_out} eq 'mp';			# Only reply if we have prompt and ready to take commands
-			$socket_io->{OutBuffer} = "Response from " . switchname($host_io);
+			$socket_io->{OutBuffer} = "Response from " . switchname($host_io, 1);
 			$socket_io->{OutBuffer} .= " [tied: " . $socket_io->{Tie} . "]" if $socket_io->{Tie};
 			$socket_io->{OutBuffer} .= " [in midst of --more-- output paging]" if $mode->{buf_out} eq 'mp';
 			$socket_io->{OutBuffer} .= "\n";
@@ -668,7 +668,7 @@ sub handleSocketIO {	# Handle tied sockets (to which we echo keyboard input from
 		unless ($host_io->{Connected} || $term_io->{PseudoTerm}) { # Don't process if no connection
 			return unless defined $host_io->{Connected}; # If host never was connected, skip
 			return if $data eq "\n";	# No warning for just a carriage return (used for initial tie)
-			$socket_io->{OutBuffer} = "\n\cGError from " . switchname($host_io) . ": Cannot process command as no connection\n";
+			$socket_io->{OutBuffer} = "\n\cGError from " . switchname($host_io, 1) . ": Cannot process command as no connection\n";
 			debugMsg(2,"=socketWarningUnableProcessCommand-noconnection: >", \$socket_io->{OutBuffer}, "<\n");
 			$socket_io->{CmdComplete} = 1;
 			socketEchoSend($socket_io);
@@ -676,7 +676,7 @@ sub handleSocketIO {	# Handle tied sockets (to which we echo keyboard input from
 		}
 		if ($script_io->{AcliControl}) { # Don't process if in ACLI> mode or in Annex/Serial Selection modes
 			return if $data eq "\n";	# No warning for just a carriage return (used for initial tie)
-			$socket_io->{OutBuffer} = "\n\cGError from " . switchname($host_io) . ": Cannot process command in ACLI control interface\n";
+			$socket_io->{OutBuffer} = "\n\cGError from " . switchname($host_io, 1) . ": Cannot process command in ACLI control interface\n";
 			debugMsg(2,"=socketWarningUnableProcessCommand-aclicontrol: >", \$socket_io->{OutBuffer}, "<\n");
 			$socket_io->{CmdComplete} = 1;
 			socketEchoSend($socket_io);
@@ -684,7 +684,7 @@ sub handleSocketIO {	# Handle tied sockets (to which we echo keyboard input from
 		}
 		if (!defined $socket_io->{ListenEchoMode} && $term_io->{InputBuffQueue}->[0]) { # Don't process if we are currently processing local commands
 			return if $data eq "\n";	# No warning for just a carriage return (used for initial tie)
-			$socket_io->{OutBuffer} = "\n\cGError from " . switchname($host_io) . ": Cannot process command as processing other local command\n";
+			$socket_io->{OutBuffer} = "\n\cGError from " . switchname($host_io, 1) . ": Cannot process command as processing other local command\n";
 			debugMsg(2,"=socketWarningUnableProcessCommand-localcommand: >", \$socket_io->{OutBuffer}, "<\n");
 			$socket_io->{CmdComplete} = 1;
 			socketEchoSend($socket_io);
@@ -692,7 +692,7 @@ sub handleSocketIO {	# Handle tied sockets (to which we echo keyboard input from
 		}
 		if ( ($dataMode == 2 || $socket_io->{FirstDataMode3}) && $socket_io->{ListenEchoMode} && $mode->{term_in} ne 'tm' && $mode->{buf_out} ne 'mp') { # Terminal is not able to process; warn back
 			return if $data eq "\n";	# No warning for just a carriage return (used for initial tie)
-			$socket_io->{OutBuffer} = "\n\cGError from " . switchname($host_io) . ": Cannot process command as prompt not ready\n";
+			$socket_io->{OutBuffer} = "\n\cGError from " . switchname($host_io, 1) . ": Cannot process command as prompt not ready\n";
 			debugMsg(2,"=socketWarningUnableProcessCommand-notin-tm-mode: >", \$socket_io->{OutBuffer}, "<\n");
 			$socket_io->{CmdComplete} = 1;
 			socketEchoSend($socket_io);
@@ -732,7 +732,6 @@ sub handleSocketIO {	# Handle tied sockets (to which we echo keyboard input from
 			}
 		}
 		else { # Other modes handled under multiple character processing
-			saveInputBuffer($term_io) if $term_io->{InputBuffQueue}->[0];
 			$socket_io->{EchoSendFlag} = undef;
 			my $lastLineComplete = chomp $data;	# Keep track if data ends with \n
 			my @lines = split(/\n/, $data);

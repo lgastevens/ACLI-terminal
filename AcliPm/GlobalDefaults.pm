@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalDefaults;
-our $Version = "1.09";
+our $Version = "1.10";
 
 use strict;
 use warnings;
@@ -37,7 +37,7 @@ our $SocketMaxMsgLen = 1024;			# This is the mandatory MAXLEN we pass to socket-
 our $MaxPromptLength = 40;			# In case of socket echo, we make assumption on maximum socket length when preventing fragments be printed
 our $DebugCLIExtreme = 13;			# If debug enabled on module, what debug level to use
 our $DebugCLIExtremeSerial = 2;			# If debug enabled on module, what debug level to use (extra debug for SerialPort module)
-our $SummaryTailLinesLimit = 10;			# Number of lines from end of output to look at for summary lines to keep, when pruning output buffer
+our $SummaryTailLinesLimit = 10;		# Number of lines from end of output to look at for summary lines to keep, when pruning output buffer
 our $UnrecognizedLogins = 1;			# How many unrecognized logins to let user interact with before bailing out of login() and using transparent mode
 our $VarRangeUnboundMax = 299;			# When capturing > $var %n-  ; max range of columns to capture
 our $MaxSedPatterns = 20;			# We want to limit this (this default can be overridden in acli.sed file)
@@ -60,6 +60,7 @@ our %Default = ( # Hash of default settings; these are mostly user modifiable fr
 		ExtremeXOS		=> 1,
 		SLX			=> 1,
 		ISW			=> 1,
+		ISWmarvell		=> 1,
 		Series200		=> 1,
 		Wing			=> 1,
 		HiveOS			=> 1,

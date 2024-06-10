@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ExitHandlers;
-our $Version = "1.00";
+our $Version = "1.01";
 
 use strict;
 use warnings;
@@ -125,7 +125,7 @@ sub connectionError { # Handle connection loss to host
 			print "\nConnection error: ", $errmsg, "\n", $ACLI_Prompt;
 		}
 		$script_io->{AcliControl} = 1;
-		changeMode($mode, {term_in => 'tm', dev_inp => 'ds', buf_out => 'ds'}, '#665');
+		changeMode($mode, {term_in => 'tm', dev_inp => 'ds', buf_out => 'ds'}, '#EH1');
 	}
 	else { # In normal connection mode we...
 		if ($script_io->{QuitOnDisc}) { # ...quit
@@ -135,12 +135,12 @@ sub connectionError { # Handle connection loss to host
 		}
 		elsif ($script_io->{ConnectFailMode} == 0) { # ... we offer to reconnect
 			print "\n------> Connection closed: SPACE to re-connect / Q to quit <------\n";
-			changeMode($mode, {term_in => 'qs', dev_inp => 'ds', dev_del => 'ds', dev_fct => 'ds', dev_cch => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#666');
+			changeMode($mode, {term_in => 'qs', dev_inp => 'ds', dev_del => 'ds', dev_fct => 'ds', dev_cch => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#EH2');
 		}
 #		elsif (!defined $host_io->{Connected}) {	(bug8)
 		else { # $script_io->{ConnectFailMode} == 1
 			print "\n------> Connection failed: SPACE to re-try / Q to quit <------\n";
-			changeMode($mode, {term_in => 'qs', dev_inp => 'ds', dev_del => 'ds', dev_fct => 'ds', dev_cch => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#667');
+			changeMode($mode, {term_in => 'qs', dev_inp => 'ds', dev_del => 'ds', dev_fct => 'ds', dev_cch => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#EH3');
 		}
 	}
 	return;

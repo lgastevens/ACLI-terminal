@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ParseCommand;
-our $Version = "1.10";
+our $Version = "1.11";
 
 use strict;
 use warnings;
@@ -667,6 +667,10 @@ sub mergeCommand { # Updates the parsed command hash with a new command update
 	# Now copy all keys across
 	for my $key (keys %{$newCmdParsed}) {
 		$cmdParsed->{$key} = $newCmdParsed->{$key};
+	}
+	# And remove any keys which need not be there
+	for my $key (keys %{$cmdParsed}) {
+		delete $cmdParsed->{$key} unless exists $newCmdParsed->{$key};
 	}
 	debugMsg(4, "=mergeCommand ", \Data::Dumper::Dumper($cmdParsed)) if $::Debug && !$::TestScript;
 }

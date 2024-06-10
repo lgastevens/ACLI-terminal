@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::Sourcing;
-our $Version = "1.06";
+our $Version = "1.07";
 
 use strict;
 use warnings;
@@ -21,7 +21,7 @@ use AcliPm::Sed;
 use AcliPm::Variables;
 
 
-sub stopSourcing { # Sets flags to to stop command sourcing
+sub stopSourcing { # Sets flags to stop command sourcing
 	my $db = shift;
 	my $term_io = $db->[2];
 	my $host_io = $db->[3];

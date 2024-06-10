@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::DebugMessage;
-our $Version = "1.02";
+our $Version = "1.03";
 
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ use lib $FindBin::Bin.$::Sub;
 use AcliPm::GlobalDefaults;
 
 
-# Debug Bit values: 512=loadAliasFile 256=tabExpand/quoteCurlyBackslashMask 128=historyDump 64=Errmode-Die 32=Errmode-Croak 16=ControlCLI(Serial) 8=ControlCLI 4=Input 2=output 1=basic
+# Debug Bit values: 1024=printOut 512=loadAliasFile 256=tabExpand/quoteCurlyBackslashMask 128=historyDump 64=Errmode-Die 32=Errmode-Croak 16=ControlCLI(Serial) 8=ControlCLI 4=Input 2=output 1=basic
 
 sub debugMsg { # Takes 4 args: debug-level, string1 [, ref-to-string [, string2] ]
 	if (shift() & $::Debug) {

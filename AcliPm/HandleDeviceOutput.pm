@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleDeviceOutput;
-our $Version = "1.12";
+our $Version = "1.13";
 
 use strict;
 use warnings;
@@ -213,6 +213,7 @@ sub handleDeviceConnect { # Handles connection to device
 			}
 
 			if ($mode->{dev_inp} eq 'ct' && !$term_io->{AutoDetect}) { # We get here if in transparent mode but with both username & passwords supplied (from connect stage 3)
+				printOut($script_io, "\n");
 				changeStage($mode, 999);
 				return $outRef;
 			}
@@ -263,7 +264,7 @@ sub handleDeviceConnect { # Handles connection to device
 					$term_io->{AcliType} = $host_io->{CLI}->attribute('is_acli');
 		
 					if ($mode->{dev_inp} eq 'cp') { # Come out if in 'cp' mode
-						changeMode($mode, {dev_inp => 'rd'}, '#133');	# Disable 'cp' mode
+						changeMode($mode, {dev_inp => 'rd'}, '#HDO1');	# Disable 'cp' mode
 						changeStage($mode, 0);
 					}
 					else { # 'ct' or 'lg' or 'sb' modes
@@ -481,7 +482,7 @@ sub handleDeviceConnect { # Handles connection to device
 			$host_io->{CLI}->last_prompt =~ /$prompt->{Regex}/;
 			if (defined $1) {
 				$host_io->{Prompt} = $1; # Used to pass $1 directly as arg to switchname(), but changed it for XOS prompts 
-				$host_io->{Sysname} = switchname($host_io);
+				$host_io->{Sysname} = switchname($host_io, 1);
 			}
 			else {
 				$host_io->{Sysname} = ''; # Give up
@@ -811,7 +812,7 @@ sub handleDeviceConnect { # Handles connection to device
 		if ($host_io->{CLI}->errmsg =~ /Non recognized login output/i) {
 			debugMsg(2,"LoginErr-NonRecognizedLoginOutput\n");
 			if ($host_io->{UnrecogLogins}-- > 0) {
-				changeMode($mode, {term_in => 'sh', dev_inp => 'ld'}, '#113');	# Let user send to host directly.
+				changeMode($mode, {term_in => 'sh', dev_inp => 'ld'}, '#HDO2');	# Let user send to host directly.
 				changeStage($mode, 4);			# Come back to login()
 				return ($outRef, 1, 0);
 			}
@@ -840,14 +841,14 @@ sub handleDeviceConnect { # Handles connection to device
 				$$outRef .= $host_io->{Username};	# Add username to be printed on screen
 			}
 			else {
-				changeMode($mode, {term_in => 'us', dev_inp => 'ds'}, '#12');	# Username input
+				changeMode($mode, {term_in => 'us', dev_inp => 'ds'}, '#HDO3');	# Username input
 			}
 			changeStage($mode, 4);			# Come back to login()
 			$host_io->{Login} = 1;
 			return ($outRef, 1, 0);
 		}
 		elsif ($host_io->{CLI}->errmsg =~ /password required/i) {
-			changeMode($mode, {term_in => 'pw', dev_inp => 'ds'}, '#13');	# Password input
+			changeMode($mode, {term_in => 'pw', dev_inp => 'ds'}, '#HDO4');	# Password input
 			changeStage($mode, 4);			# Come back to login()
 			$host_io->{Login} = 1;
 			return ($outRef, 1, 0);
@@ -870,13 +871,13 @@ sub handleDeviceConnect { # Handles connection to device
 			debugMsg(2,"LoginErr:\n>", $outRef, "<\n");
 			if ($$outRef =~ /(?i:username|login)[: ]+$/) { # We can try a new login...
 				debugMsg(2,"LoginErr-NewLoginAttempting\n");
-				changeMode($mode, {term_in => 'us', dev_inp => 'ds'}, '#112');	# Username input
+				changeMode($mode, {term_in => 'us', dev_inp => 'ds'}, '#HDO5');	# Username input
 				changeStage($mode, 4);			# Come back to login()
 				return ($outRef, 1, 0);
 			}
 			if ($$outRef =~ /(?i:password)[: ]+$/) { # We can try a new login...
 				debugMsg(2,"LoginErr-NewLoginPasswordAttempting\n");
-				changeMode($mode, {term_in => 'pw', dev_inp => 'ds'}, '#116');	# Username input
+				changeMode($mode, {term_in => 'pw', dev_inp => 'ds'}, '#HDO6');	# Username input
 				changeStage($mode, 4);			# Come back to login()
 				return ($outRef, 1, 0);
 			}
@@ -937,7 +938,7 @@ sub handleDeviceConnect { # Handles connection to device
 	if ($mode->{connect_stage} == 999) { # 999 - Exit success
 
 		changeStage($mode, 0);	# Connection complete
-		changeMode($mode, {term_in => 'sh', dev_inp => 'rd'}, '#2');	# Disable login
+		changeMode($mode, {term_in => 'sh', dev_inp => 'rd'}, '#HDO7');	# Disable login
 		$script_io->{ConnectFailMode} = 0;
 		$history->{Current} = $history->{HostRecall};
 		return;
@@ -995,7 +996,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 		# If we get here, we trigger a new login attempt
 		printOut($script_io, "\n");
 		$host_io->{CLI}->{BUFFER} = $$outRef; # Cheat! Shove it all back onto Control::CLI's internal buffer to read again
-		changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#114');	# Resume login
+		changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#HDO8');	# Resume login
 	}
 
 	if ($mode->{dev_inp} eq 'ct' || $mode->{dev_inp} eq 'lg' || $mode->{dev_inp} eq 'cp' || $mode->{dev_inp} eq 'sb') {
@@ -1097,7 +1098,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 		if (length $host_io->{OutCache}) {
 			($$outRef, $host_io->{OutCache}) = ($host_io->{OutCache} . $$outRef, '');
 			debugMsg(2,"CachedAppended:\n>", $outRef, "<\n");
-			changeMode($mode, {dev_cch => 'ds'}, '#150');
+			changeMode($mode, {dev_cch => 'ds'}, '#HDO9');
 		}
 		($host_io->{CacheTimeout}, $host_io->{CacheTimeoutDF}) = (Time::HiRes::time + $OutputCacheTimeout, 1); # Reset cache timer (moved it out of if above  - bug14)
 		debugMsg(4,"=Set CacheTimeout expiry time = ", \$host_io->{CacheTimeout}, "\n");
@@ -1118,7 +1119,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 						}
 					}
 					debugMsg(2,"AfterFirstLineErase:\n>", $outRef, "<\n");
-					changeMode($mode, {dev_del => 'fb'}, '#5');
+					changeMode($mode, {dev_del => 'fb'}, '#HDO10');
 					redo;	# Try and process 'fb' below straight away
 				}
 				else { # Place on cache
@@ -1130,7 +1131,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 			elsif ($mode->{dev_del} eq 'fb') { # Remove 1st blank lines of output immediately following echoed command
 				if ($$outRef =~ s/^[\x0d\n]*(.)/$1/) {
 					debugMsg(2,"AfterFirstBlankLinesRemoved:\n>", $outRef, "<\n");
-					changeMode($mode, {dev_del => 'ds'}, '#551');
+					changeMode($mode, {dev_del => 'ds'}, '#HDO11');
 				}
 				else { # Place on cache
 					($host_io->{OutCache}, $$outRef) = ($$outRef, ''); # If not, place on cache and come out
@@ -1146,7 +1147,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				) {
 					print "\cG" if defined $1 && ($1 =~ /\cG/ || $1 =~ / +\^\x0d?\n%/);# Pass on bell character if we found one or if error seen
 					debugMsg(2,"AfterFirstLineEscErase:\n>", $outRef, "<\n");
-					changeMode($mode, {dev_del => 'ds'}, '#553');
+					changeMode($mode, {dev_del => 'ds'}, '#HDO12');
 				}
 				else {
 					# Clensing patterns, required for below matches; moved up from SafetyEscape-from-FirstLineEscErase
@@ -1171,7 +1172,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 						$$outRef =~ s/^(?:\x0d|\e|\[m|\[\d\d;D|\[K)//g if $host_io->{Type} eq 'ExtremeXOS'; # Try and remove these escape sequences anyway
 						$$outRef =~ s/^\e\[\d+D\s+\e\[\d+D//g if $host_io->{Type} eq 'ISW'; # Try and remove these escape sequences anyway
 						debugMsg(2,"SafetyEscape-from-FirstLineEscErase:\n>", $outRef, "<\n");
-						changeMode($mode, {dev_del => 'ds'}, '#554');
+						changeMode($mode, {dev_del => 'ds'}, '#HDO13');
 					}
 					else { # Place on cache
 						($host_io->{OutCache}, $$outRef) = ($$outRef, ''); # If not, place on cache and come out
@@ -1193,9 +1194,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 						debugMsg(2,"PreAdjustingTabExpansion2-ipanema:>", $outRef, "<\n");
 					}
 				}
-				else {
-					print "\cG" if $$outRef =~ s/^\cG//; # Pass it on; PPCLI show sn<tab>
-				}
+				print "\cG" if $$outRef =~ s/^\cG//; # Pass it on; PPCLI show sn<tab>
 				if ($$outRef =~ s/^([^\x00\x0d\n\cH\e]+)([\cH\x0d\e]*)/$2/) {
 					# The difference between bs & bt is that with bs BackspaceCount includes count of chars sent and not yet received; with bt it only includes what we received
 					if ($mode->{dev_del} eq 'bs') {
@@ -1301,6 +1300,11 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 							$$outRef =~ s/^\e\[\d+D {$host_io->{BackspaceCount}}\e\[\d+D//	# ISW - tab expansion delete
 						)
 					) || (
+						$host_io->{Type} eq 'ISWmarvell' &&
+						(
+							$$outRef =~ s/^\x0d\e\[K\x0d//	# ISWmarvell - more prompt delete
+						)
+					) || (
 						$host_io->{Type} eq 'SLX' &&
 						(
 							$$outRef =~ s/^\cH{$host_io->{BackspaceCount}} {$host_io->{BackspaceCount}}\cH{$host_io->{BackspaceCount}}// ||
@@ -1332,19 +1336,22 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 							$$outRef =~ s/^\cH{$host_io->{BackspaceCount}}\e\[K// ||
 							$$outRef =~ s/^\x0d$prompt->{Match}\e\[K//
 						)
+					) || (
+						$CleanPromptCtrl{$host_io->{Type}} eq $CTRL_C &&
+						$$outRef =~ s/^\x0d?\n$prompt->{Match}$//
 					)
 				    ) {
 					$host_io->{BackspaceCount} = 0;
 					$$outRef .= $keepOutput if $keepOutput;
 					debugMsg(2,"AfterBackSpaceErase:\n>", $outRef, "<\n");
 					if ($term_io->{BackSpaceMode}) {
-						changeMode($mode, {dev_del => 'ds', dev_fct => 'st'}, '#313');	# Revert to local term mode and go to 'st' mode
+						changeMode($mode, {dev_del => 'ds', dev_fct => 'st'}, '#HDO14');	# Revert to local term mode and go to 'st' mode
 					}
 					elsif ($mode->{dev_del} eq 'bt') {
-						changeMode($mode, {term_in => 'tm', dev_del => 'ds'}, '#22');
+						changeMode($mode, {term_in => 'tm', dev_del => 'ds'}, '#HDO15');
 					}
 					else {
-						changeMode($mode, {dev_del => 'ds'}, '#15');
+						changeMode($mode, {dev_del => 'ds'}, '#HDO16');
 					}
 					$term_io->{BackSpaceMode} = undef;
 				}
@@ -1353,8 +1360,8 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					$term_io->{BackSpaceMode} = undef;
 					$$outRef .= $keepOutput if $keepOutput;
 					debugMsg(2,"SafetyEscape-from-RemoveBackspaces:\n>", $outRef, "<\n");
-					changeMode($mode, {term_in => 'tm'}, '#122') if $mode->{dev_del} eq 'bt';
-					changeMode($mode, {dev_del => 'ds'}, '#115');
+					changeMode($mode, {term_in => 'tm'}, '#HDO17') if $mode->{dev_del} eq 'bt';
+					changeMode($mode, {dev_del => 'ds'}, '#HDO18');
 				}
 				else { # Place on cache
 					$$outRef .= $keepOutput if $keepOutput;
@@ -1366,11 +1373,11 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 			elsif ($mode->{dev_del} eq 'kp') { # Remove keepalive sequence; echoed by device after we send a keepalive
 				if ($$outRef =~ s/^(?:\x0d*\n|\n\x0d*|\n\x0d *\x0d|\x0d\n\x0d)\@?$prompt->{Regex}//) {
 					debugMsg(2,"AfterKeepAliveErase:\n>", $outRef, "<\n");
-					changeMode($mode, {term_in => $mode->{term_in_cache}, dev_del => 'ds'}, '#99');
+					changeMode($mode, {term_in => $mode->{term_in_cache}, dev_del => 'ds'}, '#HDO19');
 				}
 				elsif ($$outRef !~ /^\x0d*\n/ || $$outRef =~ /[^\x0d\n].+\n/) { # Safety escape patterns (if we miss the new prompt)
 					debugMsg(2,"SafetyEscape-from-KeepAliveErase:\n>", $outRef, "<\n");
-					changeMode($mode, {term_in => $mode->{term_in_cache}, dev_del => 'ds'}, '#199');
+					changeMode($mode, {term_in => $mode->{term_in_cache}, dev_del => 'ds'}, '#HDO20');
 				}
 				else { # Place on cache
 					($host_io->{OutCache}, $$outRef) = ($$outRef, ''); # If not, place on cache and come out
@@ -1382,7 +1389,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				if ($$outRef =~ s/(?:^|\n)(?:$term_io->{YnPrompt}|Yes|No)\x0d?(\n|$)/$1/) {
 					debugMsg(2,"After-Y-ResponseErase:\n>", $outRef, "<\n");
 				}
-				changeMode($mode, {dev_del => 'ds'}, '#552');
+				changeMode($mode, {dev_del => 'ds'}, '#HDO21');
 			}
 			else {
 				quit(1, "ERROR: unexpected dev_del mode: ".$mode->{dev_del}, $db);
@@ -1412,8 +1419,8 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				if ($wipeDeviceBuffer) {
 					$host_io->{BackspaceCount} = length $$outRef;	# Number of backspaces we expect, after CTRL-U
 					debugMsg(2,"BackspaceCount:>", \$host_io->{BackspaceCount}, "<\n");
-					$host_io->{SendBuffer} .= $CTRL_U; # And remove it from device's buffer
-					changeMode($mode, {dev_del => 'bs'}, '#312');
+					$host_io->{SendBuffer} .= $CleanPromptCtrl{$host_io->{Type}}; # And remove it from device's buffer
+					changeMode($mode, {dev_del => 'bs'}, '#HDO22') if $CleanPromptCtrl{$host_io->{Type}} eq $CTRL_U;
 					$$outRef = '';
 					return;
 				}
@@ -1426,7 +1433,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				return;
 			}
 			else { # We are doing the initial connect/login sequence; keep old behaviour here
-				changeMode($mode, {term_in => 'sh'}, '#95');	# Revert to transparent mode
+				changeMode($mode, {term_in => 'sh'}, '#HDO23');	# Revert to transparent mode
 			}
 		}
 		#
@@ -1603,12 +1610,11 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				}
 				$$outRef =~ s/^(?:.*\n)*\x0d?$prompt->{Match}//;  # We remove the prompt from it and keep the expanded command
 					# On VOSS: "res<tab> results in line "% Unmatched quote detected at '^' marked." before the new prompt; hence delete of preceding lines
-				sedPatternReplace($host_io, $term_io->{SedOutputPats}, $outRef) if $termbuf->{SedInputApplied} && %{$term_io->{SedOutputPats}};
 				if ($$outRef =~ s/^($termbuf->{TabMatchSent}.*)?(?|[\?\cG]?(\n)\x0d?|\cG())/$2/i) { # WLAN2300/WLAN9100/ExtremeXOS when tab can apply to two or more possible commands (test with show po<tab>)
 					# We have output here; we switch to 'sx' mode and redo
 					$termbuf->{Linebuf1} = $1;			# Pre-load Linebuf1 with the command
 					($termbuf->{Bufback1} = $termbuf->{Linebuf1}) =~ s/./\cH/g;	# Update as the command might not be same length
-					changeMode($mode, {dev_fct => 'sx'}, '#213');	# Revert to local term mode
+					changeMode($mode, {dev_fct => 'sx'}, '#HDO24');	# Revert to local term mode
 					$termbuf->{SynMatchSent} = $termbuf->{TabMatchSent};
 					debugMsg(2,"ConvertingTab-to-Syntax with output:\n>", $outRef, "<\n");
 					redo; # Fall through to 'sx' processing below
@@ -1627,12 +1633,13 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				if (defined $termbuf->{TabBefoVar} && $$outRef =~ s/$termbuf->{TabMatchSent}/$termbuf->{TabBefoVar}/i) {
 					debugMsg(2,"RetainedExpansion-tb-after restoring vars:>", $outRef, "<\n");
 				}
+				sedPatternReplace($host_io, $term_io->{SedOutputPats}, $outRef) if $termbuf->{SedInputApplied} && %{$term_io->{SedOutputPats}};
 				$termbuf->{Linebuf1} = $$outRef . $termbuf->{TabOptions};	# We update local term buffers
 				$termbuf->{Linebuf2} = $termbuf->{Bufback2} = '';		# This was holding local grep or flags; clear it
 				print $termbuf->{Bufback1}, $termbuf->{Linebuf1}; 		# We overwrite what we had with expanded version
 				($termbuf->{Bufback1} = $termbuf->{Linebuf1}) =~ s/./\cH/g;	# We update local term buffers
-				$host_io->{SendBuffer} .= $CTRL_U;				# We have to also delete the partial command from host's buffer
-				changeMode($mode, {dev_del => 'bt', dev_fct => 'ds'}, '#21');	# Revert to local term mode
+				$host_io->{SendBuffer} .= $CleanPromptCtrl{$host_io->{Type}};	# We have to also delete the partial command from host's buffer
+				changeMode($mode, {dev_del => 'bt', dev_fct => 'ds'}, '#HDO25');	# Revert to local term mode
 				return;
 			}
 			elsif ($mode->{dev_fct} eq 'sx') { # Process syntax output from host device
@@ -1663,9 +1670,11 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 						$$outRef =~ s/\cG//g if $termbuf->{SynBellSilent};
 						debugMsg(2,"AfterSyntaxProcessing:\n>", $outRef, "<\n");
 						sedPatternReplace($host_io, $term_io->{SedOutputPats}, $outRef) if $termbuf->{SedInputApplied} && %{$term_io->{SedOutputPats}};
-						$host_io->{SendBuffer} .= $CTRL_U;		# We have to also delete the partial command from host's buffer
 						($termbuf->{Linebuf1}, $termbuf->{Bufback1}) = ('', '') unless $term_io->{SyntaxAcliMode};
-						changeMode($mode, {dev_del => 'bx'}, '#31');	# Revert to local term mode
+						$host_io->{SendBuffer} .= $CleanPromptCtrl{$host_io->{Type}};	# We have to also delete the partial command from host's buffer
+						$$outRef =~ s/\x0d?\n$prompt->{Match}$// if $CleanPromptCtrl{$host_io->{Type}} eq $CTRL_C;	# We get a new prompt anyway
+						changeMode($mode, {dev_del => 'bx'}, '#HDO26') if $CleanPromptCtrl{$host_io->{Type}} eq $CTRL_U;	# For processing backspaces
+						changeMode($mode, {dev_fct => 'ds'}, '#HDO27');	# Revert to local term mode
 					}
 				}
 			}
@@ -1673,19 +1682,23 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				if ($$outRef =~ s/(?:\e\[K)?($prompt->{Match})(.+)$/$1/) {	# Store & remove everything after the prompt
 					debugMsg(2,"AfterSyntaxProcessing-st:\n>", $outRef, "<\n");
 					sedPatternReplace($host_io, $term_io->{SedOutputPats}, $outRef) if $termbuf->{SedInputApplied} && %{$term_io->{SedOutputPats}};
-					changeMode($mode, {dev_del => 'ds'}, '#312');	# Revert to local term mode
+					changeMode($mode, {dev_del => 'ds'}, '#HDO28');	# Revert to local term mode
 				}
 			}
 			elsif ($mode->{dev_fct} eq 'yp') { # Automatically answer 'y' at y/n? prompts
-				if ($$outRef =~ /(.*$CmdConfirmPrompt)/o) {
+				if ($$outRef =~ /(.*$CmdConfirmPrompt{$host_io->{Type}})/o) {
 					my $confirmPrompt = $1;
 					debugMsg(2,"Detected-YNPrompt:\n>", \$confirmPrompt, "<\n");
 					if ($term_io->{YnPromptForce} || $confirmPrompt !~ /(?:reset|reboot)/) {
-						$$outRef =~ s/.*$CmdConfirmPrompt//o;
+						$$outRef =~ s/.*$CmdConfirmPrompt{$host_io->{Type}}//o;
 						$$outRef =~ s/$CTRL_G//go; # Strip bell characters from output, if any
+						$$outRef =~ s/^.*(?:Are you sure|Do you want .*?) ?\?\n//mo; # Strip any preceding lines asking if sure
+							# Are you sure?		: ISWmarvell -> event clear
+							# Do you want ... ?	: VOSS 5420 -> software add
 						debugMsg(2,"AfterAuto-Y-atYNPrompt:\n>", $outRef, "<\n");
-						$host_io->{SendBuffer} .= $term_io->{YnPrompt} . $term_io->{Newline}; # Send 'y' (or 'n') + Enter
-						changeMode($mode, {dev_del => 'yd'}, '#51');
+						$host_io->{SendBuffer} .= $term_io->{YnPrompt}; # Send 'y' (or 'n') 
+						$host_io->{SendBuffer} .= $term_io->{Newline} if $CmdConfirmSendY{$host_io->{Type}}; # + Enter
+						changeMode($mode, {dev_del => 'yd'}, '#HDO29');
 					}
 					elsif (!$term_io->{YnPromptForce} && $confirmPrompt =~ /(?:reset|reboot)/) {
 						saveInputBuffer($term_io);
@@ -1742,7 +1755,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 						$host_io->{CLI}->{BUFFER} = $restBuffer; # Cheat! Shove it all back onto Control::CLI's internal buffer to read again
 						debugMsg(2,"ConnectionToStandbyCPUDetected\n");
 						$host_io->{OutBuffer} = ''; # Empty this buffer
-						changeMode($mode, {term_in => 'rk', dev_inp => 'sb', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#96');
+						changeMode($mode, {term_in => 'rk', dev_inp => 'sb', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HDO30');
 					}
 				}
 				else {
@@ -1771,14 +1784,14 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 
 					disconnectPeerCP($db) if $peercp_io->{Connected}; # Tear down connection to peer CPU
 					$host_io->{CLI}->{LOGINSTAGE} = ''; # Clear this Control::CLI flag before we call as we don't want it to think it is resuming any logins
-					changeMode($mode, {term_in => 'rk', dev_inp => 'lg', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#94');
+					changeMode($mode, {term_in => 'rk', dev_inp => 'lg', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HDO31');
 				}
 			}
 			elsif ($$outRef =~ /^$ReleaseConnectionPatterns/mo) {
 				if ($host_io->{LoopbackConnect}) { # Leaving Peer CPU
 					debugMsg(2,"ReleaseConnectionPatternDetected-FromPeerCPU\n");
 					$host_io->{CLI}->{BUFFER} = "\n$$outRef"; # Cheat! Shove it all back onto Control::CLI's internal buffer to read again
-					changeMode($mode, {term_in => 'rk', dev_inp => 'cp', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#101');
+					changeMode($mode, {term_in => 'rk', dev_inp => 'cp', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HDO32');
 					$host_io->{LoopbackConnect} = undef;
 					return;
 				}
@@ -1806,7 +1819,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 
 						$host_io->{CLI}->{BUFFER} = "\n$$outRef"; # Cheat! Shove it all back onto Control::CLI's internal buffer to read again
 						$host_io->{CLI}->{LOGINSTAGE} = ''; # Clear this Control::CLI flag before we call as we don't want it to think it is resuming any logins
-						changeMode($mode, {term_in => 'rk', dev_inp => 'cp', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#102');
+						changeMode($mode, {term_in => 'rk', dev_inp => 'cp', dev_del => 'ds', dev_fct => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#HDO33');
 						return;
 					}
 					elsif ($host_io->{RelayHost}) { # We are back on proxy host; close connection
@@ -1836,7 +1849,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					if ($moreStripped =~ /^$MorePromptDelay$/o && chomp $$outRef) { # Check for more patterns which are valid subset patterns
 						$host_io->{OutCache} = "\n".$moreStripped;	# If yes, cache it, and we process it after next read
 						debugMsg(2,"MorePromptSubsetPatternTrigger:>", \$host_io->{OutCache}, "<\n");
-						changeMode($mode, {dev_cch => 'md'}, '#129');
+						changeMode($mode, {dev_cch => 'md'}, '#HDO34');
 					}
 					else {
 						$moreStripped =~ s/^\n//; # If a newline was stripped, don't count it for expected backspaces
@@ -1845,7 +1858,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 						$host_io->{SendBuffer} .= $term_io->{BufMoreAction};	# We page automatically
 						debugMsg(2,"AutomaticMore:>", \$term_io->{BufMoreAction}, "<\n");
 						$termbuf->{TabMatchSent} = undef; # Only because this is otherwise used in 'te' code
-						changeMode($mode, {dev_del => ($host_io->{Type} eq 'ExtremeXOS' ? 'te' : 'bs')}, '#19'); # Delete backspace sequence following more prompt
+						changeMode($mode, {dev_del => ($host_io->{Type} eq 'ExtremeXOS' ? 'te' : 'bs')}, '#HDO35'); # Delete backspace sequence following more prompt
 					}
 					$doNotCacheLastLine = 1;
 				}
@@ -1868,7 +1881,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					elsif ($script_io->{CmdLogFile}) { # We might not have started logging yet, as this happens after printing 1st line
 						$script_io->{CmdLogFH} = $script_io->{CmdLogFile} = $script_io->{CmdLogFlag} = $script_io->{CmdLogOnly} = undef;
 					}
-					changeMode($mode, {term_in => 'ps', dev_out => 'ub', buf_out => 'ds'}, '#52'); # Switch to unbuffered mode; but keep term_in in ps mode if we are scripting so that when a prompt is received, script goes on
+					changeMode($mode, {term_in => 'ps', dev_out => 'ub', buf_out => 'ds'}, '#HDO36'); # Switch to unbuffered mode; but keep term_in in ps mode if we are scripting so that when a prompt is received, script goes on
 					$host_io->{PacedSentChars} = ''; # Wipe it clean, or it can screw our next prompt match
 					debugMsg(1,"-> Switching to unbuffered output for this command!\n");
 					# In ub mode now, we won't come back here anymore
@@ -1887,7 +1900,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				debugMsg(2,"Interact-lastline-and-preceding-newline-ontoFastCache:\n>", \$host_io->{OutCache}, "<\n");
 				($host_io->{CacheTimeout}, $host_io->{CacheTimeoutDF}) = (Time::HiRes::time + $OutputCacheFastTimeout, 1); # Reset to use cache fast timer
 				debugMsg(4,"=Set CacheFastTimeout expiry time = ", \$host_io->{CacheTimeout}, "\n");
-				changeMode($mode, {dev_cch => 'fs'}, '#139');
+				changeMode($mode, {dev_cch => 'fs'}, '#HDO37');
 			}
 			# We shall distinguish between these incomplete lastline scenarions
 			# - could be a fragment of CLI prompt / ok to print out
@@ -1940,7 +1953,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				debugMsg(2,"BackspaceCount-fromCache:>", \$host_io->{BackspaceCount}, "<\n");
 				$host_io->{SendBuffer} .= $term_io->{BufMoreAction};	# We page automatically
 				debugMsg(2,"AutomaticMore-fromCache:>", \$term_io->{BufMoreAction}, "<\n");
-				changeMode($mode, {dev_del => 'bs', dev_cch => 'ds'}, '#119');
+				changeMode($mode, {dev_del => 'bs', dev_cch => 'ds'}, '#HDO38');
 			}
 		}
 		elsif ($mode->{dev_cch} eq 'fs') { # Fast track (**)! Release the cache
@@ -1954,7 +1967,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				my $cache = $host_io->{OutCache};	# Workaround..
 				($outRef, $host_io->{OutCache}) = (\$cache, '');
 				debugMsg(2,"Interact-lastline-and-preceding-newline-releaseCache:\n>", $outRef, "<\n");
-				changeMode($mode, {dev_cch => 'ds'}, '#149');
+				changeMode($mode, {dev_cch => 'ds'}, '#HDO39');
 			}
 		}
 		elsif ($mode->{dev_cch} eq 'ds') { # Cache normal handling
@@ -1976,7 +1989,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				# If we were in the midst of Tab/Syntax/Delete pattern processing, drop to 'sh' mode; otherwise maintain same mode
 				#  .. must also preserve term_in mode if buf_out is either 'se' or 'mp' (both of which set term_in to 'rk')
 				my $newTerm_in = $mode->{dev_del} ne 'ds' || $mode->{dev_fct} ne 'ds' || $mode->{term_in} ne 'rk' ? 'sh' : $mode->{term_in};
-				changeMode($mode, {term_in => $newTerm_in, dev_del => 'ds', dev_fct => 'ds'}, '#90');
+				changeMode($mode, {term_in => $newTerm_in, dev_del => 'ds', dev_fct => 'ds'}, '#HDO40');
 				$term_io->{BackSpaceMode} = undef;
 			}
 		}
@@ -2033,7 +2046,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				$$outRef =~ s/ ?$/$term_io->{LtPromptSuffix}/ if $term_io->{LtPrompt};
 				($term_io->{DelayCharProcTm}, $term_io->{DelayCharProcDF}) = (Time::HiRes::time + $DelayCharProcTm, 1);
 				debugMsg(4,"=Set DelayCharProcTm expiry time = ", \$term_io->{DelayCharProcTm}, "\n");
-				changeMode($mode, {term_in => 'tm'}, '#3');
+				changeMode($mode, {term_in => 'tm'}, '#HDO41');
 				if ($termbuf->{Linebuf1} || $termbuf->{Linebuf2}) { # Local Terminal input buffer is not empty (from transition #10)
 					# Keep input buffer and append its contents to the device output we are about to printout
 					$$outRef = join('', $$outRef, $termbuf->{Linebuf1}, $termbuf->{Linebuf2}, $termbuf->{Bufback2});
@@ -2059,7 +2072,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					$term_io->{InteractRestore} = undef;
 					$host_io->{Discovery} = undef;	# Make sure we don't try any further fast switch backs to interact mode (bug22)
 					$host_io->{SendBuffer} .= $term_io->{Newline} unless $host_io->{Console}; # On console we automatically send wake_console (bug22)
-					changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#218');
+					changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#HDO42');
 				}
 			}
 		}
