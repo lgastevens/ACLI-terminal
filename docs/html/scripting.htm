@@ -519,9 +519,9 @@
 <p><i>'@send ctrl'</i> will send a CTRL+&lt;character&gt; sequence</p>
 <p><i>'@send line'</i> will send a line of text, to which the a newline will automatically be added</p>
 <p><i>'@send string'</i> will send a string of text; newlines can be included in the text by specifying <i>"\n"</i></p>
-<p>All of the above <i>@send</i> commands will stop reading output from the connected device, and after each <i>@send</i> command an artificial prompt is obtained. That it so that multiple send sequences can be executed in sequence without any output from the switch interfering with them. To restart reading output from the connected device either interactively hit the Return key, or else withing the same script use the <i>@read</i> command.</p>
+<p>All of the above <i>@send</i> commands will stop reading output from the connected device, and after each <i>@send</i> command an artificial prompt is obtained. That is so that multiple send sequences can be executed in sequence without any output from the switch interfering with them. To restart reading output from the connected device either interactively hit the Return key, or else within the same script use the <i>@read</i> command.</p>
 <pre>
-	@read [unbuffer]
+	@read [unbuffer] [exit]
 </pre>
 <p>Examples of where these can come in useful are for example when entering the debug shell of a device (which will not present a normal CLI prompt) and navigating within such interface. For example, the <i>shell</i> alias for VOSS uses these commands:</p>
 <pre>
@@ -532,6 +532,22 @@
 	@read unbuffer
 </pre>
 <p>The last <i>@read unbuffer</i> restarts reading device output and unbuffers all output since we know that from then on we won't detect a CLI prompt anymore.</p>
+<p>Another example, the <i>ipe</i> alias for VOSS to SSH the attached SD-WAN appliance:</p>
+<pre>
+	@my $sdwan_*
+	show lldp neighbor summary |SDWAN > $sdwan_ipe %3
+	@if $sdwan_ipe
+	    @send line "ssh $sdwan_ipe -l ipanema"
+	    @echo on
+	    @sleep 5
+	    @send line ipanema
+	    @read exit
+	@else
+	    @print "No SDWAN appliance connected !"
+	    @echo on
+	@endif
+</pre>
+<p>Here the <i>@read exit</i> restarts reading device output but does not unbuffer; the expectation is that ACLI will detect a new connection and will initiate device discovery in interactive mode; but during this phase we can't let the script continue, we need to terminate the script on the same <i>@read</i> command.</p>
 <p>Whereas if it was required to do some commands in the shell and come out, one would do (EXOS example):</p>
 <pre>
 	@send line "run script shell.py"
@@ -545,7 +561,7 @@
 <pre>
 	@send line "reset -y"
 </pre>
-<p>As there might not be a CLI prompt coming back; then again, the connection will be lost if the switch is rebooted and the script will halt anyway (expect enhancements here to let the script carry on after the reboot...)</p>
+<p>As there might not be a CLI prompt coming back; then again, the connection will be lost if the switch is rebooted and the script will halt anyway (possible future enhancements here to let the script carry on after the reboot...)</p>
 </div>
 
 

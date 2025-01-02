@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $Version = "1.07";
+my $Version = "1.08";
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 # Bulk CLI Command tool for Extreme Networks devices
@@ -23,6 +23,7 @@ my $Version = "1.07";
 # 1.06	- Corrections to debug function
 # 1.07	- Password prompt was asking always for username "rwa" even if a different username was specified
 #	- Made changes so it can work even with a "generic" host which is not an Extreme Networks switch
+# 1.08	- Changed loadHosts to work with batch files using start instead of acligui.vbs
 
 #############################
 # STANDARD MODULES          #
@@ -428,7 +429,7 @@ sub loadHosts { # Read a list of hostnames from file
 		chomp;				# Remove trailing newline char
 		next if /^#/;			# Skip comment lines
 		next if /^\s*$/;		# Skip blank lines
-		next if /^(?:\@echo|acligui|exit)/;		# Skip batch launcher lines
+		next if /^(?:\@echo|acligui|start|exit)/;		# Skip batch launcher lines
 		if (/^\s*(\S+)\s*(?:(\S+)\s*)?(?:\#|$)/) {	# Valid entry
 			my ($host, $hostname) = ($1, $2);
 			checkValidIP($host, undef, $lineNum) if $host =~ /^\d+\.\d+\.\d+\.\d+$/;

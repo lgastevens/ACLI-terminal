@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ExitHandlers;
-our $Version = "1.01";
+our $Version = "1.02";
 
 use strict;
 use warnings;
@@ -106,6 +106,9 @@ sub connectionError { # Handle connection loss to host
 			handleSocketIO($db);	# Now (we have possible quits below)
 		}
 	}
+	# Cmd Ooutput logging
+	close $script_io->{CmdLogFH} if defined $script_io->{CmdLogFH};
+	$script_io->{CmdLogFH} = $script_io->{CmdLogFile} = $script_io->{CmdLogOnly} = $script_io->{CmdLogFlag} = undef;
 	# Variables to reset
 	$host_io->{Login} = 0;
 	$host_io->{Connected} = 0;

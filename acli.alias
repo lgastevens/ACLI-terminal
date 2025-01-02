@@ -1,6 +1,6 @@
 # acli.pl alias file
 #
-$Version = 1.63
+$Version = 1.64
 #
 # This file should be placed either in the same directory as acli.pl or else in your home directory (ENV paths HOME & USERPROFILE are checked)
 # If the file is present in multiple paths the order of preference is the following:
@@ -192,7 +192,7 @@ log [$unitOrName]
 	{family_type} eq 'WLAN9100' && $unitOrName eq 'clear'				= clear log
 	{is_xos} && $unitOrName eq 'clear'						= clear log
 	{is_isw_marvell} && $unitOrName eq 'clear'					= configure; event clear -y; exit
-	{is_isw} && $unitOrName eq 'clear'						= clear logging
+	{is_isw} && $unitOrName eq 'clear'						= do clear logging
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= @echo off output off; @sed output add '(?:- )?00000000 |GlobalRouter ' ''; @echo on; show log file [name-of-file $unitOrName]:
 	{family_type} eq 'BaystackERS'							= show log [unit $unitOrName] -i
 	{family_type} eq 'SecureRouter'							= show event_logs
@@ -418,6 +418,23 @@ apps [$search]
 	!{is_sdwan}									= &noalias
 	1										= debug dump appli
 
+ipe
+	~:"SSH to locally attached SDWAN appliance"
+	!{is_voss}									= &noalias
+	1										= &noecho
+											; @echo off output off
+											; @my $sdwan_*
+											; show lldp neighbor summary |SDWAN > $sdwan_ipe %3
+											; @if $sdwan_ipe
+											;     @send line "ssh $sdwan_ipe -l ipanema"
+											;     @echo on
+											;     @sleep 5
+											;     @send line ipanema
+											;     @read exit
+											; @else
+											;     @print "No SDWAN appliance connected !"
+											;     @echo on
+											; @endif
 
 #
 # L1 commands
@@ -659,28 +676,27 @@ eapm
 eapmi [$ports]
 	~:"Show EAP multihost port"
 	{is_acli}									= show eapol multihost interface [$ports]
-eaps [$ports]
-	~:"Show EAP sessions"
+nacs [$ports]
+	~:"Show EAP/NEAP sessions"
 	{is_isw}									= do show dot1x status brief
 	{is_voss} && {sw_version} =~ /^(?:[1-7]|8\.[1-3]\.)/				= @echo off; show eapol status interface; show eapol multihost non-eap-mac status; show eapol summary; @echo on
-	{is_voss}									= @echo off; show eapol sessions eap verbose; show eapol sessions neap verbose; show eapol summary; @echo on
+	{is_voss}									= @echo off; show eapol session-stats interface; show eapol summary; @echo on
+	{is_acli}									= show eapol sessions [|| $ports]
+	{is_xos}									= show netlogin session
+nacx [$ports]
+	~:"Show EAP sessions"
+	{is_isw}									= do show dot1x status brief
+	{is_voss} && {sw_version} =~ /^(?:[1-7]|8\.[1-3]\.)/				= @echo off; show eapol status interface; show eapol summary; @echo on
+	{is_voss}									= @echo off; show eapol sessions eap verbose; show eapol summary; @echo on
 	{is_acli}									= show eapol sessions [|| $ports]
 	{is_xos}									= show netlogin session||dot1x
-neaps [$ports]
+nacm [$ports]
 	~:"Show NEAP sessions"
 	{is_isw}									= do show dot1x status brief
 	{is_voss} && {sw_version} =~ /^(?:[1-7]|8\.[1-3]\.)/				= @echo off; show eapol multihost non-eap-mac status [$ports]; show eapol summary; @echo on
 	{is_voss}									= @echo off; show eapol sessions neap [$ports] verbose; show eapol summary; @echo on
 	{is_acli}									= show eapol sessions [|| $ports]
 	{is_xos}									= show netlogin session||mac
-
-eapsv [$ports]
-	~:"Show EAP multihost ports verbose status"
-	{is_voss}									= @echo off; show eapol status interface verbose; show eapol multihost non-eap-mac status verbose; show eapol summary; @echo on
-	{is_acli}									= show eapol multihost status [$ports] verbose
-neapi [$ports]
-	~:"Show Non-EAP multihost port"
-	{is_acli}									= show eapol multihost non-eap-mac interface [$ports]
 eapg
 	~:"Show EAP guest VLAN"
 	{is_acli}									= show eapol guest-vlan
@@ -939,7 +955,7 @@ isid [$portOrMlt]
 	{is_voss} && $portOrMlt	=~ /^ports?$/i						= show interface gigabitEthernet i-sid
 	{is_voss} && $portOrMlt								= show interface gigabitEthernet i-sid $portOrMlt
 	{is_voss}									= show i-sid
-
+	{family_type} eq 'BaystackERS'							= show i-sid [|| $portOrMlt]
 
 pvlan [$ports]		~:"Show Private-VLAN port"				= show interfaces gigabitEthernet private-vlan [$ports]
 
@@ -1159,6 +1175,7 @@ fai [$portmlt]
 	{family_type} eq 'BaystackERS'							= show fa interface [$portmlt]
 	{family_type} eq 'PassportERS' && $portmlt =~ /^\d+$/				= show fa interface mlt $portmlt
 	{family_type} eq 'PassportERS'							= show fa interface [port $portmlt]
+	{is_xos}									= show fabric attach ports [$portmlt]
 	{is_isw}									= do show fa interface [$portmlt]
 fae [$ports]
 	~:"Show Fabric Attach discovered neighbours"
@@ -1219,6 +1236,7 @@ vf [$vrf]
 	{family_type} eq 'PassportERS'							= show ip vrf info [vrf $vrf]
 ipi [$vrf]
 	~:"Show IP interfaces for a given VRF or GRT"
+	{family_type} eq 'PassportERS' && $vrf =~ /^all$/i				= show ip interface vrfids 0-512
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip interface [vrfids $vrf]
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip interface [vrf $vrf]
 	{family_type} eq 'BaystackERS'							= show vlan ip
@@ -1237,6 +1255,7 @@ ipv [$vrf]
 	{is_xos}									= show vlan !\(.\),auto-move,Active router,/Total||\d+\.\d+\.\d+\.\d+
 ipa [$vrf]
 	~:"Show ARP cache for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^all$/i							= show ip arp vrfids 0-512
 	{is_acli} && $vrf =~ /^\d+$/							= show ip arp [vrfids $vrf]
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip arp info [vrfids $vrf]
 	{is_acli}									= show ip arp [vrf $vrf]
@@ -1247,18 +1266,21 @@ ipr [$vrf]
 	{is_xos}									= show iproute [vr $vrf] !\(..?\),routes,distribution:!
 	{is_slx}									= do show ip route [vrf $vrf]
 	{is_isw}									= do show ip route
+	{is_acli} && $vrf =~ /^all$/i							= show ip route vrfids 0-512
 	{is_acli} && $vrf =~ /^\d+$/							= show ip route [vrfids $vrf]
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip route info [vrfids $vrf]
 	{is_acli}									= show ip route [vrf $vrf]
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip route info [vrf $vrf]
 ipra [$vrf]
 	~:"Show IP routes including alternatives for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^all$/i							= show ip route alternative vrfids 0-512
 	{is_acli} && $vrf =~ /^\d+$/							= show ip route alternative [vrfids $vrf]
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip route info alternative [vrfids $vrf]
 	{is_acli}									= show ip route alternative [vrf $vrf]
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip route info alternative [vrf $vrf]
 iprs [$vrf]
 	~:"Show IP static routes for a given VRF or GRT"
+	{is_acli} && $vrf =~ /^all$/i							= show ip route static vrfids 0-512
 	{is_acli} && $vrf =~ /^\d+$/							= show ip route static [vrfids $vrf]
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip static-route info [vrfids $vrf]
 	{is_acli}									= show ip route static  [vrf $vrf]
@@ -1367,7 +1389,7 @@ bfdn [$vrf]
 	{is_voss} && $vrf =~ /^\d+$/							= show ip bfd neighbors [vrfids $vrf]!
 	{is_voss}									= show ip bfd neighbors [vrf $vrf]!
 	{is_xos}									= show bfd session
-	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.rt2.ctl show bfd sessions:
+	{is_sdwan}									= enable $vrf; birdcl -s /run/bird/bird.$vrf.ctl show bfd sessions:
 bfds [$vrf]
 	~:"Show BFD statistics / counters"
 	{is_voss} && $vrf =~ /^\d+$/							= show ip bfd stats [vrfids $vrf]!
@@ -1405,13 +1427,15 @@ i6ra [$vrf]
 	~:"Show IPv6 routes including alternatives for a given VRF or GRT"
 	{is_acli} && $vrf =~ /^\d+$/							= show ipv6 route alternative [vrfids $vrf]
 	{is_acli}									= show ipv6 route alternative [vrf $vrf]
-o6i
+o6i [$vrf]
 	~:"Show IPv6 OSPFv3 interfaces for a given VRF or GRT"
-	{family_type} eq 'PassportERS' && {is_acli}					= show ipv6 ospf interface
+	{family_type} eq 'PassportERS' && {is_acli}  && $vrf =~ /^\d+$/			= show ipv6 ospf interface [vrfids $vrf]
+	{family_type} eq 'PassportERS' && {is_acli}					= show ipv6 ospf interface [vrf $vrf]
 	{family_type} eq 'PassportERS'							= show ipv6 ospf interface
-o6j
+o6j [$vrf]
 	~:"Show IPv6 OSPFv3 adjacencies for a given VRF or GRT"
-	{family_type} eq 'PassportERS' && {is_acli}					= show ipv6 ospf neighbor
+	{family_type} eq 'PassportERS' && {is_acli} && $vrf =~ /^\d+$/			= show ipv6 ospf neighbor [vrfids $vrf]
+	{family_type} eq 'PassportERS' && {is_acli}					= show ipv6 ospf neighbor [vrf $vrf]
 	{family_type} eq 'PassportERS'							= show ipv6 ospf neighbors
 v6p [$vrf]
 	~:"Show IPv6 VRRP status for a given VRF or GRT"
@@ -1582,10 +1606,10 @@ eptb
 #
 # Configuration bundles
 #
-isname [$id] [$name]
-	~:"Re-configure SPB system name without having to modify the nick-name (requires id derived nick-name)"
-	$id eq '' || $name eq ''	= &print "Alias syntax:\n	isname $id $name\n"
-	1				= config term; snmp-server name $name; no router isis enable; router isis; sys-name $name; spbm 1 nick-name 1.00.$id; exit; router isis enable; no router isis enable; router isis; spbm 1 nick-name 0.00.$id; exit; router isis enable; end
+isname [$name]
+	~:"Re-configure SNMP & SPB system name"
+	$id eq '' || $name eq ''	= &print "Alias syntax:\n	isname $name\n"
+	1				= config term; snmp-server name $name; router isis; sys-name $name; end
 
 vlacp-fast [$ports]
 	~:"Configure ports for VLACP with fast timers"

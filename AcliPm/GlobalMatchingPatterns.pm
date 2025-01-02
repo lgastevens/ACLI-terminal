@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalMatchingPatterns;
-our $Version = "1.13";
+our $Version = "1.14";
 
 use strict;
 use warnings;
@@ -298,7 +298,7 @@ our %Grep = (
 				'^application\s*\n\n?exit\s*\n',
 				'^i-sid \d+(?: [\w-]+)?\s*\n\n?exit\s*\n',
 				'^wireless\s*\n\n?exit\s*\n',
-				'^logical-intf isis \d+ dest-ip \d+\.\d+\.\d+\.\d+(?: mtu \d+)?(?: src-ip \d+\.\d+\.\d+\.\d+(?: vrf \S+)?)?(?: name "?[\w\d\._ -]+"?)?\s*\n\n?exit\s*\n',
+				'^logical-intf isis \d+ dest-ip \d+\.\d+\.\d+\.\d+(?: mtu \d+)?(?: src-ip \d+\.\d+\.\d+\.\d+(?: vrf \S+)?| multi-area-virtual-link)?(?: name "?[\w\d\._ -]+"?)?\s*\n\n?exit\s*\n',
 				'^logical-intf isis \d+ vid (?:\d+[,\-])+\d+ primary-vid \d+ (?:port \d+/\d+(?:/\d+)?|mlt \d+)(?: name "?[\w\d\._ -]+"?)?\s*\n\n?exit\s*\n',
 				'^mgmt (?:\d )?(?:.+)?\n\n?exit\s*\n',
 				'^ovsdb\s*\n\n?exit\s*\n',
@@ -370,7 +370,7 @@ our %ChangePromptCmds = ( # Commands which change the device prompt; for which w
 												# PPCLI: config cli prompt OR config sys set name
 												# ACLI:  snmp-server name OR prompt
 	ExtremeXOS	=> '^\s*co(?:n(?:f(?:i(?:g(?:u(?:re?)?)?)?)?)?)? +snmp +sysn',		# configure snmp sysname
-	ISW		=> '^\s*ho',								# hostname
+	ISW		=> '^\s*(?:ho|prom)',							# hostname / prompt
 	ISWmarvell	=> '^\s*(?:prom|system-(?:i(?:n(?:fo?)?)?)? n)',			# prompt / system-info name
 	Series200	=> '^\s*(?:(?:no )?ho|set +p)',						# hostname / set prompt (both in privExec only)
 	Wing		=> '^\s*com',								# commit (hostname is the command, but it gets applied after commit, so does not work)
@@ -383,14 +383,24 @@ our %ChangePromptCmds = ( # Commands which change the device prompt; for which w
 );
 
 # Patterns to re-trigger device detection when seen
-our $NewConnectionPatterns = 'Connected to ';
+our $NewConnectionPatterns = 'Connected to '; # This always works for telnet client on VOSS, but not for SSH client which prints no such messages...
 our %NewConnectionPatterns = ( # These patterns have to match complete ^line$
-	ssh		=> '\*? ?Copyright ?\(c\) \d{4}(?:-\d{4})? (?:Avaya|Nortel|Extreme Networks).*\.',
+	ssh		=> '(?:' # Where above fails for SSH client, these patterns are an alternative; but they are matching the banner of the device we connect to..
+				. '.+?@.+?\'s password: ' 
+				. '|\*? ?Copyright ?\(c\) \d{4}(?:-\d{4})? (?:Avaya|Nortel|Extreme Networks).*\.'	# VOSS
+				. '|Copyright \(c\) Extreme Networks, Inc\. \d{4}(?:-\d{4})?'				# Ipanema appliance
+				. '|Copyright \(C\) \d{4}(?:-\d{4})? Extreme Networks, Inc\. All rights reserved\.'	# EXOS
+			. ')',
 	telnet		=> '\*? ?Copyright ?\(c\) \d{4}(?:-\d{4})? (?:Avaya|Nortel|Extreme Networks).*\.',
 	peer		=> '\*? ?Copyright ?\(c\) \d{4}(?:-\d{4})? (?:Avaya|Nortel|Extreme Networks).*\.',
 );
 
-our $ReleaseConnectionPatterns = '(?:Closed connection\.|Connection closed by foreign host\.|\s?Connection to .+? closed by (?:foreign|remote) host)';
+our $ReleaseConnectionPatterns = '(?:'
+			. 'Closed connection\.'
+			. '|Connection closed by foreign host\.'
+			. '|\s?Connection to .+? closed(?:\.| by (?:foreign|remote) host)'
+			. '|Disconnected from .+? port 22'
+		. ')';
 our $RelayAgentFailPatterns = '(?:'
 			. 'telnet: Unable to connect to remote host:'		# As returned by Vulcano (Solaris)
 			. '|telnet: could not connect to host'			# As returned by a PassportERS device

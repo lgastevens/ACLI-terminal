@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $Version = "1.17";
+my $Version = "1.19";
 my $Debug = 0;
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
@@ -44,6 +44,8 @@ my $Debug = 0;
 #	  specified with command line switches or from the very top "This PC"
 #	- Last Logging or Working directory selected from directory chooser is remembered and offered as default in subsequent
 #	  executions of the script
+# 1.18	- Changed loadHosts to work with batch files using start instead of acligui.vbs
+# 1.19	- Clear button clears the Transparent checkbox
 
 
 #############################
@@ -463,7 +465,7 @@ sub loadHosts { # Read a list of hostnames from file
 		chomp;				# Remove trailing newline char
 		next if /^#/;			# Skip comment lines
 		next if /^\s*$/;		# Skip blank lines
-		next if /^(?:\@echo|acligui|exit)/;		# Skip batch launcher lines
+		next if /^(?:\@echo|acligui|start|exit)/;		# Skip batch launcher lines
 		if (/^\s*(\S+)\s*(?:([^-]\S+)\s*)?(?:-([nt])\s*)?(?:\#|$)/) {	# Valid entry
 			my ($host, $hostname, $options) = ($1, $2, $3);
 			debugMsg(1, "processing file input = $host	", \$hostname, "\n");
@@ -668,6 +670,7 @@ sub clear { # Handle Clear button
 	$launchValues->{LogDir} = undef;
 	$launchValues->{Sockets} = undef;
 	$launchValues->{RunScript} = undef;
+	$launchValues->{Transparent} = undef;
 }
 
 

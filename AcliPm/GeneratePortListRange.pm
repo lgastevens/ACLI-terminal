@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GeneratePortListRange;
-our $Version = "1.06";
+our $Version = "1.07";
 
 use strict;
 use warnings;
@@ -177,7 +177,7 @@ sub manualSlotPortStruct { # Generates a Slot/Port structure based on provided i
 
 sub generatePortList { # Takes an unordered port list/range, and produces an ordered list (with no ranges & no duplicates)
 	my ($host_io, $inlist, $constrainHash, $slotPortStruct) = @_;
-	my (@ports, @sortedPorts, $sortedPorts, $portHash);
+	my (@ports, @sortedPorts, $sortedPorts, $portHash, $standalonePorts);
 	my $sep = $DeviceSlotPortSep{$host_io->{Type}} || '/'; # Pseudo mode with no type set will default to '/'
 	my ($slotStruct, $portStruct) = defined $slotPortStruct ? @$slotPortStruct : ($host_io->{Slots}, $host_io->{Ports});
 	$portHash = {} if wantarray;
@@ -246,6 +246,8 @@ sub generatePortList { # Takes an unordered port list/range, and produces an ord
 		($slotStruct, $portStruct) = generateSlotPortStruct($host_io);	# We get here in -g mode as well as in pseudo term mode
 	}
 
+	$standalonePorts = @$slotStruct ? 0 : 1; # This is NOT of @$slotStruct, but can change in first section below
+
 	if (@$slotStruct) { # Port structure for switch is using slot/port format
 
 		foreach my $element (@$inlist) { # Slot based processing
@@ -257,6 +259,14 @@ sub generatePortList { # Takes an unordered port list/range, and produces an ord
 					}
 				}
 				last;		# If we have some extra entries, never mind, we have all ports in array now
+			}
+			elsif ($element =~ /^\d+$/ || $element =~ /^(\d+)-(\d+)$/) { # Other number (e.g. vlan) or number ranges
+				if (scalar @ports) {
+					debugMsg(1,"-> generatePortList some ports listed, cannot fall into simple ranges : >", \$element, "<\n");
+					return wantarray ? () : ''; # empty string we have an unrecognized port format
+				}
+				$standalonePorts = 1; # Fall into next section
+				last;
 			}
 			elsif ($element =~ /^(\d{1,3})[\/:](\d{1,2})(?:[\/:](\d{1,2}))?$/) { # slotX/portY[/channelZ]
 				my ($slot, $port, $chan) = ($1, $2, $3);
@@ -311,7 +321,8 @@ sub generatePortList { # Takes an unordered port list/range, and produces an ord
 			}
 		}
 	}
-	else { # Port structure for switch is using only the port list format
+
+	if ($standalonePorts) { # Port structure for switch is using only the port list format
 
 		foreach my $element (@$inlist) { # Non-Slot based processing
 			if ($element =~ /^ALL$/i && !$host_io->{PortUnconstrain} && ref($portStruct) eq 'ARRAY') { # All ports

@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ParseCommand;
-our $Version = "1.11";
+our $Version = "1.12";
 
 use strict;
 use warnings;
@@ -221,6 +221,8 @@ sub parseCommand { # This function breaks up the entered command into its main c
 					&$pushVarSection if defined $varSection;
 					next;
 				};
+			}
+			unless ($cmdParsed->{command}->{emb} && $cmdParsed->{command}->{emb} =~ /^@(?:\$|if|elsif|while|until|next|last|exit)$/) { # @for allowed
 				$currChar eq '{' && do { # Curly section {}
 					&$pushVarSection if defined $varSection;
 					$command =~ s/^(?:([^\}]*[^\\]))?\}//;
@@ -228,11 +230,11 @@ sub parseCommand { # This function breaks up the entered command into its main c
 					debugMsg(4,"=parseCommand: Extracted {} block: ", \$block, "\n");
 					&$appendString($space . $block);
 					$prevChar = $space = '';
-					unless ($section eq 'command' && $cmdParsed->{command}->{emb} && $cmdParsed->{command}->{emb} =~ /^@(?:\$|if|elsif|while|until|for|next|last|exit)$/) {
-						push(@{$cmdParsed->{$section}->{var}}, $block);
-					}
+					push(@{$cmdParsed->{$section}->{var}}, $block);
 					next;
 				};
+			}
+			unless ($cmdParsed->{command}->{emb} && $cmdParsed->{command}->{emb} =~ /^@(?:\$|if|elsif|while|until|for|next|last|exit)$/) {
 				$currChar eq '(' && do { # Bracket section ()
 					&$pushVarSection if defined $varSection;
 					$command =~ s/^([^\)]*[^\\])\)//;
@@ -433,8 +435,12 @@ sub parseCommand { # This function breaks up the entered command into its main c
 			unless ($section eq 'command' && (
 					$cmdParsed->{command}->{str} eq '@' ||	# @$ embedded command
 					$cmdParsed->{command}->{emb} && (
-						$cmdParsed->{command}->{emb} =~ /^@(?:\$|if|elsif|while|until|for|next|last|exit)$/ ||
-						($cmdParsed->{command}->{emb} eq '@vars' && $cmdParsed->{command}->{str} =~ /^\@v\S* p/ && $cmdParsed->{command}->{str} !~ /\$/) # @vars prompt .. $var; must skip $var
+						$cmdParsed->{command}->{emb} =~ /^@(?:\$|if|elsif|while|until|next|last|exit)$/
+						|| ($cmdParsed->{command}->{emb} eq '@vars' && ( 
+							($cmdParsed->{command}->{str} =~ /^\@v\S* p/ && $cmdParsed->{command}->{str} !~ /\$/) ||  # @vars prompt .. $var; must skip $var
+							($cmdParsed->{command}->{str} =~ /^\@v\S* [rs]/) # @vars raw|show
+						    ))
+						|| ($cmdParsed->{command}->{emb} eq '@for' && $cmdParsed->{command}->{str} !~ /&/) # @for, but only after seeing "&" character
 					)
 				)) {
 				# Do not process $vars for certain embedded commands

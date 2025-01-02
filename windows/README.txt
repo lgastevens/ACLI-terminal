@@ -1,4 +1,4 @@
-$Version = 6.00
+$Version = 6.04
 
 Install instructions
 ====================
@@ -99,7 +99,7 @@ will start ConsoleZ with both the ACLI and the "My Switch" tabs open
 acli.pl command line options:
 ----------------------------
 C:\>acli -h
-acli.pl version 6.00
+acli.pl version 6.04
 
 Usage:
  acli.pl [-cehijkmnopqswxyz]
@@ -291,6 +291,7 @@ e.g.: "%ACLIDIR%\Console.exe" -t ACLI -r "-l rwa 10.134.169.91"
 
 e.g.: "%ACLIDIR%\Console.exe" -t ConsoleZ -r "/k%ACLIDIR%\acli -l rwa 10.134.169.91"
 
+(the \k switch is for keeping the same cmd instance after running the acli.bat batch file)
 
 The former runs perl.exe directly; the latter starts with cmd.exe and then invokes acli.bat file.
 
@@ -473,7 +474,7 @@ Usage:  [-iv] "pattern" [<file or wildcard>] [<2nd file>] [<3rd file>] [...]
 ----------------
 
 C:\>aftp
-aftp.pl version 1.11
+aftp.pl version 1.12
 
  Simultaneously transfers files to/from 1 or more devices using either FTP or SFTP
  When GETting the same file from many devices, prepends device hostname/IP to filename
@@ -565,7 +566,7 @@ C:\>
 ----------------
 
 C:\>cfm-test
-cfm-test.pl version 1.3
+cfm-test.pl version 1.5
 
 Usage:
  cfm-test.pl <ssh|telnet> <[username[:password]@]seed-IP> <ping|tracert>
@@ -581,7 +582,7 @@ Provide this tool with the IP inband address and login credentials of a switch i
 ----------------
 
 C:\>acmd
-acmd.pl version 1.07
+acmd.pl version 1.08
 
  Execution of CLI commands/script in bulk to many Extreme Networks devices using SSH or Telnet
 
@@ -622,16 +623,16 @@ Usage:
                   : 2000:20::01-10 (hex range 1,2,3,4,5,6,7,8,9,a,b,c,d,e,f,10)
  <telnet|ssh>     : Protocol to use
  <output-file>    : Output file (and suffix with -i) for output filenames
- 
 
-If you don’t use the –g flag, the script will attack all nodes in one go; with SSH this will be slow initially as the SSH authentications are blocking calls.
-If you use the –g flag, you can stagger it to do N switches at a time; with SSH it is best to stagger around 10 switches at a time.
-The critical thing when working with many switches is keeping track of when things go wrong (if you can’t connect to 1 switch, or some switch does not like one of your commands).
+
+If you don't use the -g flag, the script will attack all nodes in one go; with SSH this will be slow initially as the SSH authentications are blocking calls.
+If you use the -g flag, you can stagger it to do N switches at a time; with SSH it is best to stagger around 10 switches at a time.
+The critical thing when working with many switches is keeping track of when things go wrong (if you can't connect to 1 switch, or some switch does not like one of your commands).
 The approach taken is that if a command or the connection fails to all switches in the 1st iteration, then the script bombs out => changes were not made on any switch (unless 1 command gave an error across all switches, in which case all preceding commands in your script will have executed).
-If instead only a few switches fail during an iteration (and you are using the staggered mode with –g) you can control whether you would like to carry on with subsequent iterations (default) or not (set the –a flag for abort).
-In any case, if the script succeeds on some switches, but fails on others or is not executed on others because the last iterations were skipped (-g + -a) the list of all switches for which the script was not executed will be stored in a file <hostfile>.retry ; that way you can easily re-trigger the same script for just those switches which are remaining (after you’ve fixed the problem, whatever that was..).
+If instead only a few switches fail during an iteration (and you are using the staggered mode with -g) you can control whether you would like to carry on with subsequent iterations (default) or not (set the -a flag for abort).
+In any case, if the script succeeds on some switches, but fails on others or is not executed on others because the last iterations were skipped (-g + -a) the list of all switches for which the script was not executed will be stored in a file <hostfile>.retry ; that way you can easily re-trigger the same script for just those switches which are remaining (after you fixed the problem, whatever that was..).
 The <hostfile>.retry file will also include information about the error which each host failed on.
-And anyway you get a detailed summary of what the script is setting off to do, and you need to confirm before it gets going (unless you force an immediate start with –y)
+And anyway you get a detailed summary of what the script is setting off to do, and you need to confirm before it gets going (unless you force an immediate start with -y)
 
 The <hostfile> can take the same syntax as an IP hosts file; for example:
 
@@ -730,7 +731,7 @@ Disconnecting from 2 hosts
 ----------------
 
 C:\>acligui -h
-acligui.pl version 1.17
+acligui.pl version 1.19
 
 Usage:
  acligui.pl [-gimnpstuw] [<hostname/IP list>]
@@ -797,7 +798,7 @@ And finally, if you wanted to share an ACLI shortcut to connect to a bunch of sw
 1 - Create a batch file (.bat extension) containing:
 
 	@echo off
-	acligui.vbs -p ssh -u "<username>[:<password>]" -w "%CD%" -f %0 -t "Window Title"
+	start /b acligui.bat -p ssh -u "<username>[:<password>]" -w "%CD%" -f %0 -t "Window Title"
 	exit
 	
 	# List hosts below
@@ -810,7 +811,7 @@ And finally, if you wanted to share an ACLI shortcut to connect to a bunch of sw
 Notes:
  - Always place double quotes around the credentials as shown, in case of special characters
  - If the '%' character is present in the credentials, it will need to be escaped by entering it twice '%%'
- - Tested with password containing all of these special characters: £$%^&*_+-=<>#/\|[]{}!;:@~
+ - Tested with password containing all of these special characters:  $%^&*_+-=<>#/\|[]{}!;:@~
  - Always place double quotes around any value containing the space character, as seen above for "Window Title"
  - The per entry -n and -t flags are supported and will be placed on the ACLI command invoked for the entry
 

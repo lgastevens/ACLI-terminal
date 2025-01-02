@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ConnectDisconnect;
-our $Version = "1.04";
+our $Version = "1.05";
 
 use strict;
 use warnings;
@@ -90,6 +90,7 @@ sub connectToPeerCP { # Connect to peer CPU
 		Use			=>	$host_io->{ComPort},
 		Timeout			=>	$peercp_io->{Timeout},
 		Blocking		=>	$blocking ? 1 : 0,
+		Binmode			=>	1,
 		Errmode			=>	$cli_errmode,
 		Errmsg_format		=>	$::Debug ? 'verbose' : 'terse',
 		Return_reference	=>	1,
@@ -168,6 +169,7 @@ sub connectToHost { # Connect to host
 	$host_io->{SessionUpTime} = time + $host_io->{SessionTimeout}*60;	# Reset session inactivity timer
 	$host_io->{KeepAliveUpTime} = time + $host_io->{KeepAliveTimer}*60;	# Reset keepalive timer
 	$mode->{connect_stage} = 0;
+	$term_io->{Mode} = 'transparent';
 
 	if ($host_io->{ComPort} !~ /^(?:TELNET|SSH)$/) {
 		$host_io->{Console} = 1;
@@ -196,6 +198,7 @@ sub connectToHost { # Connect to host
 		Use			=>	$host_io->{ComPort},
 		Timeout			=>	$host_io->{Timeout},
 		Blocking		=>	0,
+		Binmode			=>	1,
 		Errmode			=>	$cli_errmode,
 		Errmsg_format		=>	$::Debug ? 'verbose' : 'terse',
 		Return_reference	=>	1,

@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleDeviceOutput;
-our $Version = "1.13";
+our $Version = "1.14";
 
 use strict;
 use warnings;
@@ -1091,6 +1091,13 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 		}
 		else {
 			$host_io->{DotActivityCnt} = 0;
+		}
+		#
+		# Catch release connection patterns even if sent before fully echoed command
+		#
+		if ($mode->{dev_del} eq 'fl' && $$outRef =~ /^$ReleaseConnectionPatterns/o) {
+			$$outRef = join('', "\n", $$outRef);
+			debugMsg(2,"SavingConnectionReleasePat from FirstLineErase:\n>", $outRef, "<\n");
 		}
 		#
 		# Append output to cache, if any

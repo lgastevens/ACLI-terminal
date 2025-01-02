@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleTerminalInput;
-our $Version = "1.09";
+our $Version = "1.10";
 
 use strict;
 use warnings;
@@ -39,7 +39,6 @@ use AcliPm::TabExpand;
 use AcliPm::TerminalServer;
 use AcliPm::Variables;
 
-use Data::Dumper;
 
 sub toggleMore { # CTRL-MorePaging Toggle; can be triggered from local keyboard read or from driving terminal
 	my $db = shift;
@@ -273,7 +272,9 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			else { # Transparent mode; switch to interact mode the slow way
 				printOut($script_io, "\n");
 				$host_io->{SendBuffer} .= $term_io->{Newline} unless $host_io->{Console}; # On console we automatically send wake_console (bug22)
+				$term_io->{AutoDetect} = 1 if $host_io->{ComPort} =~ /^(?:TELNET|SSH)$/; # In case of re-connect go back into interact mode, but not on serial port
 				changeMode($mode, {term_in => 'rk', dev_inp => 'lg'}, '#HTI5');
+
 			}
 			while (readKeyPress) {} # Read and trash any further queued input
 			return;
@@ -1160,7 +1161,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			debugMsg(4,"=Command Final: /", \$command, "/\n");
 			if( 	defined $ChangePromptCmds{$host_io->{Type}} &&
 				(	$host_io->{Type} eq 'WLAN2300' || $host_io->{Type} eq 'Series200' || # On these is set in PrivExec mode
-					($term_io->{AcliType} && $host_io->{Prompt} =~ /[\/\(]config/) ||
+					($term_io->{AcliType} && $host_io->{Prompt} =~ /[\/\(]conf/) || # On ISWmarvell the config prompt is (conf), not (config)
 					(!$term_io->{AcliType} && ($host_io->{Prompt} =~ /[\/\(]config/ || $command =~ /^\s*con/i))
 				) && ( $command =~ /$ChangePromptCmds{$host_io->{Type}}/i ) ) {
 

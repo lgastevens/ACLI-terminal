@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::InputProcessing;
-our $Version = "1.11";
+our $Version = "1.12";
 
 use strict;
 use warnings;
@@ -593,8 +593,9 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 			elsif ($grepString =~ /^i-sid \d/i) {
 				$grepString .= '(?:[^\d]|$)';
 			}
-			$grepString =~ s/^i-sid /i-sid (?:\\d+ |"[^"]+" |\\S+ )?/i; #"# For both "vlan i-sid <vid> <isid>" and "ip isid-list <name> <isid>" 
-			$grepString =~ s/^i-sid/(?:i-sid|isid-list)/i;
+			$grepString =~ s/^i-sid ?/(?:i-sid \\S+ |(?:vlan|acl) i-sid \\d+ |(?<!lan |acl )i-sid |isid-list "[^"]+" )/i; #"
+			# For all of: "vlan i-sid <vid> <isid>", "acl i-sid <aclid> <isid>", "i-sid name <isid>", "ip isid-list <name> <isid>", "i-sid <isid>"
+			# Variable length negative lookbehind not supported, so (?<!lan |acl ) instead of (?<!vlan |acl )
 			debugMsg(1,"-> Grep-String-Formatted : >", \$grepString, "<\n");
 		}
 		elsif ($grepAdv && !$grepQuotes && $grepString =~ /^acl(?:\s+\S+)?$/i) { # Acl
@@ -613,7 +614,7 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 			elsif ($grepString =~ /^acl \d/i) {
 				$grepString .= '(?:[^\d]|$)';
 			}
-			$grepString =~ s/^acl /acl (?:[\\w\\-]+ |ace [\\w\\-]+ )?/i;
+			$grepString =~ s/^acl /acl (?:[\\w\\-]+ +|ace [\\w\\-]+ +)?/i;
 			debugMsg(1,"-> Grep-String-Formatted : >", \$grepString, "<\n");
 		}
 		elsif ($grepAdv && !$grepQuotes && $grepString =~ /^(?:logical-intf|lintf|lisis|isl)(?:\s+\S+)?$/i) { # logical-intf

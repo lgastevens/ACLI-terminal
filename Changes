@@ -1281,7 +1281,7 @@ Revision history for acli.pl
 	* In some rare cases the config indentation of PassportERS/VOSS configs could be wrong on some lines
 	* All @send embedded commands now halt reading connected device output; hitting the Return key interactively will
 	  resume device output reading
-	* New @read embedded command, allows a resuming reading of device output following write operations using the @send
+	* New @read embedded command, allows resuming reading of device output following write operations using the @send
 	  command; if no prompt is expected after the read (e.g. entering shell) then the command can be executed as
 	  "@read unbuffer"
 	* New &noecho instruction, allowed as first command of dereferenced alias command, prevents alias echoing of the
@@ -1292,8 +1292,54 @@ Revision history for acli.pl
 	* Alias arguments can now be double quoted if the argument contains space characters
 	* Capturing of variables no longer happens from tied terminals reporting an error if those terminals were never able
 	  to connect
-	* Socket tied terminals when reporting messages now use the real switcxh sysname, not the switchname version which
+	* Socket tied terminals when reporting messages now use the real switch sysname, not the switchname version which
 	  replaces with underscore, characters which cannot be used in filenames
 	* Channelized ports in format 1/2/3 were not processed properly in portrange unconstrain mode (@terminal portrange
 	  unconstrain enable)
 	* History of device-sent messages was not accurate if sed input patterns were in use
+6.04	2025-01-02
+	* Uses Control::CLI version 2.12 and Control::CLI::Extreme version 1.13
+	* Fixed ACLI update script which was able to read update digest from Github, but was not actually able to download
+	  any files; essentially this now means the update script will only work again in this release for the next releases
+	* When specifying a TCP port number for a Telnet connection, if the port number is smaller or equal to 16, ACLI was
+	  adding a 5000 offset to them (for use with older Annex terminals); this behaviour is now removed and port numbers
+	  1-16 can be used
+	* Aliases ipi, ipa, ipr, ipra, iprs now accept an "all" argument to dump across all VRF-ids 0-512
+	* Acligui bat files can now use "start /b acligui.bat" instead of "acligui.vbs"
+	* Updated VOSS config grep patterns to work with new multi-area boundary node virtual links
+	* Script xmcacli (v1.18) Site paths branches are now displayed alphabetically
+	* Script xmcacli (v1.18) Added ability to provide separate CLI credentials from the ones obtained from XMC
+	* Script xmcacli (v1.18) Renamed XMC to XIQ-SE on front end
+	* Script xmcacli (v1.18) Pulldowns now always have a <clear> option
+	* Script xmcacli (v1.18) Clear button clears the Transparent checkbox and the new CLI credentials inputs
+	* Script acligui (v1.19) Clear button clears the Transparent checkbox
+	* Logging command output to file now works correctly if CLI connection is lost in midst
+	* VOSS show running ||acl <acl-id-list>, was not working since the introduction of a default sed output pattern
+	  allowing a more readable output of VOSS ACL filter config in 5.08
+	* VOSS show running ||isid [<isid-list>], was incorrectly also matching on VLAN id or ACL id on some i-sid config
+	  lines
+	* Was not detecting Y/N confirmation prompt of VOSS command "run spbm clean"
+	* ACLI> "open -s 0" now disables socket functionality; same as in acli.pl command line
+	* Updated embedded @launch command syntax to match open and acli.pl command line
+	* Embedded @launch command now has a "-a" switch to use known CLI credentials and connection mode 
+	* New VOSS alias "ipe" to easily SSH onto locally connected SD-WAN appliance
+	* Embedded command "@vars show [all|dictionary|script] [<pattern>]" and ACLI> "vars show [all|dictionary|script]
+	  [<pattern>]" no longer crash if the pattern provided is an invalid regex
+	* Embedded command "@vars show [all|dictionary|script] [<pattern>]" and ACLI> "vars show [all|dictionary|script]
+	  [<pattern>]" can now take a $variable name as pattern without trying to resolve it (got broken in 5.00)
+	* Number lists and ranges are now expanded as before for switches which have a slot/port syntax; so $range=1-10 will
+	  get expanded to 1,2,3,4,5,6,7,8,9,10 as per examples in the manual; this behaviour got broken in 5.07
+	* Replaced default aliases eaps, neaps and eapsv with new aliases nacs, nacx, nacm
+	* Variables and eval of Perl in curly section {} now works on embedded command @for
+	* ISW-4W-4WS-4X change of CLI prompt using "prompt" command, instead of "hostname", is now also detected
+	* ISW-24W-4X change of CLI prompt using "prompt" or "system-info name" commands are now detected
+	* Connections made without auto-detect (-n) will start in transparent mode, and then can be flipped to interact mode
+	  via CTRL-T; if these connections are lost and then re-established, they will now always restart in transparent mode
+	  for serial port while Telnet and SSH will restart in interact mode; previously, on serial port, the connection would
+	  restart in interact mode but with the underlying connection was not logged in, so aliases would not work anymore
+	* Enhanced @read embedded command to also take an "exit" argument which allows a @read command in scripting mode to
+	  automatically also exit the script, as if an @exit command was following. This is useful if the @read action results
+	  in device rediscovery, where the script would not be able to get to the next command (e.g @exit) in the script while
+	  still in interctive mode. Used in the new "ipe" alias. The new syntax for the command is "@read [unbuffer] [exit]"
+	* SSH-ing another device from an existing connection now works correctly for VOSS SSH to BMAC as well as to SD-WAN
+	  appliance, EXOS and ISW, while staying in interactive mode all along, even after disconnecting.

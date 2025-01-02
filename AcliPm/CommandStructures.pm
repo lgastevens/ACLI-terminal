@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::CommandStructures;
-our $Version = "1.06";
+our $Version = "1.07";
 
 use strict;
 use warnings;
@@ -733,7 +733,11 @@ our $EmbeddedCmds = {	# Hash of local acli commands available under regular host
 	'@quit'								=> '',
 	'@read'	=> {
 			''						=> '',
-			unbuffer					=> '',
+			unbuffer	=> {
+					''				=> '',
+					exit				=> '',
+			},
+			exit						=> '',
 	},
 	'@rediscover'							=> '',
 	'@resume'	=> {

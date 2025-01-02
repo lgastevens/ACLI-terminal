@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::CommandProcessing;
-our $Version = "1.11";
+our $Version = "1.12";
 
 use strict;
 use warnings;
@@ -1812,6 +1812,7 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 		my $string = quotesRemove($1);
 		$string .= $term_io->{Newline}; # Add a carriage return
 		if ($host_io->{Connected}) {
+			$host_io->{LastCommand} = 'ssh' if $string =~ /^ssh /i; # Hack to make "ipe" alias work
 			$host_io->{CLI}->put($string);
 			return if $host_io->{ConnectionError};
 			changeMode($mode, {dev_inp => 'ds', dev_del => 'fl'}, '#CP4'); # We will want to delete the echoed line
@@ -2462,19 +2463,22 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 		cmdOutput($db, "Variables File	: " . $host_io->{VarsFile} . "\n");
 		$command = '';
 	};
-	$command eq 'vars raw ?' && do {
+	$command =~ /^vars raw(?: (all|dictionary|script))? \?/ && do {
 		cmdMessage($db, "Syntax: ${at}vars raw [all|dictionary|script] [<pattern>]\n");
 		$command = '';
 	};
-	$command eq 'vars show ?' && do {
+	$command =~ /^vars show(?: (all|dictionary|script))? \?/ && do {
 		cmdMessage($db, "Syntax: ${at}vars show [all|dictionary|script] [<pattern>]\n");
 		$command = '';
 	};
 	$command =~ /^vars (show|raw)(?: (all|dictionary|script))?(?: (.*))?/ && do {
 		if (scalar keys %$vars) {
 			my ($raw, $type, $varpat) = ($1 eq 'raw' ? $1 : '', defined $2 ? $2 : '', $3);
-			(my $vpregex = $varpat) =~ s/^\$// if defined $varpat;
-			my $matchFlag;
+			my ($vpregex, $matchFlag);
+			if (defined $varpat) {
+				$varpat =~ s/^\$//;
+				$vpregex = eval { qr/$varpat/ };
+			}
 			foreach my $var (sort {$a cmp $b} keys %$vars) {
 				if ($type eq 'dictionary') { # Only show dictionary vars
 					next unless $vars->{$var}->{dictscope};
@@ -2486,7 +2490,7 @@ sub processCommonCommand { # Process a control/embedded command which exists on 
 				else { # Show only user variables
 					next if $vars->{$var}->{myscope} || $vars->{$var}->{dictscope}; # Skip vars declared with @my or dictionary scope
 				}
-				next if defined $varpat && $var !~ /$vpregex/;
+				next if defined $vpregex && $var !~ /$vpregex/;
 				$matchFlag = 1;
 				cmdOutput($db, printVar($db, $var, $raw));
 			}
@@ -3151,10 +3155,6 @@ sub processControlCommand { # Process a command under ACLI Control
 						return;
 					}
 					$host_io->{TcpPort} = $arg;
-					if ($host_io->{ComPort} eq 'TELNET') {
-						# Automatically convert port numbers 1-16 into TCP port numbers 5001-5016
-						$host_io->{TcpPort} += $RemoteAnnexBasePort if ($host_io->{TcpPort} && $host_io->{TcpPort} <= 16);
-					}
 					$host_io->{TerminalSrv} = $termSrvFlag || !$term_io->{AutoDetect}; # If a TCP port is set and either -t or -n flag
 				}
 				elsif (!$relayHostSeen && $relayHost) {
@@ -3238,6 +3238,9 @@ sub processControlCommand { # Process a command under ACLI Control
 						print $ACLI_Prompt;
 						return;
 					}
+					elsif ($listenSockets eq '0') {
+						$term_io->{SocketEnable} = 0;
+					}
 					else { # We can
 						my @sockets = split(',', $listenSockets);
 						my ($success, @failedSockets) = openSockets($socket_io, @sockets);
@@ -3288,7 +3291,7 @@ sub processControlCommand { # Process a command under ACLI Control
 		}
 	};
 	$command eq 'open ?' && do { # Must come after open command with args
-		print "Syntax: open [-ckijlmnoprstyz] [<user>:<pwd>@]<host/IP> [<tcp-port>] [<capture-file>]\n";
+		print "Syntax: open [-cijklmnoprstyz] [<user>:<pwd>@]<host/IP> [<tcp-port>] [<capture-file>]\n";
 		print "    or: open [-cijmnoprs]      [<user>:<pwd>@]serial:[<com-port>[@<baudrate>]] [<capture-file>]\n";
 		print "    or: open [-cijmnoprsyz]    [<user>:<pwd>@]trmsrv:[<device-name> | <host/IP>#<port>] [<capture-file>]\n";
 		print "    or: open -r <host/IP or serial or trmsrv syntaxes above> <\"relay cmd\" | IP> [<capture-file>]\n\n";
@@ -3306,7 +3309,7 @@ sub processControlCommand { # Process a command under ACLI Control
 		print " -o               : Overwrite <capture-file> instead of appending to it\n";
 		print " -p               : Use factory default credentials to login automatically\n";
 		print " -r               : Connect via Relay; append telnet/ssh command to use on Relay to reach host\n";
-		print " -s <sockets>     : List of socket names for terminal to listen on\n";
+		print " -s <sockets>     : List of socket names for terminal to listen on (0 to disable sockets)\n";
 		print " -t               : When tcp-port specified, flag to say we are connecting to a terminal server\n";
 		print " -y <term-type>   : Negotiate terminal type (e.g. vt100)\n";
 		print " -z <w>x<h>       : Negotiate window size (width x height)\n";
@@ -3319,16 +3322,16 @@ sub processControlCommand { # Process a command under ACLI Control
 		print " <tcp-port>       : TCP port number to use\n";
 		print " <capture-file>   : Optional output capture file of CLI session\n";
 		print " -c <CR|CRLF>     : For newline use CR+LF (default) or just CR\n";
-		print " -k <key_file>    : SSH private key to load; public key implied <key_file>.pub\n";
 		print " -i <log-dir>     : Path to use when logging to file\n";
 		print " -j               : Automatically start logging to file (<host/IP> used as filename)\n";
+		print " -k <key_file>    : SSH private key to load; public key implied <key_file>.pub\n";
 		print " -l user[:<pwd>]  : SSH username[& password] to use\n";
 		print " -m <script>      : Once connected execute script (if no path included will use \@run search paths)\n";
 		print " -n               : Do not try and auto-detect & interact with device\n";
 		print " -o               : Overwrite <capture-file> instead of appending to it\n";
 		print " -p               : Use factory default credentials to login automatically\n";
 		print " -r               : Connect via Relay; append telnet/ssh command to use on Relay to reach host\n";
-		print " -s <sockets>     : List of socket names for terminal to listen on\n";
+		print " -s <sockets>     : List of socket names for terminal to listen on (0 to disable sockets)\n";
 		print " -t               : When tcp-port specified, flag to say we are connecting to a terminal server\n";
 		print " -y <term-type>   : Negotiate terminal type (e.g. vt100)\n";
 		print " -z <w>x<h>       : Negotiate window size (width x height)\n";
@@ -3348,7 +3351,7 @@ sub processControlCommand { # Process a command under ACLI Control
 		print " -o               : Overwrite <capture-file> instead of appending to it\n";
 		print " -p               : Use factory default credentials to login automatically\n";
 		print " -r               : Connect via Relay; append telnet/ssh command to use on Relay to reach host\n";
-		print " -s <sockets>     : List of socket names for terminal to listen on\n";
+		print " -s <sockets>     : List of socket names for terminal to listen on (0 to disable sockets)\n";
 		print " -t               : When tcp-port specified, flag to say we are connecting to a terminal server\n";
 		print " -y <term-type>   : Negotiate terminal type (e.g. vt100)\n";
 		print " -z <w>x<h>       : Negotiate window size (width x height)\n";
@@ -4197,7 +4200,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		cmdOutput($db, "\@put [<text>]                                       print some text; unlike \@print, has no trailing carriage return\n");
 		cmdOutput($db, "\@pwd                                                print working directory\n");
 		cmdOutput($db, "\@quit                                               quit terminal\n");
-		cmdOutput($db, "\@read [unbuffer]                                    read output from device (typically used after \@send)\n");
+		cmdOutput($db, "\@read [unbuffer] [exit]                             read output from device (typically used after \@send)\n");
 		cmdOutput($db, "\@rediscover                                         force a full rediscovery of device\n");
 		cmdOutput($db, "\@resume [buffer]                                    resume previously interrputed sourcing or view buffer\n");
 		cmdOutput($db, "\@rmdir <directory to delete>                        delete a directory\n");
@@ -4829,7 +4832,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		# We parse the arguments, because we want to catch syntax errors here (not after spawning)
 		my @args = split(/ /, quoteCurlyMask($arguments, ' '));
 		@args = map { quoteCurlyUnmask($_, ' ') } @args;	# Needs to re-assign, otherwise quoteCurlyUnmask won't work
-		my (@opts, $logfileSeen, $relayHost, $relayHostSeen, $hostNameSeen, $tcpPortSeen, $windowTitle, $tabName, $hostName);
+		my (@opts, $logfileSeen, $relayHost, $relayHostSeen, $hostNameSeen, $tcpPortSeen, $windowTitle, $tabName, $hostName, $cachedCreds);
 		$arguments = ''; # We re-build it
 		$arguments .= " -d $::Debug" if $::Debug;	# Inherit debug level
 		OPENARGS: while (my $arg = quotesRemove(shift @args)) {
@@ -4840,6 +4843,14 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 			elsif ($arg =~ /^-(\w+)/) {
 				@opts = split(//, $1);
 				foreach my $opt (@opts) {
+					if ($opt eq 'a' && !defined $cachedCreds) {
+						if (defined $host_io->{Username}) {
+							$cachedCreds = 1;
+							next;
+						}
+						$cachedCreds = 0;
+						cmdMessage($db, "No cached credentials\n");
+					}
 					if ($opt =~ /^[jnopx]$/) { # Single switches accepted
 						$arguments .= " -$opt";
 						next;
@@ -4863,7 +4874,12 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 						$arguments .= " -$opt \"$arg\"";
 						next;
 					}
-					if ($opt =~ /^[ls]$/ && ($arg = quotesRemove(shift @args)) =~ /^\S+$/) {
+					if ($opt =~ /^l$/ && ($arg = quotesRemove(shift @args)) =~ /^\S+$/) {
+						$arguments .= " -$opt $arg";
+						$cachedCreds = 0;
+						next;
+					}
+					if ($opt =~ /^s$/ && ($arg = quotesRemove(shift @args)) =~ /^\S+$/) {
 						$arguments .= " -$opt $arg";
 						next;
 					}
@@ -4908,7 +4924,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 				if ($relayHostSeen) {
 					my $relayHost = $arg;
 					$relayHost =~ s/(\s+\-l\s+([^:\s]+))(?::(\S+))?/$1/;	# Remove embedded credentials from SSH -l switch
-					$relayHost =~ s/([^:\s]+)(?::(\S+))?@(\S+)/$3/;		# Remove embedded credentials from IP
+					$relayHost =~ s/[^:\s]+(?::\S*)?@(\S+)/$1/;		# Remove embedded credentials from IP
 					unless ($relayHost =~ /^\S+$/				# Just an IP address / hostname
 					     || $relayHost =~ /^\S+\s+-l\s+\S+\s+(\S+)\s*$/	# command -l user host
 					     || $relayHost =~ /^\S+\s+(\S+)\s+-l\s+\S+\s*$/	# command host -l user
@@ -4917,12 +4933,19 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 						$command = '@launch ?';
 						last OPENARGS;
 					}
-				     	$tabName = (defined $1 ? $1 : $arg) unless $tabName;
-				     	$hostName = defined $1 ? $1 : $arg;
+					$tabName = (defined $1 ? $1 : $relayHost) unless $tabName;
+					$hostName = defined $1 ? $1 : $relayHost;
 				}
 				$arguments .= $relayHostSeen && $arg =~ /\s/ ? " \\\"$arg\\\"" : " $arg";
-				$tabName = $arg unless defined $tabName;
-				$hostName = $arg unless defined $hostName;
+				if ($arg =~ /[^:\s]+(?::\S*)?@(\S+)/) {
+					$cachedCreds = 0;
+					$tabName = $1 unless defined $tabName;
+					$hostName = $1 unless defined $hostName;
+				}
+				else {
+					$tabName = $arg unless defined $tabName;
+					$hostName = $arg unless defined $hostName;
+				}
 				$hostNameSeen = 1;
 				next;
 			}
@@ -4964,6 +4987,17 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		}
 		else { # If no error, we spawn the new terminal
 			$arguments =~ s/^\s+//; # Remove preceding spaces
+			if ($cachedCreds) {
+				my $password = defined $host_io->{Password} ? ":" . $host_io->{Password} : '';
+				if ($host_io->{ComPort} eq "SSH") {
+					$arguments = "-l $host_io->{Username}$password " . $arguments
+				}
+				else {
+					$arguments =~ s/$hostName/$host_io->{Username}$password\@$hostName/;
+				}
+			}
+			debugMsg(1,"Launch arguments = $arguments\n");
+			debugMsg(1,"Launch tabName = $tabName\n");
 			unless( launchNewTerm($execTemplate, $arguments, $windowTitle, $tabName, File::Spec->rel2abs(cwd)) ) {
 				cmdMessage($db, "Failed to launch new ACLI terminal");
 			}
@@ -4972,15 +5006,17 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 	}};
 	$command eq '@launch ?' && do { # Must come after @launch command with args
 		cmdMessage($db, "Syntax: \@launch [-ceijknopqstwxyz]\n");
-		cmdMessage($db, "    or: \@launch [-ceijklmnopqrstwxyz] <host/IP> [<tcp-port>] [<capture-file>]\n");
-		cmdMessage($db, "    or: \@launch [-ceijmnopqrstwx]     serial:[<com-port>[@<baudrate>]] [<capture-file>]\n");
-		cmdMessage($db, "    or: \@launch [-ceijmnopqrstwxyz]   trmsrv:[<device-name> | <host/IP>#<port>] [<capture-file>]\n");
-		cmdMessage($db, "    or: \@launch [-emoqstw]            pseudo[1-99]:[<prompt>] [<capture-file>]\n");
+		cmdMessage($db, "    or: \@launch [-aceijklmnopqrstwxyz][<user>:<pwd>@]<host/IP> [<tcp-port>] [<capture-file>]\n");
+		cmdMessage($db, "    or: \@launch [-aceijmnopqrstwx]    [<user>:<pwd>@]serial:[<com-port>[@<baudrate>]] [<capture-file>]\n");
+		cmdMessage($db, "    or: \@launch [-aceijmnopqrstwxyz]  [<user>:<pwd>@]trmsrv:[<device-name> | <host/IP>#<port>] [<capture-file>]\n");
+		cmdMessage($db, "    or: \@launch [-emoqstw]            pseudo:[<name>] [<capture-file>]\n");
 		cmdMessage($db, "    or: \@launch -r <host/IP or serial or trmsrv syntaxes above> <\"relay cmd\" | IP> [<capture-file>]\n\n");
-		cmdMessage($db, " <host/IP>        : Hostname or IP address to connect to; can use <username>:<password>@<host/IP>\n");
+		cmdMessage($db, " <host/IP>        : Hostname or IP address to connect to; for telnet can use <user>:<pwd>@<host/IP>\n");
 		cmdMessage($db, " <tcp-port>       : TCP port number to use\n");
 		cmdMessage($db, " <com-port>       : Serial Port name (COM1, /dev/ttyS0, etc..) to use\n");
 		cmdMessage($db, " <capture-file>   : Optional output capture file of CLI session\n");
+		cmdMessage($db, " <name>           : Loads up pseudo mode profile name (or legacy number 1-99)\n");
+		cmdMessage($db, " -a               : Use cached credentials and connection protocol\n");
 		cmdMessage($db, " -c <CR|CRLF>     : For newline use CR+LF (default) or just CR\n");
 		cmdMessage($db, " -e escape_char   : CTRL+<char> for escape sequence; default is \"$CtrlEscapePrn\"\n");
 		cmdMessage($db, " -i <log-dir>     : Path to use when logging to file\n");
@@ -4993,7 +5029,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		cmdMessage($db, " -p               : Use factory default credentials to login automatically\n");
 		cmdMessage($db, " -q quit_char     : CTRL+<char> for quit sequence; default is \"$CtrlQuitPrn\"\n");
 		cmdMessage($db, " -r               : Connect via Relay; append telnet/ssh command to use on Relay to reach host\n");
-		cmdMessage($db, " -s <sockets>     : List of socket names for terminal to listen on\n");
+		cmdMessage($db, " -s <sockets>     : List of socket names for terminal to listen on (0 to disable sockets)\n");
 		cmdMessage($db, " -t <tab-name>    : ACLI Tab name to use on launched terminal instead of host/IP\n");
 		cmdMessage($db, " -u <window-title>: Sets the containing window title into which launched terminal will be opened\n");
 		cmdMessage($db, " -w <work-dir>    : Run on provided working directory\n");
@@ -5204,8 +5240,16 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 	#
 	# @read command
 	#
-	$command =~ /^\@read(?: unbuffer)?$/ && do {
-		return $command;
+	$command =~ /^(\@read(?: unbuffer)?)( exit)?$/ && do {
+		my ($command, $exit) = ($1, $2);
+		if ($exit && !$term_io->{Sourcing}) {
+			cmdMessage($db, "\@read [unbuffer] exit, can only be processed when sourcing commands\n");
+			$command = '';
+		}
+		else {
+			endofBlock($db, []) if $exit; # Also empty the whole buffer if exit keyword added
+			return $command;
+		}
 	};
 	#
 	# @rediscover command

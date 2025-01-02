@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-our $Version = "5.11";
+our $Version = "5.12";
 our $Debug = 0;	# Bit values: 1024=printOut 512=loadAliasFile 256=tabExpand/quoteCurlyBackslashMask 128=historyDump 64=Errmode-Die 32=Errmode-Croak 16=ControlCLI(Serial) 8=ControlCLI 4=Input 2=output 1=basic
 BEGIN {	our $Sub = ''; } # Load all AcliPm modules from a subdirectory
 
@@ -267,7 +267,7 @@ sub mainLoop { # Mainloop
 								# 'si' = read from STDIN (grep steaming mode)
 								# 'ds' = disabled; we don't read from device
 
-		dev_del => 'ds',				# This controls which patters need deleting after reading from host
+		dev_del => 'ds',				# This controls which patterns need deleting after reading from host
 								# 'fl' = delete first line + print carriage return on terminal
 								# 'ft' = delete first line but do not print carriage return on terminal
 								# 'fb' = delete first blank lines following echo-ed command
@@ -1144,8 +1144,6 @@ MAIN:{
 		}
 		else { # Telnet connection
 			$args->{ComPort} = 'TELNET';
-			# Automatically convert port numbers 1-16 into TCP port numbers 5001-5016
-			$args->{TcpPort} += $RemoteAnnexBasePort if ($args->{TcpPort} && $args->{TcpPort} <= 16);
 		}
 		if ($args->{Host} =~ s/^([^:]+)(?::(\S*))?@(\S+)$/$3/) { # Process embedded username/password
 			printSyntax if $opt_l;

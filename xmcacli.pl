@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $Version = "1.17";
+my $Version = "1.19";
 my $Debug = 0;
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
@@ -50,6 +50,13 @@ my $Debug = 0;
 #	  executions of the script
 # 1.16	- Added new 'XIQ Native' XIQ-SE family since ACLI now supports Cloud APs (HiveOS)
 # 1.17	- Added missing '200 Series' XIQ-SE family for Series200 support
+# 1.18	- Site paths branches are now displayed alphabetically
+# 1.19	- Added ability to provide separate CLI credentials from the ones obtained from XMC
+#	- Renamed XMC to XIQ-SE on front end
+#	- Pulldowns now always have a <clear> option
+#	- readHistoryFile() now always returns an array ref, even if it fails to read any history file
+#	- Clear button clears the Transparent checkbox and the new CLI credentials inputs
+#	- Pulldown for Containing Window was loosing <clear> option after the pull down was used to connect to a device
 
 
 #############################
@@ -58,7 +65,7 @@ my $Debug = 0;
 
 use strict;
 use warnings;
-no warnings 'threads';			# Prevents errors on console window about thread terminated abnormally when quiting the application
+no warnings 'threads';	# Prevents errors on console window about thread terminated abnormally when quiting the application
 use threads;
 use threads::shared;
 use Getopt::Std;
@@ -83,7 +90,7 @@ if ($^O eq "MSWin32") {
 	# However we stay with default stack_size on MAC OS as otherwise we get all sorts of errors 
 	threads->set_stack_size(8192);
 }
-#use Data::Dumper;
+use Data::Dumper;
 
 
 ############################
@@ -129,7 +136,7 @@ my $RunScriptExtensions = [
 	["All files",	'*']
 ];
 my $Ofh = \*STDOUT; # Default debug Output File Handle
-our ($opt_d, $opt_f, $opt_g, $opt_h, $opt_i, $opt_m, $opt_n, $opt_p, $opt_q, $opt_s, $opt_t, $opt_u, $opt_w); #Getopts switches
+our ($opt_c, $opt_d, $opt_f, $opt_g, $opt_h, $opt_i, $opt_m, $opt_n, $opt_p, $opt_q, $opt_s, $opt_t, $opt_u, $opt_w); #Getopts switches
 
 my $IniFileName = 'xmcacli.ini';
 my $GraphQlFile = 'xmcacli.graphql';
@@ -170,7 +177,7 @@ my $Shared_JsonOutput : shared;		# When $Shared_flag reset to 0 by thread, this 
 sub printSyntax {
 	printf "%s version %s%s\n\n", $ScriptName, $Version, ($Debug ? " running on $^O perl version $]" : "");
 	print "Usage:\n";
-	print " $ScriptName [-fgimnpqstuw] [<XMC server/IP[:port]>]\n\n";
+	print " $ScriptName [-cfgimnpqstuw] [<XIQ-SE/XMC server/IP[:port]>]\n\n";
 	print " <XMC server/IP[:port]>: Extreme Management Center IP address or hostname & port number\n";
 	print " -f <site-wildcard>    : Filter entries on Site wildcard\n";
 	print " -g <record-grep>      : Filter entries pattern match across any column data\n";
@@ -182,7 +189,8 @@ sub printSyntax {
 	print " -q <graphql-file>     : Override of default xmcacli.graphql file; must be placed in same path\n";
 	print " -s <sockets>          : List of socket names for terminals to listen on (0 to disable sockets)\n";
 	print " -t <window-title>     : Sets the containing window title into which all connections will be opened\n";
-	print " -u user[:<pwd>]       : Specify XMC username[& password] to use\n";
+	print " -u user[:<pwd>]       : Specify XMC/XIQ-SE username[& password] to use\n";
+	print " -c user[:<pwd>]       : Specify CLI username[& password] to use\n";
 	print " -w <work-dir>         : Working directory to use\n";
 	exit 1;
 }
@@ -334,15 +342,27 @@ sub launchConsole { # Spawn entry into ConsoleZ; use Win32/Process instead of ex
 		$acliArgs .= "-s \\\"$launchValues->{Sockets}\\\" " if defined $launchValues->{Sockets} && ($acliArgs !~ /-n/ || $launchValues->{Sockets} eq '0');
 		$acliArgs .= "-m \\\"$launchValues->{RunScript}\\\" " if defined $launchValues->{RunScript};
 
+		my ($username, $password);
 		my $profile = $device->{profileName};	# Get device profile
-		if (defined $profile && defined $displayData->{profiles}->{$profile}->{userName}) { # We have a username
-			my $credentials = $displayData->{profiles}->{$profile}->{userName} . (defined $displayData->{profiles}->{$profile}->{loginPassword} ? ':'.$displayData->{profiles}->{$profile}->{loginPassword} : '');
-			if ($launchValues->{'Protocol'} eq 'SSH') {
+		if ($launchValues->{Credentials}) { # Use provided CLI credentials
+			$username = $launchValues->{cliUsername};
+			$password = $launchValues->{cliPassword};
+		}
+		elsif (defined $profile && defined $displayData->{profiles}->{$profile}->{userName}) {
+			$username = $displayData->{profiles}->{$profile}->{userName};
+			$password = $displayData->{profiles}->{$profile}->{loginPassword};
+		}
+		if (length $username) { # We have a username
+			my $credentials = $username . (defined $password ? ':'.$password : '');
+			if ($launchValues->{Protocol} eq 'SSH') {
 				$acliArgs .= "-l \\\"$credentials\\\" $device->{ip}";
 			}
 			else { # TELNET
 				$acliArgs .= "\\\"$credentials\@$device->{ip}\\\"";
 			}
+		}
+		else { # No credentials.. TELNET only
+			$acliArgs .= $device->{ip};
 		}
 
 		my $executeArgs = substituteExecArgs( # Substitutes values into the executable arguments template
@@ -416,7 +436,7 @@ sub findFile { # Searches our paths for specified file
 
 
 sub readIniFile { # Reads in acli.ini file
-	my ($xmcValues, $displayData) = @_;
+	my ($xmcValues, $launchValues, $displayData) = @_;
 
 	my $iniFile = findFile($IniFileName);
 	quit(1, "Cannot find INI file $IniFileName") unless defined $iniFile;
@@ -430,10 +450,15 @@ sub readIniFile { # Reads in acli.ini file
 	$xmcValues->{xmcServer} = $xmcInfo->{xmcServer} if defined $xmcInfo->{xmcServer};
 	$xmcValues->{xmcUsername} = $xmcInfo->{xmcUsername} if defined $xmcInfo->{xmcUsername};
 	$xmcValues->{xmcPassword} = $xmcInfo->{xmcPassword} if defined $xmcInfo->{xmcPassword};
+	$launchValues->{cliUsername} = $xmcInfo->{cliUsername} if defined $xmcInfo->{cliUsername};
+	$launchValues->{cliPassword} = $xmcInfo->{cliPassword} if defined $xmcInfo->{cliPassword};
 	$HttpTimeout = $xmcInfo->{httpTimeout} if defined $xmcInfo->{httpTimeout}; # Override global
 	$HistoryDepth = $xmcInfo->{historyDepth} if defined $xmcInfo->{historyDepth}; # Override global
 	$displayData->{siteFilter} = $xmcInfo->{siteFilter} if defined $xmcInfo->{siteFilter};
 	$displayData->{grepFilter} = $xmcInfo->{grepFilter} if defined $xmcInfo->{grepFilter};
+	$displayData->{disableXmcCreds} = 1 if $xmcInfo->{ownCliCredents} && lc($xmcInfo->{ownCliCredents}) eq 'always';
+	$launchValues->{Credentials} = 1 if $displayData->{disableXmcCreds} || $launchValues->{cliUsername}
+					 || ($xmcInfo->{ownCliCredents} && lc($xmcInfo->{ownCliCredents}) eq 'on');
 }
 
 
@@ -443,13 +468,13 @@ sub readHistoryFile { # Read the xmcacli.hist file
 	my $histFile = findFile($historyFile);
 	unless (defined $histFile) { # If the file does not yet exist...
 		debugMsg(1, "readHistoryFile - history file ", \$historyFile, " does not exist\n");
-		return;
+		return [];
 	}
 
 	# Read the file into our array
 	open(HISTORY, '<', $histFile) or do {
 		debugMsg(1, "readHistoryFile - cannot open file to read : ", \$histFile, "\n");
-		return; # Same, if we can't open it
+		return []; # Same, if we can't open it
 	};
 	flock(HISTORY, 1); # 1 = LOCK_SH; Put a shared lock on the file (wait to read if it's being changed)
 	my @history;
@@ -586,10 +611,10 @@ sub httpWorkerThread { # This is the actual http thread which handles GraphQL qu
 			# It is not possible to do the decode_json here, as the hash structure returned becomes impossible to share back with the main gui thread
 
 			# Update the XMC history file with this XMC server, only if the fetch was successful
-			$history = readHistoryFile($XmcHistoryFile);						# Read in history file
-			@$history = grep($_ ne $Shared_xmcServer{xmcServer}, @$history) if defined $history;	# Filter out this XMC server if it was already present
-			unshift(@$history, $Shared_xmcServer{xmcServer});					# Add this XMC server at top of the list
-			writeHistoryFile($XmcHistoryFile, $history);						# Re-write the file
+			$history = readHistoryFile($XmcHistoryFile);				# Read in history file
+			@$history = grep($_ ne $Shared_xmcServer{xmcServer}, @$history);	# Filter out this XMC server if it was already present
+			unshift(@$history, $Shared_xmcServer{xmcServer});			# Add this XMC server at top of the list
+			writeHistoryFile($XmcHistoryFile, $history);				# Re-write the file
 		}
 
 		# Reset shared flag to 0; ensures that thread will wait again at next loop cycle
@@ -822,13 +847,12 @@ sub byHeader { # Sort function to arrange devices according to one of the elemen
 }
 
 
-sub bySitePath { # Sort function to arrange devices accorfing to the depth of their sitePath
-	my ($displayData) = @_;
-
+sub bySitePath { # Sort function to arrange devices accorfing to the depth of their sitePath, then by path alphabetical name
 	my $a_pathDepth = scalar( split('/', $a->{sitePath}) );
 	my $b_pathDepth = scalar( split('/', $b->{sitePath}) );
-
-	return $a_pathDepth <=> $b_pathDepth;
+	my $compareResult = $a_pathDepth <=> $b_pathDepth;
+	return $compareResult if $compareResult;	# Different path depth
+	return $a->{sitePath} cmp $b->{sitePath};	# Else path alphabetically
 }
 
 
@@ -890,7 +914,7 @@ sub updateDeviceData { # Populates the GUI window with the data extracted from X
 	# we want the devices to be added to the widget before the branches, otherwise it looks ugly.
 	# This means adding devices with path X before adding devices with path X/Y
 	# So we do another sort, this time on the sitePath
-	my @deviceDisplayOrder = sort { bySitePath($displayData) } @{$displayData->{sortedDevices}};
+	my @deviceDisplayOrder = sort { bySitePath } @{$displayData->{sortedDevices}};
 
 	# Display the records
 	$displayData->{sites} = {};	# Clear this before starting
@@ -967,7 +991,7 @@ sub updateSiteFilterListBox { # From freshly fetched data, we extract all the br
 		}
 	}
 	my @branches = sort { $a cmp $b } keys %branches;
-	$tk->{enSiteFilt}->configure( -choices => \@branches );
+	$tk->{enSiteFilt}->configure( -choices => ['<clear>', @branches] );
 }
 
 
@@ -975,7 +999,7 @@ sub updateXmcHistoryListBox { # The thread will have updated the xmcacli.hist fi
 	my ($tk, $xmcData) = @_;
 
 	$xmcData->{xmcHistory} = readHistoryFile($XmcHistoryFile);
-	$tk->{enXmcIp}->configure( -choices => $xmcData->{xmcHistory} );
+	$tk->{enXmcIp}->configure( -choices => ['<clear>', @{$xmcData->{xmcHistory}}] );
 }
 
 
@@ -1037,15 +1061,14 @@ sub checkThread { # This function is used to communicate between the httpWorking
 
 sub clear { # Handle Clear button
 	my $launchValues = shift;
-	$launchValues->{IpList} = '';
-	$launchValues->{IpNames} = undef;
-	$launchValues->{Username} = undef;
-	$launchValues->{Password} = undef;
+	$launchValues->{cliUsername} = undef;
+	$launchValues->{cliPassword} = undef;
 	$launchValues->{Window} = undef;
 	$launchValues->{WorkDir} = undef;
 	$launchValues->{LogDir} = undef;
 	$launchValues->{Sockets} = undef;
 	$launchValues->{RunScript} = undef;
+	$launchValues->{Transparent} = undef;
 }
 
 
@@ -1088,18 +1111,36 @@ sub launch { # Handle Launch button
 	        );
 	        return;
 	}
+	# If separate CLI credentials specified, and SSH, we can only go ahead if a username is provided
+	if ($launchValues->{Credentials} && $launchValues->{Protocol} eq 'SSH' && !length $launchValues->{cliUsername}) {
+		$tk->{mw}->messageBox(
+			-title	=> 'Missing CLI username',
+			-icon	=> 'info',
+			-type	=> 'OK',
+			-message => "Own CLI credentials specified but for an SSH connection at least a username must be provided",
+	        );
+	        return;
+	}
 
 	# If a containing window was specified, add it to history file
 	if (length $launchValues->{Window}) {
 		# Filter out this window name if it was already present
-		@{$launchValues->{WHistory}} = grep($_ ne $launchValues->{Window}, @{$launchValues->{WHistory}}) if defined $launchValues->{WHistory};
+		@{$launchValues->{WHistory}} = grep($_ ne $launchValues->{Window}, @{$launchValues->{WHistory}});
 		unshift(@{$launchValues->{WHistory}}, $launchValues->{Window});		# Add this window name at top of the list
 		writeHistoryFile($WindowHistoryFile, $launchValues->{WHistory});	# Re-write the file
-		$tk->{enWindow}->configure( -choices => $launchValues->{WHistory} );	# Update the widget
+		$tk->{enWindow}->configure( -choices => ['<clear>', @{$launchValues->{WHistory}}] );	# Update the widget
 	}
 
 	# We are good, launch ACLI on what is selected
 	launchConsole($tk, $displayData, $launchValues);
+}
+
+
+sub credentialInputs { # Enables/Disables override credentials input boxes
+	my ($tk, $state) = @_;
+	foreach my $child ($tk->{frameCredInput}->children) {
+		$child->configure( -state => $state );
+	}
 }
 
 
@@ -1201,12 +1242,12 @@ sub xmcFetch { # Handle XMC Fetch button
 #############################
 
 MAIN:{
-	getopts('df:g:hi:m:np:q:s:t:u:w:');
+	getopts('c:df:g:hi:m:np:q:s:t:u:w:');
 
 	$Debug = 1 if $opt_d;
 	printSyntax if $opt_h || scalar @ARGV > 1;
 
-	my ($xmcServer, $username, $password, $siteFilter, $grepFilter, $protocol, $workDir, $logDir, $sockets, $runScript, $window, $history, $transparent, $graphQl);
+	my ($xmcServer, $xmcUsername, $xmcPassword, $cliUsername, $cliPassword, $siteFilter, $grepFilter, $protocol, $workDir, $logDir, $sockets, $runScript, $window, $history, $transparent, $graphQl);
 
 	$window = $opt_t if defined $opt_t;
 	$siteFilter = $opt_f if defined $opt_f;
@@ -1224,10 +1265,18 @@ MAIN:{
 
 	if (defined $opt_u) {
 		if ($opt_u =~ /^([^:\s]+):(\S*)$/) {
-			($username, $password) = ($1, $2);
+			($xmcUsername, $xmcPassword) = ($1, $2);
 		}
 		else {
-			$username = $opt_u;
+			$xmcUsername = $opt_u;
+		}
+	}
+	if (defined $opt_c) {
+		if ($opt_c =~ /^([^:\s]+):(\S*)$/) {
+			($cliUsername, $cliPassword) = ($1, $2);
+		}
+		else {
+			$cliUsername = $opt_c;
 		}
 	}
 	if (defined $opt_p && ( uc($opt_p) eq 'SSH' || uc($opt_p) eq 'TELNET' )) {
@@ -1253,6 +1302,9 @@ MAIN:{
 
 	my $launchValues = { # Values to use to launch ACLI with
 		Protocol	=> $protocol,
+		Credentials	=> 0,     # Can be set by INI file or command line
+		cliUsername	=> undef, # Can be set by INI file or command line
+		cliPassword	=> undef, # Can be set by INI file or command line
 		Window		=> $window,
 		WorkDir		=> $workDir,
 		LogDir		=> $logDir,
@@ -1272,18 +1324,22 @@ MAIN:{
 		sortHeaders	=> {},	# Will hold hash of header keys indicating state of sort & reverse sort
 		siteFilter	=> undef, # Can be set by INI file or command line
 		grepFilter	=> undef, # Can be set by INI file or command line
+		disableXmcCreds	=> undef, # Can be set by INI file only
 	};
 
 
-	# Read ini file (this can set values in both $xmcData & $displayData hash structures
-	readIniFile($xmcData, $displayData);
+	# Read ini file (this can set values in both any of $xmcData, $launchValues, $displayData hash structures
+	readIniFile($xmcData, $launchValues, $displayData);
 
 	# But we want command line switches to override settings from INI file
-	$xmcData->{xmcServer}	= $xmcServer if defined $xmcServer;
-	$xmcData->{xmcUsername}	= $username if defined $username;
-	$xmcData->{xmcPassword}	= $password if defined $password;
-	$displayData->{siteFilter} = $siteFilter if defined $siteFilter;
-	$displayData->{grepFilter} = $grepFilter if defined $grepFilter;
+	$xmcData->{xmcServer}		= $xmcServer if defined $xmcServer;
+	$xmcData->{xmcUsername}		= $xmcUsername if defined $xmcUsername;
+	$xmcData->{xmcPassword}		= $xmcPassword if defined $xmcPassword;
+	$launchValues->{cliUsername}	= $cliUsername if defined $cliUsername;
+	$launchValues->{cliPassword}	= $cliPassword if defined $cliPassword;
+	$launchValues->{Credentials}	= 1 if defined $launchValues->{cliUsername};
+	$displayData->{siteFilter} 	= $siteFilter if defined $siteFilter;
+	$displayData->{grepFilter} 	= $grepFilter if defined $grepFilter;
 
 
 	# Must run worker thread before invoking any tk: https://www.perlmonks.org/?node_id=732294
@@ -1314,6 +1370,8 @@ MAIN:{
 		mwBottomFrame				=> undef,	# Bottom frame
 			mwFrameGrid			=> undef,	# Frame with parameters
 				frameProtocol		=> undef,	# Frame with protocol radio buttons
+				frameCredRadio		=> undef,	# Frame with CLI credentials radio buttons
+				frameCredInput		=> undef,	# Frame with CLI credentials input boxes
 				enTransparent		=> undef,	# Transparent entry checkbox
 				enWindow		=> undef,	# Window name entry box
 				frameWorkDir		=> undef,	# Frame with working directory
@@ -1328,7 +1386,7 @@ MAIN:{
 
 	# Setup tk GUI
 	$tk->{mw} = MainWindow->new;
-	$tk->{mw}->title('XMC ACLI Launcher - v' . $Version);
+	$tk->{mw}->title('XIQ-SE/XMC ACLI Launcher - v' . $Version);
 	$tk->{mw}->bind('<Configure>' => sub { # Runs on window resize
 		$tk->{mw}->minsize($tk->{mw}->reqwidth, $tk->{mw}->reqheight); # Let window grow, but not shrink
 	});
@@ -1341,22 +1399,23 @@ MAIN:{
 
 			# Frame containing the XMC parameters and their labels, using grid geometry manager
 			$tk->{mwFrameXmcGrid} = $tk->{mwFrameXmc}->Frame;
-				$tk->{mwFrameXmcGrid}->Label(-text => "XMC Server/IP[:port]:")->grid(-row => 0, -column => 0);
+				$tk->{mwFrameXmcGrid}->Label(-text => "XIQ-SE Server/IP[:port]:")->grid(-row => 0, -column => 0);
 				$tk->{enXmcIp} = $tk->{mwFrameXmcGrid}->BrowseEntry(
 					-variable	=> \$xmcData->{xmcServer},
-					-choices	=> $xmcData->{xmcHistory},
+					-choices	=> ['<clear>', @{$xmcData->{xmcHistory}}],
 					-width		=> $IPentryBoxWidth,
 					-background	=> 'white',
+					-browsecmd 	=> sub {$xmcData->{xmcServer} = '' if $xmcData->{xmcServer} eq '<clear>'},
 				)->grid(-row => 0, -column => 1);
 
-				$tk->{mwFrameXmcGrid}->Label(-text => "XMC Username:")->grid(-row => 1, -column => 0, -sticky => 'e');
+				$tk->{mwFrameXmcGrid}->Label(-text => "XIQ-SE Username:")->grid(-row => 1, -column => 0, -sticky => 'e');
 				$tk->{enUsername} = $tk->{mwFrameXmcGrid}->Entry(
 					-textvariable	=> \$xmcData->{xmcUsername},
 					-width		=> $CredentialBoxWidth,
 					-background	=> 'white',
 				)->grid(-row => 1, -column => 1, -sticky => 'w');
 
-				$tk->{mwFrameXmcGrid}->Label(-text => "XMC Password:")->grid(-row => 2, -column => 0, -sticky => 'e');
+				$tk->{mwFrameXmcGrid}->Label(-text => "XIQ-SE Password:")->grid(-row => 2, -column => 0, -sticky => 'e');
 				$tk->{enPassword} = $tk->{mwFrameXmcGrid}->Entry(
 					-textvariable	=> \$xmcData->{xmcPassword},
 					-width		=> $CredentialBoxWidth,
@@ -1368,8 +1427,11 @@ MAIN:{
 				$tk->{enSiteFilt} = $tk->{mwFrameXmcGrid}->BrowseEntry(
 					-variable	=> \$displayData->{siteFilter},
 					-width		=> $CredentialBoxWidth,
-					-browsecmd	=> [\&updateDeviceData, $tk, $displayData, $DefaultSortColumn],
 					-background	=> 'white',
+					-browsecmd 	=> sub {
+								$displayData->{siteFilter} = '' if $displayData->{siteFilter} eq '<clear>';
+								updateDeviceData($tk, $displayData, $DefaultSortColumn);
+							},
 				)->grid(-row => 3, -column => 1, -sticky => 'w');
 				$tk->{enSiteFilt}->bind('<Key-Return>' => sub { updateDeviceData($tk, $displayData, $DefaultSortColumn) } ); # Process entry with Return key
 
@@ -1390,7 +1452,7 @@ MAIN:{
 
 			# CLEAR XMC button
 			$tk->{btXmcClear} = $tk->{mwFrameXmc}->Button(
-				-text		=> 'Clear XMC',
+				-text		=> 'Clear XIQ-SE',
 				-command	=> [\&xmcClear, $xmcData],
 			)->pack( -side => 'top', -expand => 1, -fill => 'x' );
 
@@ -1429,8 +1491,9 @@ MAIN:{
 	$tk->{mwBottomFrame} = $tk->{mw}->Frame;
 
 		# Frame containing the parameters and their labels, using grid geometry manager
+		my $row = 0;
 		$tk->{mwFrameGrid} = $tk->{mwBottomFrame}->Frame;
-			$tk->{mwFrameGrid}->Label(-text => "Protocol:")->grid(-row => 0, -column => 0, -sticky => 'e');
+			$tk->{mwFrameGrid}->Label(-text => "Protocol:")->grid(-row => $row, -column => 0, -sticky => 'e');
 			$tk->{frameProtocol} = $tk->{mwFrameGrid}->Frame;
 				$tk->{frameProtocol}->Radiobutton(
 					-text		=> 'SSH',
@@ -1442,22 +1505,63 @@ MAIN:{
 					-variable	=> \$launchValues->{Protocol},
 					-value		=> 'TELNET',
 				)->pack( -side => 'left' );
-			$tk->{frameProtocol}->grid(-row => 0, -column => 1, -sticky => 'w');
+			$tk->{frameProtocol}->grid(-row => $row, -column => 1, -sticky => 'w');
 
-			$tk->{mwFrameGrid}->Label(-text => "Transparent mode:")->grid(-row => 1, -column => 0, -sticky => 'e');
+			$tk->{mwFrameGrid}->Label(-text => "CLI Credentials:")->grid(-row => ++$row, -column => 0, -sticky => 'e');
+			$tk->{frameCredRadio} = $tk->{mwFrameGrid}->Frame;
+				$tk->{frameCredRadio}->Radiobutton(
+					-text		=> "Use XIQ-SE's",
+					-variable	=> \$launchValues->{Credentials},
+					-value		=> 0,
+					-command 	=> [\&credentialInputs, $tk, 'disabled'],
+					-state		=> $displayData->{disableXmcCreds} ? 'disabled' : 'normal',
+				)->pack( -side => 'left' );
+				$tk->{frameCredRadio}->Radiobutton(
+					-text		=> 'Use own credentials',
+					-variable	=> \$launchValues->{Credentials},
+					-value		=> 1,
+					-command 	=> [\&credentialInputs, $tk, 'normal'],
+				)->pack( -side => 'left' );
+			$tk->{frameCredRadio}->grid(-row => $row, -column => 1, -sticky => 'w');
+			$tk->{frameCredInput} = $tk->{mwFrameGrid}->Frame;
+				$tk->{frameCredInput}->Label(
+					-text		=> "Username:",
+					-state		=> $launchValues->{Credentials} ? 'normal' : 'disabled',
+				)->grid(-row => 0, -column => 0, -sticky => 'w');
+				$tk->{frameCredInput}->Entry(
+					-textvariable 	=> \$launchValues->{cliUsername},
+					-width 		=> 25,
+					-background	=> 'white',
+					-state		=> $launchValues->{Credentials} ? 'normal' : 'disabled',
+				)->grid(-row => 1, -column => 0, -sticky => 'e');
+				$tk->{frameCredInput}->Label(
+					-text 		=> "Password:",
+					-state		=> $launchValues->{Credentials} ? 'normal' : 'disabled',
+				)->grid(-row => 0, -column => 1, -sticky => 'w');
+				$tk->{frameCredInput}->Entry(
+					-textvariable 	=> \$launchValues->{cliPassword},
+					-width 		=> 25,
+					-background	=> 'white',
+					-show		=> '*',
+					-state		=> $launchValues->{Credentials} ? 'normal' : 'disabled',
+				)->grid(-row => 1, -column => 1, -sticky => 'e');
+			$tk->{frameCredInput}->grid(-row => ++$row, -column => 1, -sticky => 'w');
+
+			$tk->{mwFrameGrid}->Label(-text => "Transparent mode:")->grid(-row => ++$row, -column => 0, -sticky => 'e');
 			$tk->{enTransparent} = $tk->{mwFrameGrid}->Checkbutton(
 				-variable	=> \$launchValues->{Transparent},
-			)->grid(-row => 1, -column => 1, -sticky => 'w');
+			)->grid(-row => $row, -column => 1, -sticky => 'w');
 
-			$tk->{mwFrameGrid}->Label(-text => "Containing Window:")->grid(-row => 2, -column => 0, -sticky => 'e');
+			$tk->{mwFrameGrid}->Label(-text => "Containing Window:")->grid(-row => ++$row, -column => 0, -sticky => 'e');
 			$tk->{enWindow} = $tk->{mwFrameGrid}->BrowseEntry(
 				-variable	=> \$launchValues->{Window},
-				-choices	=> $launchValues->{WHistory},
+				-choices	=> ['<clear>', @{$launchValues->{WHistory}}],
 				-width		=> $WindowNameBoxWidth,
 				-background	=> 'white',
-			)->grid(-row => 2, -column => 1, -sticky => 'w');
+				-browsecmd 	=> sub {$launchValues->{Window} = '' if $launchValues->{Window} eq '<clear>'},
+			)->grid(-row => $row, -column => 1, -sticky => 'w');
 
-			$tk->{mwFrameGrid}->Label(-text => "Working Directory:")->grid(-row => 3, -column => 0, -sticky => 'e');
+			$tk->{mwFrameGrid}->Label(-text => "Working Directory:")->grid(-row => ++$row, -column => 0, -sticky => 'e');
 			$tk->{frameWorkDir} = $tk->{mwFrameGrid}->Frame;
 				$tk->{frameWorkDir}->Entry(
 					-textvariable	=> \$launchValues->{WorkDir},
@@ -1468,9 +1572,9 @@ MAIN:{
 					-text		=> '...',
 					-command	=> [\&setDirectory, $tk, 'WorkDir', $launchValues],
 				)->pack( -side => 'left' );
-			$tk->{frameWorkDir}->grid(-row => 3, -column => 1, -sticky => 'w');
+			$tk->{frameWorkDir}->grid(-row => $row, -column => 1, -sticky => 'w');
 
-			$tk->{mwFrameGrid}->Label(-text => "Logging Directory:")->grid(-row => 4, -column => 0, -sticky => 'e');
+			$tk->{mwFrameGrid}->Label(-text => "Logging Directory:")->grid(-row => ++$row, -column => 0, -sticky => 'e');
 			$tk->{frameLogDir} = $tk->{mwFrameGrid}->Frame;
 				$tk->{frameLogDir}->Entry(
 					-textvariable	=> \$launchValues->{LogDir},
@@ -1481,16 +1585,16 @@ MAIN:{
 					-text		=> '...',
 					-command	=> [\&setDirectory, $tk, 'LogDir', $launchValues],
 				)->pack( -side => 'left' );
-			$tk->{frameLogDir}->grid(-row => 4, -column => 1, -sticky => 'w');
+			$tk->{frameLogDir}->grid(-row => $row, -column => 1, -sticky => 'w');
 
-			$tk->{mwFrameGrid}->Label(-text => "Listen Socket Names:")->grid(-row => 5, -column => 0, -sticky => 'e');
+			$tk->{mwFrameGrid}->Label(-text => "Listen Socket Names:")->grid(-row => ++$row, -column => 0, -sticky => 'e');
 			$tk->{enSockets} = $tk->{mwFrameGrid}->Entry(
-				-textvariable => \$launchValues->{Sockets},
-				-width => $SocketNamesWidth,
-				-background	=> 'white',
-			)->grid(-row => 5, -column => 1, -sticky => 'w');
+				-textvariable		=> \$launchValues->{Sockets},
+				-width			=> $SocketNamesWidth,
+				-background		=> 'white',
+			)->grid(-row => $row, -column => 1, -sticky => 'w');
 
-			$tk->{mwFrameGrid}->Label(-text => "Run Script:")->grid(-row => 6, -column => 0, -sticky => 'e');
+			$tk->{mwFrameGrid}->Label(-text => "Run Script:")->grid(-row => ++$row, -column => 0, -sticky => 'e');
 			$tk->{frameRunScript} = $tk->{mwFrameGrid}->Frame;
 				$tk->{frameRunScript}->Entry(
 					-textvariable	=> \$launchValues->{RunScript},
@@ -1501,7 +1605,7 @@ MAIN:{
 					-text		=> '...',
 					-command	=> [\&getFile, $tk, 'RunScript', $launchValues, $RunScriptExtensions],
 				)->pack( -side => 'left' );
-			$tk->{frameRunScript}->grid(-row => 6, -column => 1, -sticky => 'w');
+			$tk->{frameRunScript}->grid(-row => $row, -column => 1, -sticky => 'w');
 		$tk->{mwFrameGrid}->pack( -side => 'top' );
 
 		# Frame containing buttons at the bottom of main window

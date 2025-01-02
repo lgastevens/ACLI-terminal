@@ -2,7 +2,7 @@
 # It then compares those versons with the ones currently installed
 # User is then asked whether to do an update (or a roll back)
 
-my $Version = "1.21";
+my $Version = "1.22";
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 # Changes
@@ -43,7 +43,8 @@ my $Version = "1.21";
 # 1.19	Updated AcliPm module file versions were incorrectly deducted from the Perl dist digests which was making the update impossible
 # 1.20	Updated to be able to read the version of a Visual Basic .vbs file, where the comment character is single quote "'"
 # 1.21	Added new Github URL, removed old URLs, fixed HTTPS retrieval of updates, modified intaller download url for Github
-
+# 1.22	Retrieval of update via HTTPS was only working for the main index file, but not for any other files; fixed now
+#	Script no longer crashes if it reads ESC sequences from keyboard
 
 
 #############################
@@ -340,12 +341,12 @@ sub getFile {
 		}
 		print "Trying $url/$file\nDownloading to folder $savePath\n";
 		return ftpGet($url, $file, $savePath) if $prot eq 'ftp';
-		return httpGet($url, $file, $savePath) if $prot eq 'http';
+		return httpGet($url, $file, $savePath) if $prot =~ /^https?$/;
 	}
 	else {
 		my $status;
 		$status = ftpGet($server, $file, $savePath) if $prot eq 'ftp';
-		$status = httpGet($server, $file, $savePath) if $prot eq 'http';
+		$status = httpGet($server, $file, $savePath) if $prot =~ /^https?$/;
 		return unless $status;
 		if ($zipFile) { # We got a zip file, unzip it and delete the zip file
 			my $zip = Archive::Zip->new();
@@ -496,10 +497,15 @@ sub fileVersion { # Read version of local files
 sub readMenuKey { # Accept user menu option key
 	my @validKeys = split(//, shift);
 	my $key;
-	do {
-	        select(undef, undef, undef, 0.1); # Fraction of a sec sleep (otherwise CPU gets hammered..)
+	do {{
+		select(undef, undef, undef, 0.1); # Fraction of a sec sleep (otherwise CPU gets hammered..)
 		$key = ReadKey(-1);
-	} until defined $key && grep(/^$key$/i, @validKeys);
+		next unless defined $key;
+		if ($key eq "\e") { # Drain any ESC sequences
+			$key = ReadKey(-1) while defined $key;
+			next;
+		}
+	}} until defined $key && grep(/^\Q$key\E$/i, @validKeys);
 	printLog("\nreadMenuKey = $key");
 	return uc $key;
 }

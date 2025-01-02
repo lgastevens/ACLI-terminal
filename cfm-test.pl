@@ -1,6 +1,18 @@
 #!/usr/local/bin/perl
 
-my $Version = "1.4";
+my $Version = "1.5";
+
+# Written by Ludovico Stevens (lstevens@extremenetworks.com)
+#
+# Version history:
+# 1.0	- Initial
+# 1.1	- Improved traceroute result error checking
+# 1.2	- Fixued scraping of "show isis spbm nick-name" data
+# 1.3	- Better reporting of test outcome
+# 1.4	- Updated debugMsg function
+# 1.5	- Updated to use Control::CLI::Extreme instead of Control::CLI::AvayaData
+#	- Disables more paging on all switches now for faster run
+
 
 #############################
 # STANDARD MODULES          #
@@ -10,7 +22,7 @@ use strict;
 use warnings;
 use File::Basename;
 use Getopt::Std;
-use Control::CLI::AvayaData qw(poll :prompt);	# Export class poll method
+use Control::CLI::Extreme qw(poll :prompt);	# Export class poll method
 
 #############################
 # VARIABLES                 #
@@ -133,7 +145,7 @@ sub fabricSeedAcquire {
 	my $output;
 
 	# Create seed CLI object
-	my $seedCli = new Control::CLI::AvayaData(
+	my $seedCli = new Control::CLI::Extreme(
 			Use			=> $input->{use},
 			Blocking		=> 0,
 			Prompt_credentials	=> [\&promptCredentials, 'Seed'],
@@ -232,7 +244,7 @@ sub fabricTopologyAcquire {
 		foreach my $node (sort {$a cmp $b} keys %$fabricHash) {
 			next if defined $cli->{$node};	# Object already exists
 			next unless defined $fabricHash->{$node}->{ip}; # if we don't have an IP yet
-			$cli->{$node} = new Control::CLI::AvayaData(
+			$cli->{$node} = new Control::CLI::Extreme(
 				Use			=> $input->{use},
 				Blocking		=> 0,
 				Prompt_credentials	=> [\&promptCredentials, $node],
@@ -255,12 +267,16 @@ sub fabricTopologyAcquire {
 		foreach my $node (@failedList) { # If we failed to connect to some subnodes..
 			delete $cli->{$node}; # Delete the object
 		}
-	
-		# Enable PrivExec mode
+
 		print "\nAcquiring Fabric topology\n" unless $firstRun;
 		print "\nAcquiring additional Fabric topology\n" if $firstRun;
 		print "====================================\n";
+
+		# Enable PrivExec mode
 		bulkDo($subNodes, 'enable');
+
+		# Disable more paging
+		bulkDo($cli, 'device_more_paging', [0]);
 
 		# Record ACLI mode
 		foreach my $node (keys %$subNodes) {
@@ -441,7 +457,7 @@ sub fabricCfmTest {
 			poll(
 				Object_list	=>	$subNodes,
 				Poll_code	=>	\&printDots,
-		       		Errmode		=>	'return',	# Always return on error
+				Errmode		=>	'return',	# Always return on error
 			);
 	
 			# Retrieve output
@@ -509,7 +525,7 @@ MAIN:{
 	#  		bvlans		=> [bvlan1, bvlan2]
 	#  		seedName	=> Sysname of seed
 	#  };
-	my $cli = {}; # Hash reference holding Control::CLI::AvayaData objects
+	my $cli = {}; # Hash reference holding Control::CLI::Extreme objects
 	my $fabricHash = {}; # Hash reference holding data about fabric
 	#  $fabricHash = {
 	#		<sys-name>	=> {

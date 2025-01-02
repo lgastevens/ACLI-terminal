@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $Version = "1.11";
+my $Version = "1.12";
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 # FTP, SFTP client for Extreme VOSS devices
@@ -32,6 +32,7 @@ my $Version = "1.11";
 #	- The -f hostfile now accepts IPs/Hostnames + TCP port number in format [<ip/hostname>]:<port>
 # 1.10	- Password can now be provided on the command line together with username on -u switch
 # 1.11	- Added support and new syntax for reading in IPs from spreadsheet (as in acmd)
+# 1.12	- Changed loadHosts to work with batch files using start instead of acligui.vbs
 
 
 #############################
@@ -367,7 +368,7 @@ sub loadHosts { # Read a list of hostnames from file
 		chomp;				# Remove trailing newline char
 		next if /^#/;			# Skip comment lines
 		next if /^\s*$/;		# Skip blank lines
-		next if /^(?:\@echo|acligui|exit)/;		# Skip batch launcher lines
+		next if /^(?:\@echo|acligui|start|exit)/;		# Skip batch launcher lines
 		if (/^\s*(\S+)\s*(?:\S+\s*)?(?:\#|$)/) {	# Valid entry
 			my $host = $1;
 			checkValidIP($host, undef, $lineNum) if $host =~ /^\d+\.\d+\.\d+\.\d+$/;
