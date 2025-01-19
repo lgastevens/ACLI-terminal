@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ConnectDisconnect;
-our $Version = "1.05";
+our $Version = "1.06";
 
 use strict;
 use warnings;
@@ -204,7 +204,7 @@ sub connectToHost { # Connect to host
 		Return_reference	=>	1,
 		Prompt_credentials	=>	0,
 		Output_record_separator	=>	$term_io->{Newline},
-		Wake_console		=>	"\n", # We always want \n here (default anyway); not \r which $term_io->{Newline} might be set to
+		Wake_console		=>	"\r\n", # Since we are enabling binmode above; not \r which $term_io->{Newline} might be set to
 		Terminal_type		=>	$term_io->{TerminalType},
 		Window_size		=>	$term_io->{WindowSize},
 		Report_query_status	=>	1,

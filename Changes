@@ -1343,3 +1343,6 @@ Revision history for acli.pl
 	  still in interctive mode. Used in the new "ipe" alias. The new syntax for the command is "@read [unbuffer] [exit]"
 	* SSH-ing another device from an existing connection now works correctly for VOSS SSH to BMAC as well as to SD-WAN
 	  appliance, EXOS and ISW, while staying in interactive mode all along, even after disconnecting.
+6.04_001
+	* Hitting CTRL-T on a terminal server connection in transparent mode was no longer able to enter interactive mode;
+	  instead the terminal would disconnect with message "Failed reading login prompt"

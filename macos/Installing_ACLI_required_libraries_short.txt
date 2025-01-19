@@ -73,7 +73,14 @@ Home-iMac:~ Ludovico$ cpanm Config::INI::Reader::Ordered
 Home-iMac:~ Ludovico$ cpanm LWP::Protocol::https
 Home-iMac:~ Ludovico$ cpanm IO::Socket::Multicast
 
+Apparently this is also needed now: cpanm Crypt::Digest::MD5
+
 
 INSTAL XQUARTZ
 ==============
 Install from App store or from https://www.xquartz.org/
+
+ALIAS
+=====
+echo 'alias acli="perl <path-to-acli>/ACLI-terminal/acli.pl"' >> ~/.zshrc
+source ~/.zshrc
