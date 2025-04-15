@@ -1346,3 +1346,9 @@ Revision history for acli.pl
 6.04_001
 	* Hitting CTRL-T on a terminal server connection in transparent mode was no longer able to enter interactive mode;
 	  instead the terminal would disconnect with message "Failed reading login prompt"
+6.04_002
+	* Sed colour pattern for voss/tgz image files was not working if the file was older than 1 year and time stamp was
+	  year instead of time
+	* Sed colour patters for FA elements active/reject status had gone missing for VOSS; re-added
+	* Fix to be able to properly grep output of "show isis lsdb tlv 135 detail"
+	* VOSS show run grep of VLAN with Anycast Gateway One-IP interface was not returning the VLAN DHCP-relay config

@@ -1,7 +1,7 @@
 ##############################
 # SED file for ACLI Terminal #
 ##############################
-# Version = 1.12
+# Version = 1.13
 #
 # This file is read when a new ACLI Terminal is launched and can be used to define SED (serial editor) patterns
 # It can be located in any of these directories in the following order:
@@ -88,7 +88,9 @@ category global
 category PassportERS
 'smlt   \Ksmlt'																colour green
 'smlt   \Knorm'																colour red
-'\d{8,} \w{3} +\d+ [\d:]+  \K\S+?\.(?:tgz|voss|xos)'											colour red	# Highlight VOSS image files
+'\d{8,} \w{3} +\d+  ?[\d:]+  \K\S+?\.(?:tgz|voss|xos)'											colour red	# Highlight VOSS image files
+'(?i)active(?=     (?:client|proxy))'													colour green
+'(?i)reject(?=     (?:client|proxy))'													colour red
 
 category BaystackERS,ISW
 '(?i)active(?=     (?:client|proxy|radius|ring))'											colour green
@@ -113,7 +115,7 @@ category global
 '\b(?:[a-fA-F\d]{4}\.){2}[a-fA-F\d]{4}\b'												colour sysid	# Highlight ISIS SysIDs
 "(?:[\s\(\)]|^)\K(\d{1,3})\.\d{1,3}\.\d{1,3}\.\d{1,3}(?=[\s:\/,]|$)(??{$^N == 255 || $^N == 0 ? '^':''})"				colour ip	# Highlight IPv4 addresses (not masks)
 "(?:[\s\(\)]|^)\K([\da-f]{1,4})(?:(?::[\da-f]{1,4}){7}|(?::[\da-f]{1,4})+:(?::[\da-f]{1,4})*|(?::[\da-f]{1,4})*:(?::[\da-f]{1,4})+|::)(?=[\s\/]|$)(??{$^N =~ /^0/ ? '^':''})"	colour ip	# Highlight IPv6 addresses (compact/full notation)
-'(?:[>,\s\(\-t]|[^\d:]:|c\d+:|^)\K\d{1,3}[/:](?:\d{1,3}|ALL|s\d)(?:[/:]\d)?(?:-(?:\d{1,3}[/:])?(?:\d{1,2}|s\d)(?:[/:]\d)?)?(?=[,\s\)\(]|$)'	colour port	# Highlight port numbers
+'(?:[>,\s\(\-t=]|[^\d:]:|c\d+:|^)\K\d{1,3}[/:](?:\d{1,3}|ALL|s\d)(?:[/:]\d)?(?:-(?:\d{1,3}[/:])?(?:\d{1,2}|s\d)(?:[/:]\d)?)?(?=[,\s\)\(]|$)'	colour port	# Highlight port numbers
 #
 #
 #	Output patterns are defined with the following syntax.

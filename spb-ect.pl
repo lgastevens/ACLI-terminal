@@ -1,9 +1,10 @@
 #!/usr/bin/perl
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
-my $Version = "2.00";
+my $Version = "2.01";
 
 use strict;
 use warnings;
+use bigint;
 
 my @EctMasks = ('00','ff','88','77','44','33','cc','bb','22','11','66','55','aa','99','dd','ee');
 
@@ -42,12 +43,14 @@ sub chosenPath { # Given a list of pathids, returns the chosen one
 MAIN:{
 	my ($numberPaths, $numberBVIDs, @pathList, @pathIDs, @bvidPath, @pathBvid);
 
+	print "spb-ect.pl version $Version\n\n";
 	prompt(\$numberPaths, "Specify number of paths to compare", 2);
 	prompt(\$numberBVIDs, "Specify number of BVLANs in use", 2);
 	for my $i (1 .. $numberPaths){
 		prompt(\$pathList[$i-1], "Comma separated list of nodes on path $i");
 		push(@{$pathIDs[$i-1]}, split(',',$pathList[$i-1]));
 		foreach my $bid (@{$pathIDs[$i-1]}) {
+			$bid =~ s/[:\.-]//g; # Strip characters usually found in MAC addresses
 			if ($bid !~ /^[\da-fA-F]+$/) {
 				print "This is not a valid hex value : ", $bid;
 				exit;

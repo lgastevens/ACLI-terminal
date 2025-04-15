@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-my $Version = "1.5";
+my $Version = "1.6";
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 # VSP as a L1 matrix using Transparent UNI on port pairs
 
@@ -17,7 +17,12 @@ my $Version = "1.5";
 # 1.3	- readMenuKey() fixed so that it does not crash when it reads ESC sequences from keyboard
 # 1.4	- Option to enable/disable/bounce poe now also works if a connection exists for endpoint
 # 1.5	- Automatic reconect in case of timeout now also applies to menu option (O) for Enable/
-#         Disable/Bounce POE
+#	  Disable/Bounce POE
+# 1.6	- On re-connect, when flushing the portid data of switches we need to reload, if the
+#	  portid had an I-SID assigned, was incorrectly deleting the whole I-SID record, instead
+#	  of just deleting the portid from the I-SID record; if the I-SID record also contained
+#	  the portid of other switches which are not being updated, this was resulting in orphaned
+#	  connections as the I-SID record became corrupted on reload
 
 # Todo...
 # - show ISID mirror offset in output
@@ -474,10 +479,10 @@ sub acquireMuxData { # Get all port data from all TuniMX switches
 		if (exists $subNodes->{$node}) {
 			# Portid to delete
 			if (exists $muxHash->{portid}->{$portid}->{isid}) {
-				# I-SID to delete
+				# Remove port-id from I-SID
 				my $isid = $muxHash->{portid}->{$portid}->{isid};
-				delete $muxHash->{isid}->{$isid};
-				debugMsg(1, "acquireMuxData() - data struct deleted I-SID $isid\n");
+				@{$muxHash->{isid}->{$isid}} = grep {$_ ne $portid} @{$muxHash->{isid}->{$isid}};
+				debugMsg(1, "acquireMuxData() - data struct deleted portid $portid from I-SID $isid\n");
 			}
 			my $portname = $muxHash->{portid}->{$portid}->{name};
 			delete $muxHash->{portname}->{$portname};
@@ -488,7 +493,7 @@ sub acquireMuxData { # Get all port data from all TuniMX switches
 	}
 	foreach my $portid (keys %{$muxHash->{unused}}) { # Same for unused portids
 		if (exists $subNodes->{$muxHash->{unused}->{$portid}}) {
-			# Portid to delete
+			# Unused Portid to delete
 			delete $muxHash->{unused}->{$portid};
 			debugMsg(1, "acquireMuxData() - data struct deleted unused portid $portid\n");
 		}

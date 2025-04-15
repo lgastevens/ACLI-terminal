@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalMatchingPatterns;
-our $Version = "1.14";
+our $Version = "1.15";
 
 use strict;
 use warnings;
@@ -196,6 +196,7 @@ our %Grep = (
 						['^vlan \d+ ip create (\d+\.\d+\.\d+\.\d+)\/', ' ', '(?:[^\d]|$)'],
 						['^vlan i-sid \d+ (\d+)', 'onboarding i-sid ', '(?:[^\d]|$)'],
 						['^\s*ipv6 interface address ([\da-f]{1,4}(?::[\da-f]{1,4}){7})/', ' ', '(?:\s|$)'],
+						['^\s*ip anycast-gateway one-ip (\d+\.\d+\.\d+\.\d+)/', ' ', '(?:[^\d]|$)'],
 			],
 		},
 		ExtremeXOS	=> {
@@ -238,7 +239,7 @@ our %Grep = (
 		PassportERS	=> [
 					['^Level-1	LspID:', -2, 1],
 					['^	Host_name:', -9], # Tab is 8, -9 = -1
-					['Metric:\s*\d+\s*	Prefix Length:', -2],
+					['Metric:\s*\d+\s*.*?	Prefix Length:', -2],
 					['UP/Down Bit:', -1],
 					['B-MAC: ', -2, 1],
 					['BVID:', -1],
