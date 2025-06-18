@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $Version = "1.19";
+my $Version = "1.20";
 my $Debug = 0;
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
@@ -46,6 +46,7 @@ my $Debug = 0;
 #	  executions of the script
 # 1.18	- Changed loadHosts to work with batch files using start instead of acligui.vbs
 # 1.19	- Clear button clears the Transparent checkbox
+# 1.20	- Special handling for double quotes " character used in supplied switch credential password
 
 
 #############################
@@ -523,7 +524,15 @@ sub launchConsole { # Spawn entry into ConsoleZ; use Win32/Process instead of ex
 		$acliArgs .= "-s \\\"$launchValues->{Sockets}\\\" " if defined $launchValues->{Sockets} && ($acliArgs !~ /-n/ || $launchValues->{Sockets} eq '0');
 		$acliArgs .= "-m \\\"$launchValues->{RunScript}\\\" " if defined $launchValues->{RunScript};
 		if (defined $launchValues->{Username}) {
-			my $credentials = $launchValues->{Username} . (defined $launchValues->{Password} ? ':'.$launchValues->{Password} : '');
+			my $credentials;
+			if (defined $launchValues->{Password}) {
+				(my $password = $launchValues->{Password}) =~ s/\"/\x7f/g; # Hack for " in password; replace with \x7f
+				# ConsoleZ's -r argument will clobber all double quotes, hence the hack
+				$credentials = $launchValues->{Username} . ':' . $password;
+			}
+			else {
+				$credentials = $launchValues->{Username};
+			}
 			if ($launchValues->{'Protocol'} eq 'SSH') {
 				$acliArgs .= "-l \\\"$credentials\\\" $host";
 			}

@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GeneratePortListRange;
-our $Version = "1.07";
+our $Version = "1.08";
 
 use strict;
 use warnings;
@@ -431,6 +431,7 @@ sub generateRange { # Takes an ordered port (or vlan) list (with no ranges & no 
 	$rangeMode = $term_io->{DefaultPortRng} unless defined $rangeMode; # 1 is default, if none specified
 	$inlist = [ split(',', $inlist) ] unless ref($inlist) eq 'ARRAY';
 	return join(',', @$inlist) unless $rangeMode & 3; # if bits 0 & 1 @ 0
+	return join(',', @$inlist) unless length scalar generatePortList($host_io, $inlist); # Skip if no valid ports
 	my (@ports, $elementBuild, $elementType, $elementSlot, $elementPort, $elementChan, $elementLast, $elemNextSlot, $elemLastPortOfSlot, $elemStartSlot, $rangePorts);
 	my ($slotStruct, $portStruct) = defined $slotPortStruct ? @$slotPortStruct : ($host_io->{Slots}, $host_io->{Ports});
 

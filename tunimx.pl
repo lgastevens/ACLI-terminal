@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-my $Version = "1.6";
+my $Version = "1.7";
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 # VSP as a L1 matrix using Transparent UNI on port pairs
 
@@ -23,6 +23,7 @@ my $Version = "1.6";
 #	  of just deleting the portid from the I-SID record; if the I-SID record also contained
 #	  the portid of other switches which are not being updated, this was resulting in orphaned
 #	  connections as the I-SID record became corrupted on reload
+# 1.7	- Mirroring data output now can cope with mirror ports set to unused ports
 
 # Todo...
 # - show ISID mirror offset in output
@@ -887,6 +888,21 @@ sub poePortStatus { # Formats the poe status to print for end-point
 	return ''; # Otherwise
 }
 
+sub actualPort { # Handles ports which might be unused in db; seen with mirroring ports
+	my ($muxHash, $portid, $key) = @_;
+	if (exists $muxHash->{portid}->{$portid}) {
+		return $muxHash->{portid}->{$portid}->{$key}
+	}
+	elsif (exists $muxHash->{unused}->{$portid}) {
+		return "unused" if $key eq "name";
+		return ""; # Otherwise
+	}
+	else {
+		return "unknown" if $key eq "name";
+		return ""; # Otherwise
+	}
+}
+
 sub printConnections { # Print out all connections
 	my ($muxHash, $listIn) = @_;
 	my $portidList = defined $listIn ? $listIn : [keys %{$muxHash->{portid}}];
@@ -1066,7 +1082,7 @@ MAIN:{
 	my ($inputHostsfile, $credentials);
 	my $mainloop = 1;
 
-	my $cli = {}; # Hash reference holding Control::CLI::AvayaData objects
+	my $cli = {}; # Hash reference holding Control::CLI::Extreme objects
 	my $muxHash = {};
 	#  $muxHash = {
 	#	switch	=> {
@@ -1149,6 +1165,7 @@ MAIN:{
 	$Debug = 1 if $opt_d;
 
 	# Argument processing
+	printSyntax unless @ARGV;
 	$muxHash->{connection}->{use} = uc shift(@ARGV) or printSyntax;
 	$muxHash->{connection}->{use} =~ /^ssh|telnet$/i or printSyntax;
 
@@ -1677,43 +1694,43 @@ MAIN:{
 				for my $i (0..$#$row) {
 					if (exists $row->[$i]->{in} && exists $row->[$i]->{out}) {
 						page(sprintf $InfoLine{mirror_in_and_out_line1},
-							$muxHash->{portid}->{$row->[$i]->{in}}->{name},
+							actualPort($muxHash, $row->[$i]->{in}, "name"),
 							$row->[$i]->{in},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{in}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{in}, "status")),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$row->[$i]->{in}}->{mode}),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$row->[$i]->{in}}->{enabled}),
 							$isid,
-							$muxHash->{portid}->{$row->[$i]->{out}}->{name},
+							actualPort($muxHash, $row->[$i]->{out}, "name"),
 							$row->[$i]->{out},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{out}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{out}, "status")),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{monitor}->{$row->[$i]->{out}}->{enabled}),
 						) or next LOOP if $i == 0;
 						page(sprintf $InfoLine{mirror_in_and_out_lineN},
-							$muxHash->{portid}->{$row->[$i]->{in}}->{name},
+							actualPort($muxHash, $row->[$i]->{in}, "name"),
 							$row->[$i]->{in},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{in}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{in}, "status")),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$row->[$i]->{in}}->{mode}),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$row->[$i]->{in}}->{enabled}),
 							$isid,
-							$muxHash->{portid}->{$row->[$i]->{out}}->{name},
+							actualPort($muxHash, $row->[$i]->{out}, "name"),
 							$row->[$i]->{out},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{out}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{out}, "status")),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{monitor}->{$row->[$i]->{out}}->{enabled}),
 						) or next LOOP if $i > 0;
 					}
 					elsif (exists $row->[$i]->{in}) {
 						page(sprintf $InfoLine{mirror_in_only_line1},
-							$muxHash->{portid}->{$row->[$i]->{in}}->{name},
+							actualPort($muxHash, $row->[$i]->{in}, "name"),
 							$row->[$i]->{in},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{in}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{in}, "status")),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$row->[$i]->{in}}->{mode}),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$row->[$i]->{in}}->{enabled}),
 							$isid,
 						) or next LOOP if $i == 0;
 						page(sprintf $InfoLine{mirror_in_only_lineN},
-							$muxHash->{portid}->{$row->[$i]->{in}}->{name},
+							actualPort($muxHash, $row->[$i]->{in}, "name"),
 							$row->[$i]->{in},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{in}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{in}, "status")),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$row->[$i]->{in}}->{mode}),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$row->[$i]->{in}}->{enabled}),
 						) or next LOOP if $i > 0;
@@ -1721,15 +1738,15 @@ MAIN:{
 					elsif (exists $row->[$i]->{out}) {
 						page(sprintf $InfoLine{mirror_out_only_line1},
 							$isid,
-							$muxHash->{portid}->{$row->[$i]->{out}}->{name},
+							actualPort($muxHash, $row->[$i]->{out}, "name"),
 							$row->[$i]->{out},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{out}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{out}, "status")),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{monitor}->{$row->[$i]->{out}}->{enabled}),
 						) or next LOOP if $i == 0;
 						page(sprintf $InfoLine{mirror_out_only_lineN},
-							$muxHash->{portid}->{$row->[$i]->{out}}->{name},
+							actualPort($muxHash, $row->[$i]->{out}, "name"),
 							$row->[$i]->{out},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{out}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{out}, "status")),
 							colourStatus($muxHash->{mirror}->{isid}->{$isid}->{monitor}->{$row->[$i]->{out}}->{enabled}),
 						) or next LOOP if $i > 0;
 					}
@@ -1754,44 +1771,44 @@ MAIN:{
 				for my $i (0..$#$row) {
 					if (exists $row->[$i]->{in} && exists $row->[$i]->{out}) {
 						page(sprintf $InfoLine{mirror_in_and_out_line1},
-							$muxHash->{portid}->{$row->[$i]->{in}}->{name},
+							actualPort($muxHash, $row->[$i]->{in}, "name"),
 							$row->[$i]->{in},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{in}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{in}, "status")),
 							colourStatus($muxHash->{mirror}->{switch}->{$node}->{mirror}->{$row->[$i]->{in}}->{mode}),
 							colourStatus($muxHash->{mirror}->{switch}->{$node}->{mirror}->{$row->[$i]->{in}}->{enabled}),
 							'Unit' . $muxHash->{switch}->{$node}->{unitid},
-							$muxHash->{portid}->{$row->[$i]->{out}}->{name},
+							actualPort($muxHash, $row->[$i]->{out}, "name"),
 							$row->[$i]->{out},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{out}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{out}, "status")),
 							'',
 						) or next LOOP if $i == 0;
 						page(sprintf $InfoLine{mirror_in_and_out_lineN},
-							$muxHash->{portid}->{$row->[$i]->{in}}->{name},
+							actualPort($muxHash, $row->[$i]->{in}, "name"),
 							$row->[$i]->{in},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{in}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{in}, "status")),
 							colourStatus($muxHash->{mirror}->{switch}->{$node}->{mirror}->{$row->[$i]->{in}}->{mode}),
 							colourStatus($muxHash->{mirror}->{switch}->{$node}->{mirror}->{$row->[$i]->{in}}->{enabled}),
 							'Unit' . $muxHash->{switch}->{$node}->{unitid},
-							$muxHash->{portid}->{$row->[$i]->{out}}->{name},
+							actualPort($muxHash, $row->[$i]->{out}, "name"),
 							$row->[$i]->{out},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{out}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{out}, "status")),
 							'',
 						) or next LOOP if $i > 0;
 					}
 					elsif (exists $row->[$i]->{in}) {
 						page(sprintf $InfoLine{mirror_in_only_lineN},
-							$muxHash->{portid}->{$row->[$i]->{in}}->{name},
+							actualPort($muxHash, $row->[$i]->{in}, "name"),
 							$row->[$i]->{in},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{in}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{in}, "status")),
 							colourStatus($muxHash->{mirror}->{switch}->{$node}->{mirror}->{$row->[$i]->{in}}->{mode}),
 							colourStatus($muxHash->{mirror}->{switch}->{$node}->{mirror}->{$row->[$i]->{in}}->{enabled}),
 						) or next LOOP;
 					}
 					elsif (exists $row->[$i]->{out}) {
 						page(sprintf $InfoLine{mirror_out_only_lineN},
-							$muxHash->{portid}->{$row->[$i]->{out}}->{name},
+							actualPort($muxHash, $row->[$i]->{out}, "name"),
 							$row->[$i]->{out},
-							colourStatus($muxHash->{portid}->{$row->[$i]->{out}}->{status}),
+							colourStatus(actualPort($muxHash, $row->[$i]->{out}, "status")),
 							colourStatus($muxHash->{mirror}->{switch}->{$node}->{monitor}->{$row->[$i]->{out}}->{enabled}),
 						) or next LOOP;
 					}

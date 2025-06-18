@@ -3,6 +3,7 @@ If WScript.Arguments.Count >= 1 Then
     ReDim arr(WScript.Arguments.Count-1)
     For i = 0 To WScript.Arguments.Count-1
         Arg = WScript.Arguments(i)
+        'MsgBox (Arg)
         Arg = Replace(Arg, Chr(250), Chr(163)) 'Hack to preserve pound sign '£' which otherwise comes out as 'ú'
         If InStr(Arg, " ") > 0 Or InStr(Arg, ":") > 0 Then Arg = """" & Arg & """"
         arr(i) = Arg

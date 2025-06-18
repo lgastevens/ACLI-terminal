@@ -124,9 +124,17 @@ The window also allows you to set all the same arguments (IP address list, usern
 </ol>
 <p>Notes:</p>
 <ul>
-	<li>Always place double quotes around the credentials as shown, in case of special characters</li>
-	<li>If the '%' character is present in the credentials, it will need to be escaped by entering it twice '%%'</li>
-	<li>Tested with password containing all of these special characters: £$%^&*_+-=<>#/\|[]{}!;:@~</li>
+	<li>The batch file can execute acligui.vbs or acligui.bat; acligui.vbs is preferred as it does not open a CMD window in the background</li>
+	<li>Placing double quotes around the credentials as shown, can be necessary in case of some special characters</li>
+	<li>It is assumed that space character is not allowed in password</li>
+	<li>Password special characters that can be used with acligui.vbs (no need to double quote): £$%*_+-=#/[]{}!;:@~\^&<>|</li>
+	<li>Password special characters that will not work with acligui.vbs: "</li>
+	<li>Password special characters that can be used with acligui.bat without double quotes: £$%*_+-=#/\\[]{}!;:@~\"</li>
+	<li>Password special characters that can be used with acligui.bat with double quotes:    £$%*_+-=#/\[]{}!;:@~^&<>|</li>
+	<li>Password special characters that must be double quoted when using acligui.bat: ^&<>|</li>
+	<li>Password special characters that cannot be provided inside double quotes when using acligui.bat: "</li>
+	<li>Password special characters that must be backslashed when not using double quotes with acligui.bat: \" \\</li>
+	<li>If the password special characters become too complex, consider simply omitting the password from the batch file; when the batch file is run, it will open the fully populated acligui window, where the password can be manually entered, then the connections launched; this is also more secure as the password is not saved in any text file</li>
 	<li>Always place double quotes around any value containing the space character, as seen above for "Window Title"</li>
 	<li>The per entry optional <i>-t</i> or <i>-n</i> can be provided for terminal server connections where ACLI should not enter interactive mode with <i>(-n)</i> or should with <i>(-t)</i></li>
 </ul>

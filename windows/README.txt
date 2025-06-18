@@ -1,4 +1,4 @@
-$Version = 6.04
+$Version = 6.05
 
 Install instructions
 ====================
@@ -798,22 +798,33 @@ And finally, if you wanted to share an ACLI shortcut to connect to a bunch of sw
 1 - Create a batch file (.bat extension) containing:
 
 	@echo off
-	start /b acligui.bat -p ssh -u "<username>[:<password>]" -w "%CD%" -f %0 -t "Window Title"
+	acligui.vbs -p ssh -u "<username>[:<password>]" -w "%CD%" -f %0 -t "Window Title"
 	exit
 	
 	# List hosts below
-	<IP-1>		<Hostname-1>
-	<IP-2>		<Hostname-2>
-	<IP-3>		<Hostname-3>	-n
-	[<IP-4>]:<PORT>	<Hostname-4>	-t
+	<IP-1>			<Hostname-1>
+	<IP-2>			<Hostname-2>
+	[<IP-3>]:<Port-1>	<Hostname-3>	[-n|-t] [# Comments]
+	[<IP-3>]:<Port-2>	<Hostname-3>	[-n|-t] [# Comments]
 	...
 
 Notes:
- - Always place double quotes around the credentials as shown, in case of special characters
- - If the '%' character is present in the credentials, it will need to be escaped by entering it twice '%%'
- - Tested with password containing all of these special characters:  $%^&*_+-=<>#/\|[]{}!;:@~
+ - The batch file can execute acligui.vbs or acligui.bat; acligui.vbs is preferred as it does not open a CMD window in the background
+ - Placing double quotes around the credentials as shown, can be necessary in case of some special characters
+ - It is assumed that space character is not allowed in password
+ - Password special characters that can be used with acligui.vbs (no need to double quote): £$%*_+-=#/\[]{}!;:@~^&<>|
+ - Password special characters that will not work with acligui.vbs: "
+ - Password special characters that can be used with acligui.bat without double quotes: £$%*_+-=#/\\[]{}!;:@~\"
+ - Password special characters that can be used with acligui.bat with double quotes:    £$%*_+-=#/\[]{}!;:@~^&<>|
+ - Password special characters that must be double quoted when using acligui.bat: ^&<>|
+ - Password special characters that cannot be provided inside double quotes when using acligui.bat: "
+ - Password special characters that must be backslashed when not using double quotes with acligui.bat: \" \\
+ - If the password special characters become too complex, consider simply omitting the password from the batch file; when the batch
+   file is run, it will open the fully populated acligui window, where the password can be manually entered, then the connections launched;
+   this is also more secure as the password is not saved in any text file
  - Always place double quotes around any value containing the space character, as seen above for "Window Title"
- - The per entry -n and -t flags are supported and will be placed on the ACLI command invoked for the entry
+ - The per entry -n and -t flags can be provided for terminal server connections where ACLI should not enter interactive mode with -n
+   or should with -t
 
 2 - Place the file in the directory you wish to be used as working directory once connected to switches
 

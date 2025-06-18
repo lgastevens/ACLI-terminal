@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ParseCommand;
-our $Version = "1.12";
+our $Version = "1.13";
 
 use strict;
 use warnings;
@@ -257,8 +257,10 @@ sub parseCommand { # This function breaks up the entered command into its main c
 						&& do {
 					&$pushVarSection if defined $varSection;
 					&$pushGrepSection if $section eq 'grepstr';
-					$section = 'feedarg' unless $section eq 'semicln';
-					debugMsg(4,"=parseCommand: Switching to FeedArg block: '//'\n");
+					unless ($section eq 'semicln') {
+						debugMsg(4,"=parseCommand: Switching to FeedArg block: '//'\n");
+						$section = 'feedarg';
+					}
 					&$addToSectionStr($1);
 					$prevChar = $currChar;
 					$space = '';
@@ -267,8 +269,10 @@ sub parseCommand { # This function breaks up the entered command into its main c
 				$currChar eq '<' && do { # SrcFile
 					&$pushVarSection if defined $varSection;
 					&$pushGrepSection if $section eq 'grepstr';
-					$section = 'srcfile' unless $section eq 'semicln';
-					debugMsg(4,"=parseCommand: Switching to SrcFile block: '<'\n");
+					unless ($section eq 'semicln') {
+						debugMsg(4,"=parseCommand: Switching to SrcFile block: '<'\n");
+						$section = 'srcfile';
+					}
 					&$addToSectionStr('');
 					$prevChar = $currChar;
 					$space = '';
@@ -281,8 +285,10 @@ sub parseCommand { # This function breaks up the entered command into its main c
 					# Should match all of: > $var / > $var,$var2
 					&$pushVarSection if defined $varSection;
 					&$pushGrepSection if $section eq 'grepstr';
-					$section = 'varcapt' unless $section eq 'semicln';
-					debugMsg(4,"=parseCommand: Switching to VarCapt block: '> \$'\n");
+					unless ($section eq 'semicln') {
+						debugMsg(4,"=parseCommand: Switching to VarCapt block: '> \$'\n");
+						$section = 'varcapt';
+					}
 					&$addToSectionStr($1);
 					$prevChar = $currChar;
 					$space = '';
@@ -295,8 +301,10 @@ sub parseCommand { # This function breaks up the entered command into its main c
 					# Should match all of: > filename / > $$ / > $var.cfg
 					&$pushVarSection if defined $varSection;
 					&$pushGrepSection if $section eq 'grepstr';
-					$section = 'filecap' unless $section eq 'semicln';
-					debugMsg(4,"=parseCommand: Switching to FileCap block: '>'\n");
+					unless ($section eq 'semicln') {
+						debugMsg(4,"=parseCommand: Switching to FileCap block: '>'\n");
+						$section = 'filecap';
+					}
 					&$addToSectionStr($1);
 					$prevChar = $currChar;
 					$space = '';
@@ -312,8 +320,10 @@ sub parseCommand { # This function breaks up the entered command into its main c
 						) && do {
 					&$pushVarSection if defined $varSection;
 					&$pushGrepSection if $section eq 'grepstr';
-					$section = 'grepstr' unless $section eq 'semicln';
-					debugMsg(4,"=parseCommand: Switching to Grep block: '|!^'\n") unless $section eq 'grepstr';
+					unless ($section eq 'semicln') {
+						debugMsg(4,"=parseCommand: Switching to Grep block: '|!^'\n") unless $section eq 'grepstr';
+						$section = 'grepstr';
+					}
 					$command =~ s/^\s+//; # Remove spaces leading to next command
 					&$addToSectionStr('');
 					$prevChar = $currChar;
@@ -328,8 +338,8 @@ sub parseCommand { # This function breaks up the entered command into its main c
 					&$pushVarSection if defined $varSection;
 					&$pushGrepSection if $section eq 'grepstr';
 					undef $thisCmdFlag if $section eq 'semicln';
-					$section = 'forloop';
 					debugMsg(4,"=parseCommand: Switching to ForLoop block: '&'\n");
+					$section = 'forloop';
 					# Reset command str and thiscmd
 					$cmdParsed->{command}->{str} = $cmdParsed->{thiscmd} = $cmdParsed->{fullcmd};
 					$cmdParsed->{command}->{str} =~ s/; *$//;
@@ -352,8 +362,8 @@ sub parseCommand { # This function breaks up the entered command into its main c
 					&$pushVarSection if defined $varSection;
 					&$pushGrepSection if $section eq 'grepstr';
 					undef $thisCmdFlag if $section eq 'semicln';
-					$section = 'rptloop';
 					debugMsg(4,"=parseCommand: Switching to RptLoop block: '\@'\n");
+					$section = 'rptloop';
 					# Reset command str and thiscmd
 					$cmdParsed->{command}->{str} = $cmdParsed->{thiscmd} = $cmdParsed->{fullcmd};
 					$cmdParsed->{command}->{str} =~ s/; *$//;

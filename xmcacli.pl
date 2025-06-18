@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $Version = "1.19";
+my $Version = "1.20";
 my $Debug = 0;
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
@@ -57,6 +57,7 @@ my $Debug = 0;
 #	- readHistoryFile() now always returns an array ref, even if it fails to read any history file
 #	- Clear button clears the Transparent checkbox and the new CLI credentials inputs
 #	- Pulldown for Containing Window was loosing <clear> option after the pull down was used to connect to a device
+# 1.20	- Special handling for double quotes " character used in supplied switch credential password
 
 
 #############################
@@ -353,7 +354,15 @@ sub launchConsole { # Spawn entry into ConsoleZ; use Win32/Process instead of ex
 			$password = $displayData->{profiles}->{$profile}->{loginPassword};
 		}
 		if (length $username) { # We have a username
-			my $credentials = $username . (defined $password ? ':'.$password : '');
+			my $credentials;
+			if (defined $password) {
+				$password =~ s/\"/\x7f/g; # Hack for " in password; replace with \x7f
+				# ConsoleZ's -r argument will clobber all double quotes, hence the hack
+				$credentials = $launchValues->{Username} . ':' . $password;
+			}
+			else {
+				$credentials = $launchValues->{Username};
+			}
 			if ($launchValues->{Protocol} eq 'SSH') {
 				$acliArgs .= "-l \\\"$credentials\\\" $device->{ip}";
 			}

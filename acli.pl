@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-our $Version = "5.12";
+our $Version = "5.13";
 our $Debug = 0;	# Bit values: 1024=printOut 512=loadAliasFile 256=tabExpand/quoteCurlyBackslashMask 128=historyDump 64=Errmode-Die 32=Errmode-Croak 16=ControlCLI(Serial) 8=ControlCLI 4=Input 2=output 1=basic
 BEGIN {	our $Sub = ''; } # Load all AcliPm modules from a subdirectory
 
@@ -1135,7 +1135,7 @@ MAIN:{
 			printSyntax unless length $args->{Host};
 			if ($opt_l =~ /^([^:\s]+):(\S*)$/) {
 				$args->{Username} = quotesRemove($1);
-				$args->{Password} = quotesRemove($2);
+				($args->{Password} = quotesRemove($2)) =~ s/\x7f/\"/g; # Restore " in password if launched from acligui
 			}
 			else {
 				$args->{Username} = quotesRemove($opt_l);
@@ -1148,7 +1148,7 @@ MAIN:{
 		if ($args->{Host} =~ s/^([^:]+)(?::(\S*))?@(\S+)$/$3/) { # Process embedded username/password
 			printSyntax if $opt_l;
 			$args->{Username} = quotesRemove($1);
-			$args->{Password} = quotesRemove($2);
+			($args->{Password} = quotesRemove($2)) =~ s/\x7f/\"/g; # Restore " in password if launched from acligui
 		}
 		$args->{Host} =~ s/^:@//; # For a telnet connection with no username/password provided (mRemoteNG integration)
 	}

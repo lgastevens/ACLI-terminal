@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::Variables;
-our $Version = "1.06";
+our $Version = "1.07";
 
 use strict;
 use warnings;
@@ -889,15 +889,17 @@ sub variablesCaptureValues { # Complete the variable capturing (once prompt rece
 		my $value = shift;
 		# Note that $value can be a string, or an array ref
 		my $stringValue = ref($value) ? join(',', @$value) : $value;
+		my $newValue;
 	
 		if ($term_io->{VarCustomRegex} && $stringValue !~ /^$VarCapturePortRegex$/) {
 			# For custom regex, except if we ended up capturing ports
-			$value = generateVarList($value);
+			$newValue = generateVarList($value);
 		}
 		else {	# For standard port regex OR custom regex if we ended up capturing ports
-			$value = generatePortList($host_io, $value);
+			$newValue = generatePortList($host_io, $value);
+			$newValue = generateVarList($value) unless length $newValue;
 		}
-		return $value;
+		return $newValue;
 	};
 
 	printOut($script_io, "\n") unless $term_io->{EchoOutputOff} && $term_io->{Sourcing};

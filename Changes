@@ -1352,3 +1352,6 @@ Revision history for acli.pl
 	* Sed colour patters for FA elements active/reject status had gone missing for VOSS; re-added
 	* Fix to be able to properly grep output of "show isis lsdb tlv 135 detail"
 	* VOSS show run grep of VLAN with Anycast Gateway One-IP interface was not returning the VLAN DHCP-relay config
+6.05_003
+	* Scripts acligui (v1.20) and xmcacli (v1.20) now are able to pass on a password that contains dounble quotes (")
+	* Capture to variable was failing for values which looked like port numbers without being valid port numbers
