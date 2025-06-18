@@ -1355,3 +1355,5 @@ Revision history for acli.pl
 6.05_003
 	* Scripts acligui (v1.20) and xmcacli (v1.20) now are able to pass on a password that contains dounble quotes (")
 	* Capture to variable was failing for values which looked like port numbers without being valid port numbers
+6.05_004
+	* Script xmcacli (v1.21) fixes issue introduced in v1.20

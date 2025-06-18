@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $Version = "1.20";
+my $Version = "1.21";
 my $Debug = 0;
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
@@ -58,7 +58,7 @@ my $Debug = 0;
 #	- Clear button clears the Transparent checkbox and the new CLI credentials inputs
 #	- Pulldown for Containing Window was loosing <clear> option after the pull down was used to connect to a device
 # 1.20	- Special handling for double quotes " character used in supplied switch credential password
-
+# 1.21	- Fix to issue with special handling for double quotes " character introduced above
 
 #############################
 # STANDARD MODULES          #
@@ -358,10 +358,10 @@ sub launchConsole { # Spawn entry into ConsoleZ; use Win32/Process instead of ex
 			if (defined $password) {
 				$password =~ s/\"/\x7f/g; # Hack for " in password; replace with \x7f
 				# ConsoleZ's -r argument will clobber all double quotes, hence the hack
-				$credentials = $launchValues->{Username} . ':' . $password;
+				$credentials = $username . ':' . $password;
 			}
 			else {
-				$credentials = $launchValues->{Username};
+				$credentials = $username;
 			}
 			if ($launchValues->{Protocol} eq 'SSH') {
 				$acliArgs .= "-l \\\"$credentials\\\" $device->{ip}";
