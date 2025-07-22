@@ -1357,3 +1357,8 @@ Revision history for acli.pl
 	* Capture to variable was failing for values which looked like port numbers without being valid port numbers
 6.05_004
 	* Script xmcacli (v1.21) fixes issue introduced in v1.20
+6.05_005
+	* ACLI> "trmsrv list <regex>" no longer crashes if an invalid regex is entered
+	* Port grep of VOSS show running-config was not returning lines with port ranges containing the asked for port(s)
+	  if the ranges included insight sideband ports 1/s1,1/s2
+	* Grep of show running config now also works for macsec mka profiles: cfg||macsec [<profile name>]

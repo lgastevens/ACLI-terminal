@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::CommandProcessing;
-our $Version = "1.12";
+our $Version = "1.13";
 
 use strict;
 use warnings;
@@ -3994,9 +3994,12 @@ sub processControlCommand { # Process a command under ACLI Control
 		$command = '';
 	};
 	$command =~ /^trmsrv list(?: (.*))?/ && do {
-		my $pattern = $1;
+		my $pattern = eval { qr/$1/ };
+		if (!defined $pattern) {
+			print "Invalid regex pattern\n";
+		}
 		# load
-		if (loadTrmSrvStruct($db)) {
+		elsif (loadTrmSrvStruct($db)) {
 			printTrmSrvList($annexData, $pattern, 1);
 		}
 		else {
@@ -4324,6 +4327,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		cmdOutput($db, "show running ||app                                  grep on application config context\n");
 		cmdOutput($db, "show running ||dhcp-server [<subnet-list>]          grep on dhcp-server config context\n");
 		cmdOutput($db, "show running ||dhcp-srv|dhcpsrv|dhcps [<snet-list>] same as above for dhcp-server grep\n");
+		cmdOutput($db, "show running ||macsec [<mka profile>]               grep on macsec mka config context\n");
 		cmdOutput($db, "show log [-i]                                       unwrap logfile on: ERS stackables, ISW\n");
 		$command = '';
 	};

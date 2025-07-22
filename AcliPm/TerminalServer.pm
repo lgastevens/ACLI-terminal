@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::TerminalServer;
-our $Version = "1.00";
+our $Version = "1.01";
 
 use strict;
 use warnings;
@@ -187,6 +187,12 @@ sub loadTrmSrvConnections { # Load Terminal Server file and process selection if
 	$host_io->{Name} = ''; # Clear this out to start with
 	loadTrmSrvStruct($db, 1) or return;
 
+	# Verify if selection is a valid regex
+	if ($selection && !defined eval { qr/$selection/ }) {
+		print "\nSelection \"$selection\" is not a valid regex";
+		$selection = '';
+	}
+
 	# If a selection was specified, check if we have an immediate match
 	if ($selection) {
 		if ($selection =~ /^(.+?)\s*\#\s*(\d+)$/) { # Hostname/IP #<port>
@@ -352,6 +358,13 @@ sub processTrmSrvSelection { # Process a selection from terminal server table
 	}
 	$selection =~ s/^\s*//;	# Remove starting spaces
 	$selection =~ s/\s*$//;	# Remove trailing spaces
+
+	# Verify if selection is a valid regex
+	if ($selection && !defined eval { qr/$selection/ }) {
+		print "Selection \"$selection\" is not a valid regex\n";
+		print "Select entry number / device name glob / <entry|IP>#<port> : ";
+		return;
+	}
 
 	if ($selection =~ /^\d+$/ && $selection >= 1 && $selection <= scalar @{$annexData->{List}}) { # Number in range entered
 		$host_io->{Name} = $annexData->{List}->[$selection - 1][0];

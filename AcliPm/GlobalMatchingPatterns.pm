@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalMatchingPatterns;
-our $Version = "1.15";
+our $Version = "1.16";
 
 use strict;
 use warnings;
@@ -16,6 +16,7 @@ our $CmdConfirmPrompt = $Control::CLI::Extreme::CmdConfirmPrompt;
 our %CmdConfirmSendY = %{Control::CLI::Extreme::CmdConfirmSendY};
 our $CmdInitiatedPrompt = $Control::CLI::Extreme::CmdInitiatedPrompt;
 
+# When updating $VarCapturePortRegex, think about if patterns in HandleBufferedOutput.pm sub matchline might also need updating
 #my $VarCapturePortRegex = '(?:^|\s|Port\-?)((?:\d{1,2}\/\d{1,2}(?:\-\d{1,2}(?:\/\d{1,2})?)?,)*\d{1,2}\/\d{1,2}(?:\-\d{1,2}(?:\/\d{1,2})?)?)(?:\s|$)';
 #my $VarCapturePortRegex = '(?:^|\s|Port\-?)((?:\d{1,2}\/\d{1,2}(?:\/\d{1,2})?(?:\-\d{1,2}(?:\/\d{1,2}(?:\/\d{1,2})?)?)?,)*\d{1,2}\/\d{1,2}(?:\/\d{1,2})?(?:\-\d{1,2}(?:\/\d{1,2}(?:\/\d{1,2})?)?)?)(?:\s|$)'; # Channelized support
 #my $VarCapturePortRegex = '(?:^|\s|Port\-?)((?:\d{1,2}\/\d{1,2}(?:\/\d{1,2})?(?:\-\d{1,2}(?:\/\d{1,2}(?:\/\d{1,2})?)?)?,)*\d{1,2}\/\d{1,2}(?:\/\d{1,2})?(?:\-\d{1,2}(?:\/\d{1,2}(?:\/\d{1,2})?)?)?|(?:Unit|Slot):\d+ Port: ?\d+)(?:\s|$)'; # Channelized support
@@ -156,7 +157,7 @@ our %Grep = (
 				'^(?i:locale)',	# level2
 				],
 		PassportERS	=> [
-				'^ *(?i:interface |router \w+(?:\s+r\w+)?\s*$|router vrf|route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$|application|i-sid \d+|wireless|logical-intf isis \d+|mgmt [\dcvo]|ovsdb\s*$|(?:ip )?dhcp-server subnet)', # level0
+				'^ *(?i:interface |router \w+(?:\s+r\w+)?\s*$|router vrf|route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$|application|i-sid \d+|wireless|logical-intf isis \d+|mgmt [\dcvo]|ovsdb\s*$|(?:ip )?dhcp-server subnet|macsec mka (?:profile|keychain))', # level0
 				'^ *(?i:route-map (?:\"[\w\d\s\.\+<>-]+\"|[\w\d\.-]+) \d+\s*$)',	# level1
 				],
 		Series200	=> [
@@ -184,8 +185,9 @@ our %Grep = (
 		Ovsdb		=> '^ovsdb\s*$',
 		Application	=> '^application$',
 		DhcpSrv		=> '^(?:ip )?dhcp-server ',
+		Macsec		=> '^macsec mka (?:profile|keychain) ',
 	},
-	CreateContext		=> '^(?:route-map |ip igmp profile |i-sid \d+|logical-intf isis \d+|ipv6 dhcp guard policy |ipv6 nd raguard policy |mgmt [\dcvo]|dhcp-server subnet)',
+	CreateContext		=> '^(?:route-map |ip igmp profile |i-sid \d+|logical-intf isis \d+|ipv6 dhcp guard policy |ipv6 nd raguard policy |mgmt [\dcvo]|(?:ip )?dhcp-server subnet|macsec mka (?:profile|keychain))',
 	ExitInstance		=> '^ *(?:exit|back|end)\b',
 	DeltaPattern => {	# These patterns can capture and add to the current grep search patterns
 		PassportERS	=> {
@@ -304,6 +306,7 @@ our %Grep = (
 				'^mgmt (?:\d )?(?:.+)?\n\n?exit\s*\n',
 				'^ovsdb\s*\n\n?exit\s*\n',
 				'^(?:ip )?dhcp-server subnet [\d\.\/]+\s*\n\n?exit\s*\n',
+				'^macsec mka (?:profile|keychain) [\w\d\s\.\+<>-]+\s*\n\n?exit\s*\n',
 				],
 		Series200	=> [
 				'^line \w+\s*\n\n?exit\s*\n',

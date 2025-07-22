@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::InputProcessing;
-our $Version = "1.12";
+our $Version = "1.13";
 
 use strict;
 use warnings;
@@ -683,8 +683,8 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 			push(@{$grep->{RangeList}}, undef);
 			debugMsg(1,"-> Grep-Instance : set to Ssid\n");
 			my $ssidlist = $1;
-			$ssidlist =~ s/,$//; # No trailing comma
 			if (defined $ssidlist) {
+				$ssidlist =~ s/,$//; # No trailing comma
 				$grepString = '\s+(?:add |edit) "(?:' . $ssidlist . ')"$';
 				$grepString =~ s/,/|/g;
 			}
@@ -698,6 +698,17 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 			push(@{$grep->{Instance}}, 'Application');
 			push(@{$grep->{RangeList}}, undef);
 			debugMsg(1,"-> Grep-Instance : set to Application\n");
+		}
+		elsif ($grepAdv && !$grepQuotes && $grepString =~ /^macsec(?:\s+(\S+))?$/i) { # Macsec
+			push(@{$grep->{Instance}}, 'Macsec');
+			push(@{$grep->{RangeList}}, undef);
+			debugMsg(1,"-> Grep-Instance : set to Macsec\n");
+			my $msecprofiles = $1;
+			if (defined $msecprofiles) {
+				$msecprofiles =~ s/,$//; # No trailing comma
+				$grepString = 'macsec mka (?:profile|keychain) (?:' . $msecprofiles . ')$';
+				$grepString =~ s/,/|/g;
+			}
 		}
 		elsif (!$grepQuotes && (($portList, $portHash) = generatePortList($host_io, $grepString)) && length $portList) { # Multiple or Single Ethernet ports / also single number
 			push(@{$grep->{Instance}}, 'Port');
