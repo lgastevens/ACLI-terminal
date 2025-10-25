@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::InputProcessing;
-our $Version = "1.13";
+our $Version = "1.14";
 
 use strict;
 use warnings;
@@ -412,6 +412,7 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 		}
 		else {
 			printOut($script_io, "\n$ScriptName: Invalid grep pattern: $grepstr->{str}\n$prompt");
+			stopSourcing($db);
 			return;
 		}
 
@@ -787,6 +788,7 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 			$message =~ s/ at .+ line .+$//; # Delete file & line number info
 			resetGrepStructure($grep);
 			printOut($script_io, "\n$ScriptName: Invalid regular expression: $message\n$prompt");
+			stopSourcing($db);
 			return;
 		}
 		push(@{$grep->{Regex}}, $grepRegex);
@@ -843,6 +845,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 				if ($varsListed > 1 && $varsListed ne $valuesToCapture) {
 					printOut($script_io, "\n$ScriptName: supplied $varsListed variables but $valuesToCapture capture columns\n$prompt");
 					$term_io->{VarCapture} = [];
+					stopSourcing($db);
 					return;
 				}
 				if ($varsListed == $valuesToCapture) { # Map the relevant capture index to each variable
@@ -914,6 +917,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 					$message =~ s/ at .+ line .+$//; # Delete file & line number info
 					printOut($script_io, "\n$ScriptName: Invalid regular expression: $message\n$prompt");
 					$term_io->{VarCapture} = [];
+					stopSourcing($db);
 					return;
 				}
 				# Some error checking
@@ -922,6 +926,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 						if ($term_io->{VarCapHashKeys}->{$variable} > $valuesToCapture) {
 							printOut($script_io, "\n$ScriptName: hash index %$term_io->{VarCapHashKeys}->{$variable} must refer to one of regex capturing brackets\n$prompt");
 							$term_io->{VarCapture} = [];
+							stopSourcing($db);
 							return;
 						}
 					}
@@ -940,6 +945,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 				if (($varsListed > 1 && $varsListed ne $valuesToCapture) || $valuesToCapture < 1) {
 					printOut($script_io, "\n$ScriptName: supplied $varsListed variables but $valuesToCapture capture regex\n$prompt");
 					$term_io->{VarCapture} = [];
+					stopSourcing($db);
 					return;
 				}
 				# Map the relevant capture index to each variable
@@ -965,6 +971,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 				if ($varsListed > 1) {
 					printOut($script_io, "\n$ScriptName: supplied $varsListed variables but default port capturing can only work for 1 variable\n$prompt");
 					$term_io->{VarCapture} = [];
+					stopSourcing($db);
 					return;
 				}
 				# Error checking
@@ -972,6 +979,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 					if ($term_io->{VarCaptureType}->{$variable} eq 'hash' && !defined $term_io->{VarCaptureKoi}->{$variable}) { # Hash
 						printOut($script_io, "\n$ScriptName: capturing to a hash variable requires a custom regex\n$prompt");
 						$term_io->{VarCapture} = [];
+						stopSourcing($db);
 						return;
 					}
 				}
@@ -1039,6 +1047,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 			unless (length $destination) {
 				printOut($script_io, "\n$ScriptName: null output filename provided\n$prompt");
 				$script_io->{CmdLogOnly} = undef;
+				stopSourcing($db);
 				return;
 			}
 			if ($destination =~ /^\.[\w\d]+$/) { # .xxx -> switchname.xxx
@@ -1063,6 +1072,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 			unless ($ok) {
 				printOut($script_io, "\n$ScriptName: $err\n$prompt");
 				$script_io->{CmdLogFile} = $script_io->{CmdLogOnly} = $script_io->{CmdLogFlag} = undef; # In case of command "vlan <vid> some setting"(bug15)
+				stopSourcing($db);
 				return;
 			}
 		}
@@ -1115,14 +1125,17 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 	if (defined $cmdParsed->{command}->{opt}->{peercpu}) {
 		if (defined $cmdParsed->{command}->{opt}->{bothcpus}) {
 			printOut($script_io, "\n$ScriptName: cannot have both -bothcpus & -peercpu options\n$prompt");
+			stopSourcing($db);
 			return;
 		}
 		if ($host_io->{RemoteAnnex}) {
 			printOut($script_io, "\n$ScriptName: option -peercpu cannot be used if connected via Terminal Server\n$prompt");
+			stopSourcing($db);
 			return;
 		}
 		if ($host_io->{Console}) {
 			printOut($script_io, "\n$ScriptName: option -peercpu cannot be used if connected via Serial Port\n$prompt");
+			stopSourcing($db);
 			return;
 		}
 		if ($host_io->{DualCP}) {
@@ -1131,6 +1144,7 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 		}
 		else { # Make error if this option used on single CPU systems
 			printOut($script_io, "\n$ScriptName: option -peercpu cannot be used on single CPU device\n$prompt");
+			stopSourcing($db);
 			return;
 		}
 		$term_io->{YnPrompt} = 'y'; # Implicit -y
@@ -1140,10 +1154,12 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 	if (defined $cmdParsed->{command}->{opt}->{bothcpus}) {
 		if ($host_io->{RemoteAnnex}) {
 			printOut($script_io, "\n$ScriptName: option -bothcpus cannot be used if connected via Terminal Server\n$prompt");
+			stopSourcing($db);
 			return;
 		}
 		if ($host_io->{Console}) {
 			printOut($script_io, "\n$ScriptName: option -bothcpus cannot be used if connected via Serial Port\n$prompt");
+			stopSourcing($db);
 			return;
 		}
 		if ($host_io->{DualCP}) {

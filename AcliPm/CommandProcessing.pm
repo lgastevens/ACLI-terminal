@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::CommandProcessing;
-our $Version = "1.13";
+our $Version = "1.14";
 
 use strict;
 use warnings;
@@ -5174,6 +5174,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		if ($text =~ /^(?:\'[^\']*\'|\"[^\"]*\")$/) { # Text is quoted
 			$text = quotesRemove($text) || '';	# Remove quotes
 			$text =~ s/\\n/\n/g;			# Process newlines "\n"
+			$text =~ s/\\t/\t/g;			# Process tab "\t"
 		}
 		cmdMessage($db, "$text\n"); # This will print even if echo output is off
 		$command = '';
@@ -5187,7 +5188,8 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 	};
 	$command =~ /^\@printf ('[^\']+'|"[^\"]+")\s*,\s*(.*)/ && do {
 		my ($fmtString, $fmtValueList) = (quotesRemove($1), $2);
-		$fmtString =~ s/\\n/\n/g;
+		$fmtString =~ s/\\n/\n/g;	# Process newlines "\n"
+		$fmtString =~ s/\\t/\t/g;	# Process tab "\t"
 		my @fmtValues = map {s/^\s+//; s/\s+$//; quotesRemove($_)} split(/,\s+/, $fmtValueList); # split on ',\s' as ',' alone might be in variables
 		my $output;
 		eval {

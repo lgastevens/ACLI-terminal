@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::Version;
-our $VERSION = "6.04_005"; # This version is the ACLI release version
+our $VERSION = "6.04_006"; # This version is the ACLI release version
 
 use strict;
 use warnings;

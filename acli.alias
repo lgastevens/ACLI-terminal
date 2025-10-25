@@ -1,6 +1,6 @@
 # acli.pl alias file
 #
-$Version = 1.65
+$Version = 1.66
 #
 # This file should be placed either in the same directory as acli.pl or else in your home directory (ENV paths HOME & USERPROFILE are checked)
 # If the file is present in multiple paths the order of preference is the following:
@@ -1079,7 +1079,9 @@ isj
 	~:"Show SPB ISIS adjacencies"
 	{is_sdwan}									= debug fabric show config
 	1										= show isis adjacencies
+isjv	~:"Show SPB ISIS adjacencies verbose"						= show isis adjacencies verbose
 isi	~:"Show SPB ISIS interfaces"							= show isis interface
+isiv	~:"Show SPB ISIS interfaces verbose"						= show isis interface verbose
 isa	~:"Show SPB ISIS interface authentication"					= show isis int-auth
 isl1	~:"Show SPB ISIS interface L1 counters"						= show isis int-l1-cntl-pkts
 iss
@@ -1236,6 +1238,7 @@ vf [$vrf]
 	{family_type} eq 'PassportERS'							= show ip vrf info [vrf $vrf]
 ipi [$vrf]
 	~:"Show IP interfaces for a given VRF or GRT"
+	?:"Alias syntax:\n	ipi [<vrf-name>|<vrf-id>|all]\n"
 	{family_type} eq 'PassportERS' && $vrf =~ /^all$/i				= show ip interface vrfids 0-512
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip interface [vrfids $vrf]
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip interface [vrf $vrf]
@@ -1255,6 +1258,7 @@ ipv [$vrf]
 	{is_xos}									= show vlan !\(.\),auto-move,Active router,/Total||\d+\.\d+\.\d+\.\d+
 ipa [$vrf]
 	~:"Show ARP cache for a given VRF or GRT"
+	?:"Alias syntax:\n	ipa [<vrf-name>|<vrf-id>|all]\n"
 	{is_acli} && $vrf =~ /^all$/i							= show ip arp vrfids 0-512
 	{is_acli} && $vrf =~ /^\d+$/							= show ip arp [vrfids $vrf]
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip arp info [vrfids $vrf]
@@ -1263,6 +1267,7 @@ ipa [$vrf]
 	{is_xos}									= show iparp [vr $vrf] !" : "!
 ipr [$vrf]
 	~:"Show IP routes for a given VRF or GRT"
+	?:"Alias syntax:\n	ipr [<vrf-name>|<vrf-id>|all]\n"
 	{is_xos}									= show iproute [vr $vrf] !\(..?\),routes,distribution:!
 	{is_slx}									= do show ip route [vrf $vrf]
 	{is_isw}									= do show ip route
@@ -1273,6 +1278,7 @@ ipr [$vrf]
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip route info [vrf $vrf]
 ipra [$vrf]
 	~:"Show IP routes including alternatives for a given VRF or GRT"
+	?:"Alias syntax:\n	ipra [<vrf-name>|<vrf-id>|all]\n"
 	{is_acli} && $vrf =~ /^all$/i							= show ip route alternative vrfids 0-512
 	{is_acli} && $vrf =~ /^\d+$/							= show ip route alternative [vrfids $vrf]
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip route info alternative [vrfids $vrf]
@@ -1280,6 +1286,7 @@ ipra [$vrf]
 	{family_type} eq 'PassportERS' || {family_type} eq 'Accelar'			= show ip route info alternative [vrf $vrf]
 iprs [$vrf]
 	~:"Show IP static routes for a given VRF or GRT"
+	?:"Alias syntax:\n	iprs [<vrf-name>|<vrf-id>|all]\n"
 	{is_acli} && $vrf =~ /^all$/i							= show ip route static vrfids 0-512
 	{is_acli} && $vrf =~ /^\d+$/							= show ip route static [vrfids $vrf]
 	{family_type} eq 'PassportERS' && $vrf =~ /^\d+$/				= show ip static-route info [vrfids $vrf]
@@ -1395,6 +1402,11 @@ bfds [$vrf]
 	{is_voss} && $vrf =~ /^\d+$/							= show ip bfd stats [vrfids $vrf]!
 	{is_voss}									= show ip bfd stats [vrf $vrf]!
 	{is_xos}									= show bfd counters
+agw [$vrf]
+	{is_voss} && $vrf =~ /^\d+$/							= show ip anycast-gateway interfaces [vrfids $vrf]
+	{is_voss}									= show ip anycast-gateway interfaces [vrf $vrf]
+agwi
+	{is_voss}									= show ip anycast-gateway i-sid
 
 
 #
@@ -1949,3 +1961,6 @@ rmlogs
 									; ls |\d\{4\}\s+log\. > $rmlogs_files %9
 									; delete %s &$rmlogs_files
 									; @more enable
+
+internet
+	1	= $internet[] = (0.0.0.0/5; 8.0.0.0/7; 11.0.0.0/8; 12.0.0.0/6; 16.0.0.0/4; 32.0.0.0/3; 64.0.0.0/2; 128.0.0.0/3; 160.0.0.0/5; 168.0.0.0/6; 172.0.0.0/12; 172.32.0.0/11; 172.64.0.0/10; 172.128.0.0/9; 173.0.0.0/8; 174.0.0.0/7; 176.0.0.0/4; 192.0.0.0/9; 192.128.0.0/11; 192.160.0.0/13; 192.169.0.0/16; 192.170.0.0/15; 192.172.0.0/14; 192.176.0.0/12; 192.192.0.0/10; 193.0.0.0/8; 194.0.0.0/7; 196.0.0.0/6; 200.0.0.0/5; 208.0.0.0/4)

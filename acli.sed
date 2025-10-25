@@ -1,7 +1,7 @@
 ##############################
 # SED file for ACLI Terminal #
 ##############################
-# Version = 1.13
+# Version = 1.14
 #
 # This file is read when a new ACLI Terminal is launched and can be used to define SED (serial editor) patterns
 # It can be located in any of these directories in the following order:
@@ -97,8 +97,8 @@ category BaystackERS,ISW
 '(?i)reject(?=     (?:client|proxy|radius|ring))'											colour red
 
 category ExtremeXOS
-'(?:Client|Proxy|Radius|(?:Static|Dynamic) +\d+) +\KActive'										colour green
-'(?:Client|Proxy|Radius|(?:Static|Dynamic) +\d+) +\KRejected'										colour red
+'(?:Client|Proxy|Radius|(?:Static|Dynamic|ZTC) +\d+) +\KActive'										colour green
+'(?:Client|Proxy|Radius|(?:Static|Dynamic|ZTC) +\d+) +\KRejected'										colour red
 'Ring \(\KComplete'															colour green
 'Ring \(\KSevered'															colour red
 

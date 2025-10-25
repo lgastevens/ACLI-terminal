@@ -1362,3 +1362,13 @@ Revision history for acli.pl
 	* Port grep of VOSS show running-config was not returning lines with port ranges containing the asked for port(s)
 	  if the ranges included insight sideband ports 1/s1,1/s2
 	* Grep of show running config now also works for macsec mka profiles: cfg||macsec [<profile name>]
+6.04_006
+	* default aliases ipi, ipa, ipr, ipra, iprs now have a syntax display showing the input options as either VRF-name,
+	  VRF-id or "all"
+	* Tab characters can now be used with @print and @pritnf by specifying "\t"
+	* ACLI syntax errors on interactive CLI now will halt a sourced script just as if the error had originated from the 
+	  switch
+	* Single quotes can now be used around a password to be configured on the switch; the password can containg ACLI
+	  interactive mode special characters (|!<> etc..), these will not be processed because inside the single quotes;
+	  this was already the case before; the difference now is that the single quotes will be removed before sending
+	  the command to the switch
