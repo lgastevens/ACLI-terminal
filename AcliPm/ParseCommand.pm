@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ParseCommand;
-our $Version = "1.14";
+our $Version = "1.15";
 
 use strict;
 use warnings;
@@ -194,7 +194,7 @@ sub parseCommand { # This function breaks up the entered command into its main c
 				$currChar eq "'" && $command =~ s/^([^\']*[^\\])\'// && do { # Single quoted section ''
 					&$pushVarSection if defined $varSection;
 					$block = $1;
-					unless ($section eq 'command') { # We strip the quotes only on command sections
+					unless ($section eq 'command' && !$cmdParsed->{command}->{emb}) { # We strip the quotes only on command sections, which are not embedded cmds
 						$block = $currChar . $block . "'";	  # This is a workaround to feeding passwords with ACLI reserved characters to the switch
 					}						  # Simply enclose the password containing no spaces in single quotes
 					debugMsg(4,"=parseCommand: Extracted '' block: ", \$block, "\n");

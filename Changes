@@ -1372,3 +1372,6 @@ Revision history for acli.pl
 	  interactive mode special characters (|!<> etc..), these will not be processed because inside the single quotes;
 	  this was already the case before; the difference now is that the single quotes will be removed before sending
 	  the command to the switch
+6.04_007
+	* Single quotes change in previuos version caused problems on some embedded commands, like @sed, used in aliases
+	  'log' and 'logt'; original behaviuor of single quotes is now restored for embedded commands
