@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalMatchingPatterns;
-our $Version = "1.16";
+our $Version = "1.17";
 
 use strict;
 use warnings;
@@ -35,115 +35,64 @@ our $VarSlotAll = '(?:\d+[\/:])?ALL';			# Matches $ALL, $1/ALL, $2:ALL, etc...
 our $VarUser = '_|[^_\s\.\#\'][\w_\d]*';		# Matches only valid user variable names + $_
 our $VarScript = '[^_\s\.\#\'][\w_\d]*';		# Matches only valid variable names (excluding $_ and which can only be declared in a script with @my)
 our $VarAttrib = '_([\w_\d]+)(?|\[(\d+)\]|\{(\w+)\})?';	# Matches only $_attribute
-our $VarAny = '[\$\@\%\*\>]|[\w_\d]+(?:\[\d+\])?';	# Matches any of above (except $1/ALL, $2:ALL) + $_attribute + $$ + $@ + $> (but not $)
+our $VarAny = '[\$\@\%\*\>\#]|[\w_\d]+(?:\[\d+\])?';	# Matches any of above (except $1/ALL, $2:ALL) + $_attribute + $$ + $@ + $> (but not $)
 our $VarDelim = '(?=[\s;:,|!\.\/\\\"\+\-\*\%\)\}\]\$\>\<\?]|$)'; # Matches at the end of a valid variable
 our $VarHashKey = '[\w\d\-_\/:\.]+';			# Matches valid hash variable keys
 
+our %ClassifyInitState = (lastcategory => '', indentOffset => 0, config => 0);
+our @LineClassifyingPatterns = ( # Patterns to classify output lines as banner or records or data
+	# B:banner; do not process for record counting + do not process for var capture
+	# R:record; process for record counting and for var capture
+	# D:data; process only for var capture
+	# S:summary; line giving summary count from switch perspective
+	# [<patern-name>, <category>, <family>, <flag:skipIndented if last category R>, <regex-pattern>]
+	# <family> is undef if it applies to all family types
+	# Order of patterns is important
+	['BannHard', 'B', undef,          1,	=> '^(?:[-=\*]{2,}|[#\*]|^Flags ?:)'],
+	['BannBang', 'B', 'OneOS',        0,	=> '^\s*!'],
+	['BannTime', 'B', undef,          1,	=> '^\t+Command Execution Time: '],
+	['BannSock', 'B', undef,          1,	=> '^Output from [^\s:]+:$'],
+	['Config--', 'D', undef,          1,	=> '^(?:config|create|enable)'],
+	['PortSlot', 'R', undef,          1,	=> '(?:^|[\s,]|Port)\d{1,3}[\/:](?:ALL|s\d|\d{1,2}(?:[\/:]\d{1,2})?)(?:[\s,-]|$)'],
+	['PortNumb', 'R', undef,          1,	=> 'Port:?\s?\d+\s'],
+	['Mac-Addr', 'R', undef,          1,	=> '(?:[a-fA-F\d]{2}[:-]){5}[a-fA-F\d]{2}'],
+	['SystemId', 'R', undef,          1,	=> '(?:[a-fA-F\d]{4}[\.]){2}[a-fA-F\d]{4}'],
+	['IPv4Addr', 'R', undef,          1,	=> '(?:^|[\s])\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?:[\s]|$)'],
+	['IPv6Addr', 'R', undef,          1,	=> '[\da-f]{1,4}(?:(?::[\da-f]{1,4}){7}|(?::[\da-f]{1,4})+:(?::[\da-f]{1,4})*|(?::[\da-f]{1,4})*:(?::[\da-f]{1,4})+|::)'],
+	['Firmware', 'R', undef,          1,	=> '\d+\.\d+\.\d+'],
+	['IndxNumb', 'R', undef,          1,	=> '^\d+(?:\s\s+|$)'],
+	['EnabDisa', 'R', undef,          1,	=> ':\s+(?:[Ee]nabled|[Dd]isabled) *$'],
+	['Xos-VLAN', 'R', undef,          1,	=> ' \d+ \/\d+ '], # EXOS VLAN record
+	['SummaryC', 'S', undef,          0,	=> '(?:^(?: ?T(?:he t)?otal|Number of ).*:? ?\d+\s*$|\d+ out of \d+ | out of total of \d+| [Cc]ount ?[:=] \d+$)'],
+		# Total Static Routes Displayed: 1 / VOSS show ip route static
+		# 5 out of 5 Total Num of Route Entries, 5 Total Num of Dest Networks displayed. / VOSS show ip route
+		# Number of load sharing trunks: 0 / EXOS show sharing
+		# Total: 29 Static: 0  Perm: 0  Dyn: 29  Dropped: 0  Locked: 0  Locked with Timeout: 0 / EXOS show fdb vlan
+		#  1 out of 1 interfaces have formed an adjacency / VOSS show isis adjacencies
+		#  Total Num of SPBM instances: 1 / VOSS show isis spbm
+		# Total number of SPBM UNICAST FIB entries 16 / VOSS show isis spbm unicast-fib
+		# The total number of bgp routes in this Vrf are 61 / show ip bgp route vrf sd-wan
+		#  2 of 2 matching entries out of total of 2 Remote Mac entries in all fdb(s) displayed.
+		# Binding Count: 1 / ERS show fa assignment
+		# ARPs on TX-NNI: Current = 0, re-ARP count = 6167 / VOSS show ip arp
+	['Trail-TF', 'R', undef,          1,	=> '\s(?i:true|false) *$'], # VOSS show ip vrf
+	['TrailOnF', 'R', undef,          1,	=> '\s(?i:on|off) *$'], # VOSS show sys-info
+	['TrailVal', 'R', 'PassportERS',  1,	=> '\s+\d+ *$'], # VOSS show ip route preference
+	['LargeNum', 'R', undef,          0,	=> ' \d{4,} '],
+	['VosSnmp1', 'R', 'PassportERS',  1,	=> '(?:^|\s)(?:snmpv|usm)'],
+	['VosSnmp2', 'R', 'PassportERS',  1,	=> '\s\*{8}\s'], # show snmp-server community
+	['VossLsdb', 'D', 'PassportERS',  1,	=> '^TLV:'],
+	['BannText', 'B', undef,          1,	=> '^[A-Z]{3,} '],
+	['Voss-IST', 'R', 'PassportERS',  1,	=> '^v\d+\.\d+ '], # VOSS show vist
+	['VossCore', 'R', 'PassportERS',  1,	=> '^\d+\. '], # VOSS show core
+);
+
 our %Grep = (
-	SocketEchoBanner	=> '^Output from [^\s:]+:$',
-	SocketEchoBannerExc	=> '^Response from ',
-	BannerHardPatterns	=> { # Patterns which are undeniably banner lines (following which we accept BannerSoftPatterns)
-		BaystackERS	=> '^(?:[-=_!\*]'
-					. '|\s*Command Execution Time:'
-					. '|Unit: \d  Port: \d+'			# show port-statistics
-					. '|   MAC Address    Vid '			# fdb
-					. '| +\d\d? +\d\d? +\d\d?'			# show qos diag
-				. ')',
-		PassportERS	=> '^(?:[-=\*]{2,}|[#\*]'
-					. '|\t*Command Execution Time:'
-					. '|c: customer vid\s+u: untagged-traffic'	# show vlan mac-address-entry
-					. '|(?:VRF\s+VRF|NAME\sID)'			# show ip vrf
-				. ')',
-		ExtremeXOS	=> '^(?:[-=]{2,}|#)',
-		ISW		=> '^(?:[-=]{2,}|[#!]'
-					. '|ID          Level          Time & Message'	# show logging
-					. '|[A-Z][a-z]+ *: \d+$'			# show logging
-				. ')',
-		ISWmarvell	=> '^(?:\s*[-=]{2,}|[#!])',
-		Series200	=> '^(?:[-=!])',
-		Wing		=> '^(?:[-=\*]{2,}|[!])',
-		SLX		=> '^(?:[-=]|\s*!'
-					. '|Flags:'
-					. '|\s*\(\w\)-'
-					. '|Total Number of .+\s+: \d+$'
-				. ')',
-		HiveOS		=> '^(?:[-]{2,}'
-					. '|(?:[A-Za-z\.\(\)]+\s*)+$'
-				. ')',
-		SecureRouter	=> '^#',
-		WLAN9100	=> '^(?:\s*!|[-])',
-		Accelar		=> '^[-=#\*]',
-	},
-	BannerSoftPatterns	=> { # Patterns which could be part of banner lines, but we only accept them immediately after BannerHardPatterns
-		BaystackERS	=> '^(?: *(?:[A-Z][A-Za-z]+[\s\/]*)+$'	# neaps gives banner: Unit/Port Client MAC Address State; ipfi: Unit/Port	IPFIX
-					. '|(?:Unit|Port|\s?I-SID)\s+[A-Z]'# show poe-port-status / show fa assignments
-					. '|[A-Z]=[A-Z][A-Za-z]'	# Stk ipr legend: B=BGP,  C=Local, I=ISIS, O=OSPF,  R=RIP, S=Static
-					. '|IP Address      Age \(min\)'# show ip arp
-					. ')',
-		PassportERS	=> '^(?:[A-Z]| +[A-Z]| +software releases in /intflash)',
-		ExtremeXOS	=> '^(?:[A-Z]|#? +\/?[A-Z]'
-					. '|\s{40,}\S'			# show inline-power info ports 2:*
-					. ')',
-		ISW		=> '^(?:[A-Z]|#? +\/?[A-Z])',
-		ISWmarvell	=> '^(?:[A-Z])',
-		Series200	=> '^ *(?:[A-Z][A-Za-z]+[\s\/]*)+$',
-		Wing		=> '^ *(?:[A-Z]{2,}[\s\/]*)+$',
-		SLX		=> '^(?:\s{2,})?[A-Z][A-Za-z]+(?: \w+)*(?:(?:\s{2,})?[A-Za-z]+(?: \w+)*)+$', # show interface stats brief
-		HiveOS		=> '^ *(?:[A-Za-z\.\(\)]+\s*)+$',
-		SecureRouter	=> '^(?:[A-Z][A-Za-z]| +[A-Z\*])',
-		WLAN9100	=> '^(?:\s*[A-Z])',
-		Accelar		=> '^(?:[A-Z]| +[A-Z])',
-	},
-	BannerExceptions	=> { # Exception patterns form above BannerSoftPatterns which must not be treated as banner lines
-		BaystackERS	=> '(?:\d{2,}|^(?:'			# any line with 2 or more consecutive digits
-					. 'MLT\d'			# show fa elements
-					. '|(?:Received|Transmitted)$'	# show port-statistics
-#					. '|Level-1	LspID:'
-#					. '|User Name:  '		# show snmp-server user||<user>
-#					. '|Port: '			# show lldp neighbor vendor-specific avaya fabric-attach
-#					. '|Lockout timeout: '		# show user ; 1st line
-#					. '|Role name:          '	# show user ; 1st line after hard banner
-				. '))',
-		PassportERS	=> '(?:(?:^|[^\(\d -]|[^:] )\d{2,}|^(?:'	# any line with 2 or more consecutive digits; except these banners:
-										# from ipa: IP_ADDRESS      MAC_ADDRESS        VLAN  PORT                 TYPE    TTL(10 Sec) TUNNEL
-										# from show isis spbm ip-multicast-route vrf green detail: SPBM IP-MULTICAST ROUTE INFO - VRF NAME : green, VSN-ISID : 30001
-					. '[A-Z].*?:\s*$'		# Any line ending with ':' # lldpn 1/9 ||ZTF; sys||temperature; isdb ||<something>
-					. '|(?:Port(?::? )?|Mlt|Vlan|Clip)\d'
-					. '|[VP]\d'
-					. '|CPU?\d'
-					. '|(?:IO|SF)\d'
-					. '|GRT'
-					. '|MgmtVirtIp'
-					. '|[d-](?:[r-][w-][x-]){3}\s'
-					. '|\S+\s+[\da-f]{32}\s'	# macsec
-					. '|AsExternal'			# show ip ospf ase
-					. '|GlobalRouter '		# show ip vrf
-				. '))',
-		ExtremeXOS	=> '(?:\d{2,}|\d \/\d|\t: |: +\S)',	# any line with 2 or more cosecutive digits, or '3 /3' (from show vlan), or a line with "<tab>: ", or a line with ": "
-		ISW		=> '(?:\d{2,}|\d\/\d|\S\s*: +)',		# any line with 2 or more cosecutive digits, or '3 /3' (from show vlan), or a line with "text: "
-		ISWmarvell	=> '(?:\d{2,}|GigabitEthernet \d|\S: +)',	# any line with 2 or more cosecutive digits, or 'GigabitEthernet' (from if), or a line with "text: "
-#		Series200	=> '',
-#		Wing		=> '',
-		SLX		=> '(?:\d{2,}|^(?:'			# any line with 2 or more cosecutive digits
-					. '(?:Po|Lo|Eth)\s?\d'		# show interface stats brief
-				. '))',
-#		HiveOS		=> '',
-		WLAN9100	=> '(?:Enabled|Disabled|On|Off|yes|no)',
-	},
 	BannerLessShowCommand => { # 1st line of output of a banner-less commands
 		PassportERS	=> '^(?:General Info :$)',		# show sys-info
 	},
 	ConfigUncomment => { # Config lines which are commented out in output of show running-config, and we want to uncomment
 		BaystackERS	=> '^! (?:eapol enable|eapol multihost fail-open-vlan)',
-	},
-	SummaryPatterns	=> {
-		BaystackERS	=> '\d+ out of',
-		PassportERS	=> '(?:\d+ out of \d+'
-					. '|Total number of Displayed Flows on Slot \d+ : \d+'
-					. '| Total Num of Entries: \d+'				# show isis spbm nick-name
-					. '| Records Displayed \d+/\d+'				# show ip spb-pim-gw foreign-source
-					. '| Total [Nn]umber of \S.*\S [Ee]ntries:? \d+'	# show isis spbm multicast-fib / show isis spbm ip-multicast-route detail
-				. ')',
 	},
 	PrivExec		=> '^enable$',
 	EnterConfig		=> '^config$',
@@ -194,11 +143,11 @@ our %Grep = (
 			Vlan		=> [
 						['vlan create (\d+) name',
 							'(?:(?:vlan(?:-id)?|vid ?) (?:[\w\-]+ (?:remove )?(?:[,\d\-]+?[,\-])?)?|ip rsmlt peer-address [\d\.]+ [\d\w:]+ )', '(?:[^\d]|$)'],
-						['^\s*ip address (\d+\.\d+\.\d+\.\d+)\s', ' ', '(?:[^\d]|$)'],
+						['^\s*ip address (\d+\.\d+\.\d+\.\d+)\s', '(?<!router) ', '(?:[^\d]|$)'],
 						['^vlan \d+ ip create (\d+\.\d+\.\d+\.\d+)\/', ' ', '(?:[^\d]|$)'],
 						['^vlan i-sid \d+ (\d+)', 'onboarding i-sid ', '(?:[^\d]|$)'],
 						['^\s*ipv6 interface address ([\da-f]{1,4}(?::[\da-f]{1,4}){7})/', ' ', '(?:\s|$)'],
-						['^\s*ip anycast-gateway one-ip (\d+\.\d+\.\d+\.\d+)/', ' ', '(?:[^\d]|$)'],
+						['^\s*ip anycast-gateway one-ip (\d+\.\d+\.\d+\.\d+)/', '(?<!router) ', '(?:[^\d]|$)'],
 			],
 		},
 		ExtremeXOS	=> {
@@ -301,8 +250,8 @@ our %Grep = (
 				'^application\s*\n\n?exit\s*\n',
 				'^i-sid \d+(?: [\w-]+)?\s*\n\n?exit\s*\n',
 				'^wireless\s*\n\n?exit\s*\n',
-				'^logical-intf isis \d+ dest-ip \d+\.\d+\.\d+\.\d+(?: mtu \d+)?(?: src-ip \d+\.\d+\.\d+\.\d+(?: vrf \S+)?| multi-area-virtual-link)?(?: name "?[\w\d\._ -]+"?)?\s*\n\n?exit\s*\n',
-				'^logical-intf isis \d+ vid (?:\d+[,\-])+\d+ primary-vid \d+ (?:port \d+/\d+(?:/\d+)?|mlt \d+)(?: name "?[\w\d\._ -]+"?)?\s*\n\n?exit\s*\n',
+				'^logical-intf isis \d+ dest-ip \d+\.\d+\.\d+\.\d+(?: mtu \d+)?(?: src-ip \d+\.\d+\.\d+\.\d+(?: vrf \S+)?| multi-area-virtual-link)?(?: name "?[\w\d\._# -]+"?)?\s*\n\n?exit\s*\n',
+				'^logical-intf isis \d+ vid (?:\d+[,\-])+\d+ primary-vid \d+ (?:port \d+/\d+(?:/\d+)?|mlt \d+)(?: name "?[\w\d\._# -]+"?)?\s*\n\n?exit\s*\n',
 				'^mgmt (?:\d )?(?:.+)?\n\n?exit\s*\n',
 				'^ovsdb\s*\n\n?exit\s*\n',
 				'^(?:ip )?dhcp-server subnet [\d\.\/]+\s*\n\n?exit\s*\n',
@@ -344,13 +293,6 @@ our %Grep = (
 	UnwrapAnchors		=> '^(?:no|default|interface|router|exit|[A-Z])$',
 );
 
-our %RecordCountSkip = ( # Patterns which define output lines which must not be counted towards $term_io->{RecordsMatched}
-	PassportERS	=>	'(?:'
-				. '^[\da-f]{1,4}(?::[\da-f]{1,4}){7}                     \d+$'	# 2nd line of entries from cmd "show ipv6 route static"
-				. '|^\s{55,}\S'							# 2nd line of entries from cmd "show ipv6 ospf interface"
-			. ')',
-);
-
 our %BannerPatterns = ( # Patterns to check for during device login; originally copied from Control::CLI::Extreme
 	SecureRouter	=>	'\((?:Secure Router|VSP4K)',
 	PassportERS	=>	'(?:\x0d\\*{36}\n|\x0d\\* Ethernet Routing Switch|\x0d\\* Passport [18]|\n\x0d?(?:AVAYA|NORTEL|EXTREME NETWORKS)(?: VOSS)? COMMAND LINE INTERFACE\n|VSP[49]000)',
@@ -374,6 +316,7 @@ our %ChangePromptCmds = ( # Commands which change the device prompt; for which w
 												# PPCLI: config cli prompt OR config sys set name
 												# ACLI:  snmp-server name OR prompt
 	ExtremeXOS	=> '^\s*co(?:n(?:f(?:i(?:g(?:u(?:re?)?)?)?)?)?)? +snmp +sysn',		# configure snmp sysname
+	OneOS		=> '^\s*(?:no )?h',							# hostname
 	ISW		=> '^\s*(?:ho|prom)',							# hostname / prompt
 	ISWmarvell	=> '^\s*(?:prom|system-(?:i(?:n(?:fo?)?)?)? n)',			# prompt / system-info name
 	Series200	=> '^\s*(?:(?:no )?ho|set +p)',						# hostname / set prompt (both in privExec only)
@@ -417,6 +360,7 @@ our %CmdConfirmPrompt = ( # We declare it per family type, to make exceptions to
 	BaystackERS	=> $CmdConfirmPrompt,
 	PassportERS	=> $CmdConfirmPrompt,
 	ExtremeXOS	=> $CmdConfirmPrompt,
+	OneOS		=> $CmdConfirmPrompt,
 	SLX		=> $CmdConfirmPrompt,
 	ISW		=> $CmdConfirmPrompt,
 	ISWmarvell	=> $CmdConfirmPrompt,
@@ -433,33 +377,35 @@ our %CmdConfirmPrompt = ( # We declare it per family type, to make exceptions to
 );
 
 # Patterns which if seen, make us switch from buffered (grep & more processing) to unbuffered (no caching either)
-our %UnbufferPatterns = (
+our %UnbufferPatterns = ( # Do not use \s in patterns; Use \z to match end of line, not $ as that matches with trailing \n
 	BaystackERS	=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
 			 . '|\e'
-			 . '|(?:^|\n).+\[[^\n\[\]]+] ?[\?:] $'		# Covers: something]? / Configuring from terminal or network [terminal]?
-			 . '|(?:^|\n)Enter .+?(?:\([^\n\(\)]+\))? ?: $'	# ERS4800: fa authentication-key / Enter authentication key (length - 1..32): 
+			 . '|(?:^|\n).+\[[^\n\[\]]+] ?[\?:] \z'		# Covers: something]? / Configuring from terminal or network [terminal]?
+			 . '|(?:^|\n)Enter .+?(?:\([^\n\(\)]+\))? ?: \z'	# ERS4800: fa authentication-key / Enter authentication key (length - 1..32): 
 			 . '|(?:^|\n)Rebooting'
 			 . '|(?:^|\n)Downloading (?:Diag )?Image'
 			 . '|^\n?[.!]{2,}'				# Stackable ping with 'continuous' argument
 			 . ')',
 	PassportERS	=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
-			 . '|(?:^|\n).+\[[^\n\[\]]+] ?[\?:] $'		# Covers: something]? / Configuring from terminal or network [terminal]?
-			 . '|(?:^|\n)Password: $'			# VOSS with no rc.0: dbg enable 
+			 . '|(?:^|\n).+\[[^\n\[\]]+] ?[\?:] \z'		# Covers: something]? / Configuring from terminal or network [terminal]?
+			 . '|(?:^|\n)Password: \z'			# VOSS with no rc.0: dbg enable 
 			 . '|(?:^|\n)".+?" \d+ lines, \d+ characters\n'	# edit <file>
-			 . '|(?:^|\n)-> $'				# shell
+			 . '|(?:^|\n)-> \z'				# shell
 			 . '|(?:^|\n)Another show or save in progress\.  Please try the command later\.'
 			 . '|(?:^|\n)Executing software activate'
 			 . '|(?:^|\n)Checking relationships and calculating order of application'
 			 . '|(?:^|\n)Connected to 127\.'
 			 . '|(?:^|\n)U-Boot \d+'
 			 . '|(?:^|\n)Booting...'
-			 . '|(?:^|\n)[^\[\]\n]+\s\[[^\[\]\n]*\]:\s?$'	# run spbm script or other; prompts ending in [something or nothing]:
+			 . '|(?:^|\n)[^\[\]\n]+ \[[^\[\]\n]*\]: ?\z'	# run spbm script or other; prompts ending in [something or nothing]:
 			 . '|(?:^|\n)Connected to domain \S'		# Insight VM, connecting to console
-			 . '|^ \*$'					# Timing out ip traceroute
+			 . '|^ \*\z'					# Timing out ip traceroute
 			 . ')',
 	ExtremeXOS	=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
 			 . '|\e'
 			 . '|^BusyBox .+? built-in shell \(ash\)'	# XOS: run script shell.py
+			 . ')',
+	OneOS		=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
 			 . ')',
 	SLX		=> '(?:(?:^|\n).*' . $CmdConfirmPrompt		# Covers: prompt ending in (y/n)?
 			 . ')',
@@ -512,7 +458,7 @@ our $RemoteAnnexPort = 'Attached to port (\d+)$';
 our $AliasPreventSyntax = '^(?:show|default|no|sys|fa|mlt|poe|dvr|eap|vr|list)$';
 
 # ACLI valid -options to be extracted by parseCommand()
-our $AcliMinusOptions = '(?:[oynegsbihf]+|[oi]\d+|peer(?:c(?:pu?)?)?|both(?:c(?:p(?:us?)?)?)?)'; # Initial '-' is already matched
+our $AcliMinusOptions = '(?:[oynegsbihfc]+|[oi]\d+|peer(?:c(?:pu?)?)?|both(?:c(?:p(?:us?)?)?)?)'; # Initial '-' is already matched
 
 
 sub import { # Want to import all above variables into main context

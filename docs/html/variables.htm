@@ -1145,6 +1145,29 @@
 	VSP-8284XSQ:1#%
 	</pre></li>
 	<li><b>$></b> : Last CLI prompt from connected device. Useful to create logic to move between different CLI exec levels using ACLI scripts.</li>
+	<li><b>$#</b> : Count of output records / data lines from output of last command which generated some output. Note that a count of output records is made for all commands, even if the -c switch is not used and no summary count is displayed.
+	<pre>
+	7520E-1:1#% show mgmt ip
+	================================================================================
+	                               Mgmt IP Addresses
+	================================================================================
+	INST   DESCR      IPV4                 TYPE (ORIGIN)
+	--------------------------------------------------------------------------------
+	1      oob1       10.8.1.8/19           Manual
+	3      clip       10.180.20.76/32       Manual
+	4      vlan       10.180.48.2/24        Manual
+	
+	3 out of 3 Total Num of dynamic addresses displayed
+	--------------------------------------------------------------------------------
+	acli-dev.pl: Displayed Total Record Count = 3
+	7520E-1:1#% $#
+	
+	$#            = 3
+	
+	7520E-1:1#%
+	</pre></li>
+
+
 	<li><b>$&lt;number&gt;</b> : When sourcing a script with <i>'@source'</i> or <i>'@run'</i>, holds positional argument number provided to script.</li>
 	<li><b>$*</b> : When sourcing a script with <i>'@source'</i> or <i>'@run'</i>, holds concatenated arguments provided to script.</li>
 	<li><b>$ALL</b> : This variable will always translate to all the ethernet ports on the connected device.</li>

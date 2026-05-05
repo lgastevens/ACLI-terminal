@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::InputProcessing;
-our $Version = "1.14";
+our $Version = "1.15";
 
 use strict;
 use warnings;
@@ -50,7 +50,6 @@ sub resetGrepStructure { # Re-initialize all the grep state keys
 		$grep->{String}			= 0;
 		$grep->{Advanced}		= [];
 		$grep->{KeepBanner}		= 1;
-		$grep->{BannerDetected}		= [];
 		$grep->{Indent}			= '';
 		$grep->{Mode}			= [];
 		$grep->{Instance}		= [];
@@ -83,6 +82,7 @@ sub resetGrepStructure { # Re-initialize all the grep state keys
 	$grep->{EmptyLineSupres}	= [];
 	$grep->{NoEmptyLineLast}	= [];
 	$grep->{GrepStreamFile}		= undef;
+	$grep->{ClassifyState}		= [];
 }
 
 
@@ -723,7 +723,7 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 			}
 			$grepString =~ s/,$//; # No trailing comma
 			$grepString =~ s/,/|/g;
-			$grepString = join('', '(?:[,\s\(\-t:m]|^)\K(?:', $grepString, ')(?=[,\s\)\(\e]|$)'); # Combined regex for '^' and other modes
+			$grepString = join('', '(?:[,\s\(\-t:m]|^)\K(?:', $grepString, ')(?=[,\s\)\(\e\.]|$)'); # Combined regex for '^' and other modes
 			debugMsg(1,"-> Grep-String-Formatted : >", \$grepString, "<\n");
 		}
 		else {
@@ -1117,6 +1117,9 @@ sub processLocalOptions { # Process output '>' to variable/file, input '<' from 
 	if (defined $cmdParsed->{command}->{opt}->{n}) {
 		$term_io->{YnPrompt} = 'n';
 		$term_io->{YnPromptForce} = 1;
+	}
+	if (defined $cmdParsed->{command}->{opt}->{c}) {
+		$term_io->{CountDataLines} = 1;
 	}
 
 	#

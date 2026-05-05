@@ -8,6 +8,7 @@
 <h1>CLI augmented switches</h1>
 <p>The ACLI terminal, in interactive mode, allows some standard switches to be added to regular CLI commands of the connected device. These are listed below:</p>
 <ul>
+	<li><b>-c</b> : To display a count of record / data lines from the output of the CLI command.</li>
 	<li><b>-y</b> : On CLI commands where the connected host will ask for a confirmation prompt (e.g. "Are you sure (Y/N) ?"), ACLI will automatically feed a 'Y' to the confirmation prompt. Note that in ACLI scripting mode this is done automatically and there is no need to add a <i>'-y'</i> switch to the commands. The exception is if the confirmation prompt contains either the 'reset' or 'reboot' keywords; in this case scripting mode will not automatically feed a 'Y', unless a <i>'-y'</i> was added to the command, or to the alias which triggered the script sequence.</li>
 	<li><b>-n</b> : On CLI commands where the connected host will ask for a confirmation prompt (e.g. "Are you sure (Y/N) ?"), ACLI will automatically feed a 'N' to the confirmation prompt. Perhaps not very useful, but available for completeness!</li>
 	<li><b>-e</b> : On CLI commands with ACLI redirect to file, adding the <i>'-e'</i> switch will ensure that the command output is also echo-ed to the terminal session (not just redirected to file).</li>

@@ -1,4 +1,4 @@
-$Version = 6.04
+$Version = 6.05
 
 Install instructions
 ====================
@@ -57,7 +57,7 @@ Open a new tab (with Terminal or iTerm2):
 acli.pl command line options:
 ----------------------------
 ~$ acli -h
-acli.pl version 6.04
+acli.pl version 6.05
 
 Usage:
  acli.pl [-cehijkmnopqswxyz]

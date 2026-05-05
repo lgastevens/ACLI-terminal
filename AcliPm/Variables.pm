@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::Variables;
-our $Version = "1.07";
+our $Version = "1.08";
 
 use strict;
 use warnings;
@@ -154,7 +154,7 @@ sub loadVarFile { # Reads a variables file for MAC provided and populate $vars s
 			next;
 		};
 		/^\s*:sockets\s*=\s*(.+?)\s*$/ && do {
-			next if $term_io->{SockSetSwitch};
+			next if $term_io->{SockSetSwitch} && !$Default{socket_switch_merge_flg};
 			next unless $term_io->{SocketEnable};
 			my ($success, @failedSockets) = openSockets($socket_io, split(',', $1));
 			if (!$success) {
@@ -769,6 +769,8 @@ sub derefVarSection { # Replace $variables in a string section
 	$$replFlag = 1 if $varSection =~ s/\$\@$VarDelim/defined $host_io->{LastCmdError} ? $host_io->{LastCmdError} : '$@'/geo;
 	# Dereference $> prompt variable
 	$$replFlag = 1 if $varSection =~ s/\$\>$VarDelim/defined $host_io->{Prompt} ? $host_io->{Prompt} : '$@'/geo;
+	# Dereference $# record count variable
+	$$replFlag = 1 if $varSection =~ s/\$\#$VarDelim/defined $term_io->{LastRecordCount} ? $term_io->{LastRecordCount} : '$#'/geo;
 	# Dereference $ simple variable
 	$$replFlag = 1 if !$doNotDerefDollarAlone && $varSection =~ s/\$$VarDelim/defined $vars->{_} ? generateRange($db, $vars->{_}->{value}, $rangeMode) : '$'/geo;
 	# Dereference % simple variable
@@ -850,7 +852,7 @@ sub derefConditionSection { # Prepare embedded logical operator conditions for v
 	# New approach
 	$condition = quoteSlashMask($condition, '$'); # Now mask vars which might be inside quotes or inside // pattern matches
 	my ($change, $quote);
-	$change = 1 if $condition =~ s/(\$\'?(?:$VarAny(?:\[[^\]]*\]|\{[^\}]*\})?))/"$1"/go; # Add quotes to any unmasked variables
+	$change = 1 if $condition =~ s/(\$(?:\'|\#)?(?:$VarAny(?:\[[^\]]*\]|\{[^\}]*\})?))/"$1"/go; # Add quotes to any unmasked variables
 	$condition = quoteSlashUnmask($condition, '$'); # Unmask
 	$condition = derefVarSection($db, $condition, 0, undef, $error, 1); # Set $doNotDerefDollarAlone as it can conflict with condition pattern matches
 	$condition =~ s/(\".*?\")/$quote = $1; $quote =~ s!\$!"\\\$"!ge; $quote/ge;

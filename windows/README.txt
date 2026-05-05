@@ -99,7 +99,7 @@ will start ConsoleZ with both the ACLI and the "My Switch" tabs open
 acli.pl command line options:
 ----------------------------
 C:\>acli -h
-acli.pl version 6.04
+acli.pl version 6.05
 
 Usage:
  acli.pl [-cehijkmnopqswxyz]
@@ -687,7 +687,7 @@ Using $$ variable:
 
 acmd -l rwa -p rwa -f hosts.txt ssh "enable; config term; prompt $$; router isis; sys-name $$"
 
-And <script-file> has:
+And hosts.txt has:
 
 10.7.6.8   BEB-608
 10.7.6.9   BEB-609
@@ -812,10 +812,10 @@ Notes:
  - The batch file can execute acligui.vbs or acligui.bat; acligui.vbs is preferred as it does not open a CMD window in the background
  - Placing double quotes around the credentials as shown, can be necessary in case of some special characters
  - It is assumed that space character is not allowed in password
- - Password special characters that can be used with acligui.vbs (no need to double quote): £$%*_+-=#/\[]{}!;:@~^&<>|
+ - Password special characters that can be used with acligui.vbs (no need to double quote):  $%*_+-=#/\[]{}!;:@~^&<>|
  - Password special characters that will not work with acligui.vbs: "
- - Password special characters that can be used with acligui.bat without double quotes: £$%*_+-=#/\\[]{}!;:@~\"
- - Password special characters that can be used with acligui.bat with double quotes:    £$%*_+-=#/\[]{}!;:@~^&<>|
+ - Password special characters that can be used with acligui.bat without double quotes:  $%*_+-=#/\\[]{}!;:@~\"
+ - Password special characters that can be used with acligui.bat with double quotes:     $%*_+-=#/\[]{}!;:@~^&<>|
  - Password special characters that must be double quoted when using acligui.bat: ^&<>|
  - Password special characters that cannot be provided inside double quotes when using acligui.bat: "
  - Password special characters that must be backslashed when not using double quotes with acligui.bat: \" \\

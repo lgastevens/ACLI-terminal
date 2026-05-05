@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ParseCommand;
-our $Version = "1.15";
+our $Version = "1.16";
 
 use strict;
 use warnings;
@@ -164,9 +164,14 @@ sub parseCommand { # This function breaks up the entered command into its main c
 	};
 
 	my $appendString = sub { # Append string to both section str and fullcmd/thiscmd; both need to be in synch in case of Var replacements
-		my $string = shift;
+		my ($string, $fullString) = @_;
 		$cmdParsed->{$section}->{str} .= $string;
-		&$appendThisFullCmd($string);
+		if (defined $fullString) {
+			&$appendThisFullCmd($fullString);
+		}
+		else {
+			&$appendThisFullCmd($string);
+		}
 	};
 
 	my $addToSectionStr = sub { # Sets/Appends currChar to section str
@@ -194,11 +199,17 @@ sub parseCommand { # This function breaks up the entered command into its main c
 				$currChar eq "'" && $command =~ s/^([^\']*[^\\])\'// && do { # Single quoted section ''
 					&$pushVarSection if defined $varSection;
 					$block = $1;
-					unless ($section eq 'command' && !$cmdParsed->{command}->{emb}) { # We strip the quotes only on command sections, which are not embedded cmds
-						$block = $currChar . $block . "'";	  # This is a workaround to feeding passwords with ACLI reserved characters to the switch
-					}						  # Simply enclose the password containing no spaces in single quotes
 					debugMsg(4,"=parseCommand: Extracted '' block: ", \$block, "\n");
-					&$appendString($space . $block);
+					my $blockFull = $currChar . $block . "'";
+					if ($section eq 'command' && !$cmdParsed->{command}->{emb}) { # We strip the quotes only on command sections, which are not embedded cmds
+						# This is a workaround to feeding passwords with ACLI reserved characters to the switch
+						# Simply enclose the password containing no spaces in single quotes
+						&$appendString($space . $block, $space . $blockFull);
+					}
+					else {
+						&$appendString($space . $blockFull);
+						$blockFull = $currChar . $block . "'";
+					}
 					if ($section eq 'varcapt' && $command =~ s/^([a-z]+)$//) { # Options immediately after varcapt quoted regex
 						debugMsg(4,"=parseCommand: Setting varcapt options \"\"$1\n");
 						for my $optchar ( split(//, $1) ) {
@@ -435,7 +446,12 @@ sub parseCommand { # This function breaks up the entered command into its main c
 					debugMsg(4,"=parseCommand: Setting options -$options\n");
 					semiClnAppend($cmdParsed, "-$options") if $section eq 'semicln';
 					for my $opt ( split(//, $options) ) {
-						$cmdParsed->{$section eq 'semicln' ? 'command' : $section}->{opt}->{$opt} = 0;
+						if ($section eq 'semicln' || ($section eq 'grepstr' && $opt ne 's') ) {
+							$cmdParsed->{command}->{opt}->{$opt} = 0;
+						}
+						else {
+							$cmdParsed->{$section}->{opt}->{$opt} = 0;
+						}
 					}
 					&$appendThisFullCmd("$space-$options");
 					$prevChar = $space = '';

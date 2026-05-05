@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalDeviceSettings;
-our $Version = "1.03";
+our $Version = "1.04";
 
 use strict;
 use warnings;
@@ -24,6 +24,9 @@ our %DeviceMorePaging = ( # These settings determine the more paging mode per de
 					[".",		0, 1],
 		],
 		ExtremeXOS	=> [
+					[".",		0, 1],
+		],
+		OneOS	=> [
 					[".",		0, 1],
 		],
 		ISW		=> [
@@ -65,6 +68,7 @@ our %DeviceComment = ( # This structure holds the character which acts as commen
 		BaystackERS	=> '!',
 		PassportERS	=> '#',
 		ExtremeXOS	=> '#',
+		OneOS		=> '!',
 		ISW		=> '!',
 		ISWmarvell	=> '#',
 		Series200	=> '!',
@@ -82,6 +86,7 @@ our %DeviceCfgParse = ( # True for device types where we need to track config co
 		BaystackERS	=> 1,
 		PassportERS	=> 1,
 		ExtremeXOS	=> 0,	# No configuration contexts (like PPCLI)
+		OneOS		=> 0,	# Uses indentation on config file, so we leverage that
 		ISW		=> 0,	# Uses indentation on config file, so we leverage that
 		ISWmarvell	=> 1,	# No indentation on show run, we have to add that
 		Series200	=> 1,	# No indentation on show run, we have to add that
@@ -102,6 +107,7 @@ our %DevicePortRange = ( # Determines whether and how the device consolidates co
 		BaystackERS	=> 1,	# Baystack will list port ranges like this: 1/1-24
 		PassportERS	=> 6,	# VOSS will list port ranges like this: 1/1-1/24
 		ExtremeXOS	=> 5,	# XOS can list port ranges in both ways: 4:4-4:14 & 4:4-14
+		OneOS		=> 1,	# OneOS Range Example: 0/1-3,5,0/7-9,10:1-4
 		ISW		=> 1,	# ISW will list port ranges like this: 1/1-8
 		ISWmarvell	=> 0,	# n/a
 		Series200	=> 2,	# Port ranges in this format 0/1-0/5
@@ -119,6 +125,7 @@ our %DeviceSlotPortSep = ( # Determines the slot/port or slot:port separator use
 		BaystackERS	=> '/',
 		PassportERS	=> '/',
 		ExtremeXOS	=> ':',
+		OneOS		=> '/',
 		ISW		=> '/',
 		ISWmarvell	=> '/', # n/a
 		Series200	=> '/',
@@ -138,6 +145,7 @@ our %CleanPromptCtrl = ( # CTRL character to use to get a clean CLI prompt from 
 		BaystackERS	=> $CTRL_U,
 		PassportERS	=> $CTRL_U,
 		ExtremeXOS	=> $CTRL_U,
+		OneOS		=> $CTRL_U,
 		ISW		=> $CTRL_U,
 		ISWmarvell	=> $CTRL_C,	# Because does not support CTRL_C
 		Series200	=> $CTRL_U,
@@ -160,6 +168,7 @@ our %TabSynMode = ( # How to behave for tab expansions and syntax? [non-acli, ac
 		BaystackERS	=> [undef,  7],
 		PassportERS	=> [16,     7],
 		ExtremeXOS	=> [9,  undef],
+		OneOS		=> [undef,  0],
 		SecureRouter	=> [undef,  0],
 		ISW		=> [undef,  8],
 		ISWmarvell	=> [undef,  0],
@@ -177,6 +186,7 @@ our %DefaultCredentials = (
 	Username	=> {
 		PassportERS	=> 'rwa',
 		ExtremeXOS	=> 'admin',
+		OneOS		=> 'admin',
 		ISW		=> 'admin',
 		ISWmarvell	=> 'admin',
 		Series200	=> 'admin',
@@ -191,6 +201,7 @@ our %DefaultCredentials = (
 	Password	=> {
 		PassportERS	=> 'rwa',
 		ExtremeXOS	=> '',
+		OneOS		=> 'rocks',
 		ISW		=> '',
 		ISWmarvell	=> '',
 		Series200	=> '',
@@ -227,6 +238,10 @@ our %PseudoSelectionAttributes = ( # These are the pseudo switch-type selections
 		family_type	=> 'SLX',
 		is_acli		=> 1,
 		is_slx		=> 1,
+	},
+	oneos	=> {
+		family_type	=> 'OneOS',
+		is_oneos	=> 1,
 	},
 );
 

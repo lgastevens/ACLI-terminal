@@ -1373,5 +1373,49 @@ Revision history for acli.pl
 	  this was already the case before; the difference now is that the single quotes will be removed before sending
 	  the command to the switch
 6.04_007
-	* Single quotes change in previuos version caused problems on some embedded commands, like @sed, used in aliases
-	  'log' and 'logt'; original behaviuor of single quotes is now restored for embedded commands
+	* Single quotes change in previous version caused problems on some embedded commands, like @sed, used in aliases
+	  'log' and 'logt'; original behaviour of single quotes is now restored for embedded commands
+6.05	2026-05-05
+	* Uses Control::CLI version 2.13 and Control::CLI::Extreme version 1.14
+	* Updated aliases for Anycast Gateway
+	* When a command is executed by feeding arguments to it via //, and that commands is "pasted" to the session
+	  (as part of more commands, or just followed by a carriage return), and that same command produces any Y/N prompts
+	  (e.g. run spbm), ACLI no longer automatically responds "Y" to those prompts, since these are covered by the feed
+	  arguments already provided
+	* Grep of a port number was not catching lines where that port number was followed by a full stop (.)
+	* Clearing the screen (CTRL-L) will now re-display any pause prompt, like the more prompt, or the re-connect prompts
+	* ACLI> "trmsrv list <pattern>" the pattern is now case insensitive
+	* Resolved issue where using ACLI over the Serial port with Windows could result in ACLI occasionally freezing.
+	  This was caused by a write error on the underlying Win32::SerialPort module, which was not correctly caught by the
+	  Control::CLI module
+	* Implemented a new framework to classify output lines as banner lines, record lines, data lines, or summary lines.
+	  This should make the ability to grep useful output data records more robust and also makes it possible to
+	  reliably count output records or lines of data
+	* Introduced new -c switch (<CLI command> -c) to count output records or data lines; the existing behaviour where
+	  ACLI reports record counts on show command output where the output itself has a count at the end is preserved and
+	  no -c switch need be set; the new -c switch is useful to count records where the switch does not offer any summary
+	  count
+	* Introduced new reserved variable $# which holds the number of output records or data lines which were counted from
+	  the previous command output (the same count which can be displayed using the new -c switch)
+	* Command switches -oynegbihfc specified after a grep string (<CLI command> ||<grep> -oynegbihfc), would not apply
+	  to the command but to the grep string; now only the -s switch is allowed to apply to the grep string
+	* Single quotes can now be used around a password to be configured on the switch; the password can containg ACLI
+	  interactive mode special characters (|!<> etc..), these will not be processed because inside the single quotes;
+	  this was already the case before; the difference now is that the single quotes will be removed before sending
+	  the command to the switch. The previous fix in 6.04_006 was not done properly.
+	* Fixed rare condition where ACLI would seem to freeze on a --more-- prompt
+	* Error checking was performed on every chunk of command output data; now it is only done on command initial output
+	* Added OneOS support for both Switching Routing (SR) and SD-WAN appliance
+	* VLAN Grep on VOSS running-config would show dhcp-server subnet config lines where a subnet is set to the same IP
+	  as the VLAN IP address
+	* Connection to serial port in interactive mode could appear to lockup at next login prompt if the switch was
+	  rebooted while in interactive mode
+	* In interactive mode, now trailing whitespaces are trimmed from output lines
+	* Repeat command, now resets more paging counter every time command is repeated
+	* When connecting to switches using either acligui.pl (or bat files) or xmcacli.pl or the acli -s command line
+	  switch and specifying a list of listening sockets, if a vars file exists for the switch MAC, any listening
+	  sockets in there will be skipped. Added new acli.ini key socket_switch_merge_flg which can be enabled if it is
+	  desired for the listening sockets in the vars file to be processed and merged with the other sockets specified
+	  during connection
+	* Show running-config grep on Fabric Engine with logical-intf names containing the "#" character was not working
+	  properly

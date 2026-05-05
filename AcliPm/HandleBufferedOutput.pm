@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleBufferedOutput;
-our $Version = "1.12";
+our $Version = "1.13";
 
 use strict;
 use warnings;
@@ -100,6 +100,56 @@ sub matchline { # Does port and vlan range expansion if necessary, and then does
 }
 
 
+sub classifyOutputLine { # Parses lines and classifies them as banner (B), record (R), data (D), summary (S); see @LineClassifyingPatterns
+	my ($state, $line, $familyType) = @_;
+	# state must be a hash ref, initially set to: %ClassifyInitState
+	my $scriptName = $::TestScript ? 'acli(?:-dev)?\.pl' : $ScriptName;
+	my $indent = $state->{indentOffset};
+	chomp($line);
+	$indent = length $1 if $line =~ /^( +)/;		# Number of leading spaces
+	$indent = (length $1) * 8 if $line =~ /^(\t+)/;		# Tabs count as 8 spaces
+	if (length $line) {
+		if ($line =~ /^(?:$scriptName:|(?:Var )?\$[\w_\d]+ +=)/) {
+#			return ('','') if $::TestScript;
+			return ("B", "-banAcli")
+		}
+
+		# Adjust indent level
+		if ($familyType) {
+			foreach my $pat (@{$Grep{IndentAdjust}{$familyType}}) {
+				if ($line =~ /$pat->[0]/) {
+					$indent += $pat->[1];
+					debugMsg(1,"IndentLevel-Adjusted = ", \$indent, "\n");
+					last; # We don't want a line to match more patterns
+				}
+			}
+			$state->{indentOffset} = -$indent if $indent < 0;
+		}
+
+		# Go through patterns
+		# [<patern-name>, <category>, <flag:skipIndented if last category R>, <regex-pattern>]
+		foreach my $pat (@LineClassifyingPatterns) {
+			next if $familyType && defined $pat->[2] && $pat->[2] ne $familyType;
+			if ($line =~ /$pat->[4]/) {
+				next if $indent && $state->{lastcategory} eq "R" && $pat->[3];
+				$state->{config} = 1 if $pat->[0] eq 'Config--';
+				$state->{lastcategory} = $pat->[1] unless $state->{config} && $pat->[1] eq "B";
+				return ($pat->[1], $pat->[0]);
+			}
+		}
+
+		# No pattern processing
+		return ("D", "-indentR") if $indent && $state->{lastcategory} eq "R";
+		return ($state->{lastcategory}, "-nomatch") if $state->{lastcategory};
+		return ("B", "-banSoft"); # unless $state->{lastcategory};
+	}
+	else { # Empty line
+		$state->{lastcategory} = '' unless $state->{config};
+	}
+	return ('','');
+}
+
+
 sub grepOutput { # Perform grep processing from output buffer into grep output buffer
 	my $db = shift;
 	my $term_io = $db->[2];
@@ -110,6 +160,7 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 
 	my ($grepBuffer, $eol, $lastLine, @buffer, @grepbf, $lastRecord, $indentLevel, $indentNewline);
 	my (@grepDisable, @enableSeen, @configSeen, @endSeen);
+	my ($cat, $pat);
 
 	# Use local buffer
 	($grepBuffer, $host_io->{OutBuffer}, $host_io->{DeltaBuffer}) = ($host_io->{OutBuffer}, '', '');
@@ -189,31 +240,25 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 						push(@grepbf, $line);
 						next;
 					}
-					# Summary check & update
-					if ($g == $#{$grep->{Regex}} && exists $Grep{SummaryPatterns}{$host_io->{Type}} && $line =~ /$Grep{SummaryPatterns}{$host_io->{Type}}/i) {
-						# Summary lines are no longer updated in grep code but in handleBufferedOutput
+					# Record type processing
+					$grep->{ClassifyState}[$g] = {%ClassifyInitState} unless defined $grep->{ClassifyState}[$g];
+					($cat, $pat) = classifyOutputLine($grep->{ClassifyState}[$g], $line, $host_io->{Type});
+					debugMsg(2,"[$g]MultiLine:>", \join('|', $cat, $pat, $line), "<\n");
+
+					# Summary lines processing
+					if ($g == $#{$grep->{Regex}} && $cat eq 'S') {
 						push(@grepbf, $line);
+						debugMsg(2,"[$g]MultiLine-PUSH-Summary:>", \$line, "<\n");
 						next;
-					}
+					}	
 					# Banner processing
-					$grep->{BannerDetected}[$g] = 1 unless defined $grep->{BannerDetected}[$g]; # Prime it set, first time in here
-					if (exists $Grep{BannerHardPatterns}{$host_io->{Type}} && $line =~ /$Grep{BannerHardPatterns}{$host_io->{Type}}/) { # Hard banner processing
-						$grep->{BannerDetected}[$g] = 1;
-						debugMsg(2,"[$g]MultiLine-BannerHardDetected; Banner Flag: on\n");
-						push(@grepbf, $line) if $grep->{KeepBanner};
+					if ($cat eq 'B') {
+						if ($grep->{KeepBanner}) {
+							push(@grepbf, $line);
+							$grep->{ShowCommand}[$g] = 1;
+							debugMsg(2,"[$g]MultiLine-PUSH-Banner:>", \$line, "<\n");
+						}
 						next;
-					}
-					elsif ($grep->{BannerDetected}[$g]) { # Soft banner processing
-						if ( ( exists $Grep{BannerSoftPatterns}{$host_io->{Type}} && $line =~ /$Grep{BannerSoftPatterns}{$host_io->{Type}}/ )
-						  && !( exists $Grep{BannerExceptions}{$host_io->{Type}} && $line =~ /$Grep{BannerExceptions}{$host_io->{Type}}/ ) ) {
-							debugMsg(2,"[$g]MultiLine-BannerSoftDetected\n");
-							push(@grepbf, $line) if $grep->{KeepBanner};
-							next;
-						}
-						else {
-							$grep->{BannerDetected}[$g] = 0;
-							debugMsg(2,"[$g]MultiLine-Clearing BannerFlag: off\n");
-						}
 					}
 					# Record processing
 					if (matchline($host_io, $grep, $line, $g)) {
@@ -295,12 +340,6 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 				}
 				# If we get here, $grep->{Advanced}[$g] is true
 				#
-				if ($line =~ /$Grep{SocketEchoBanner}/) { # Handle socket echo banners
-					push(@grepbf, $line);
-					debugMsg(2,"Grep-Socket-Echo-Banner detected; resetting all Grep Transient keys\n");
-					resetGrepStructure($grep, 1);
-					next;
-				}
 				# Stackable wide wrapped line processing
 				if ($host_io->{Type} eq 'BaystackERS' && length($line) == $TermWidth) {
 					# Maybe we need to unwrap this line
@@ -337,6 +376,19 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 						next;
 					}
 				}
+				# Record type processing
+				$grep->{ClassifyState}[$g] = {%ClassifyInitState} unless defined $grep->{ClassifyState}[$g];
+				($cat, $pat) = classifyOutputLine($grep->{ClassifyState}[$g], $line, $host_io->{Type});
+				debugMsg(2,"[$g]>", \join('|', $cat, $pat, $line), "<\n");
+
+				if ($cat eq 'B' && $pat eq "BannSock") { # Handle socket echo banners
+					push(@grepbf, $line);
+					debugMsg(2,"Grep-Socket-Echo-Banner detected; resetting all Grep Transient keys\n");
+					resetGrepStructure($grep, 1);
+					next;
+				}
+
+				# Config & context processing
 				if ($DeviceCfgParse{$host_io->{Type}}) {
 					# Config and privExec processing
 					if ($line =~ /$Grep{PrivExec}/i && !defined $grep->{ConfigSeen} && !defined $configSeen[$g]) {
@@ -489,47 +541,31 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 						next;
 					}
 				}
-				# Summary check & update
-				if (exists $Grep{SummaryPatterns}{$host_io->{Type}} && $line =~ /$Grep{SummaryPatterns}{$host_io->{Type}}/i) {
-					# Summary lines are no longer updated in grep code but in handleBufferedOutput
+				# Summary lines processing
+				if ($cat eq 'S') {
 					push(@grepbf, '') if $grep->{EmptyLineSupres}[$g]; # Restore empty line before it
 					push(@grepbf, $line);
 					debugMsg(2,"[$g]PUSH-Summary:>", \$line, "<\n");
 					next;
 				}
 				# Banner processing
-				unless (defined $grep->{IndentParents}[$g] && $grep->{IndentLevel}[$g] > 0) { # Skip banner processing once we started caching indentParents
-					$grep->{BannerDetected}[$g] = 1 if !defined $grep->{BannerDetected}[$g] && $line !~ /$Grep{SocketEchoBannerExc}/; # Prime it set, first time in here
-					if (exists $Grep{BannerHardPatterns}{$host_io->{Type}} && $line =~ /$Grep{BannerHardPatterns}{$host_io->{Type}}/) { # Hard banner processing
+				unless (defined $grep->{IndentParents}[$g] && defined $grep->{IndentLevel}[$g] && $grep->{IndentLevel}[$g] > 0) {
+					# Skip banner processing once we started caching indentParents
+					if ($cat eq 'B') {
 						if ( exists $Grep{ConfigUncomment}{$host_io->{Type}} && $line =~ /$Grep{ConfigUncomment}{$host_io->{Type}}/ ) {
 							$line =~ s/^$DeviceComment{$host_io->{Type}}\s*//; # Uncomment
 							debugMsg(2,"[$g]ConfigUncommentDetected:>", \$line, "<\n");
 							push(@grepbf, $line);
 						}
 						else {
-							$grep->{BannerDetected}[$g] = 1;
-							debugMsg(2,"[$g]BannerHardDetected; Banner Flag: on\n");
 							if ($grep->{KeepBanner}) {
 								push(@grepbf, '') if $grep->{EmptyLineSupres}[$g]; # Restore empty line before it
 								push(@grepbf, $line);
-								debugMsg(2,"[$g]PUSH-BannerHard:>", \$line, "<\n");
+								$grep->{ShowCommand}[$g] = 1;
+								debugMsg(2,"[$g]PUSH-Banner:>", \$line, "<\n");
 							}
 						}
 						next;
-					}
-					elsif ($grep->{BannerDetected}[$g]) { # Soft banner processing
-						if ( ( exists $Grep{BannerSoftPatterns}{$host_io->{Type}} && $line =~ /$Grep{BannerSoftPatterns}{$host_io->{Type}}/ )
-						  && !( exists $Grep{BannerExceptions}{$host_io->{Type}} && $line =~ /$Grep{BannerExceptions}{$host_io->{Type}}/ ) ) {
-							debugMsg(2,"[$g]BannerSoftDetected\n");
-							push(@grepbf, $line) if $grep->{KeepBanner};
-							$grep->{ShowCommand}[$g] = 1;
-							debugMsg(2,"[$g]PUSH-BannerSoft:>", \$line, "<\n");
-							next;
-						}
-						elsif (length $line) { # Unless a blank line
-							$grep->{BannerDetected}[$g] = 0;
-							debugMsg(2,"[$g]Clearing BannerFlag: off\n");
-						}
 					}
 				}
 				# Show command processing; to set ShowCommand for show commands with no banner (like show sys-info)
@@ -774,7 +810,7 @@ sub grepOutput { # Perform grep processing from output buffer into grep output b
 		if (length $grepCacheTemp) {
 			if (!$grep->{ConfigACLI}) {
 				# If we have some indentParents cached, we need to extract them and throw them into the cache, after the lines cached above
-				# Otherwise the lines cached above get re-rdered after any indentPatterns
+				# Otherwise the lines cached above get re-ordered after any indentPatterns
 				GREPPAT: for my $g ( 0 .. $#{$grep->{Regex}} ) { # For every grep string
 					if (defined $grep->{IndentParents}[$g] && @{$grep->{IndentParents}[$g]}) { # Only if indentParents exist
 						while (my $parent = shift @{$grep->{IndentParents}[$g]}) { # Here we empty indentParents array
@@ -836,16 +872,15 @@ sub pruneBuffer { # In handleBufferedOutput 'mp' & 'qp' modes will prune the out
 
 	debugMsg(2,"=pruneBuffer-StartBuf: \n>", $bufRef, "<\n");
 	$tailBuffer = stripLastLine($bufRef);	# Get the prompt 1st
-	if (exists $Grep{SummaryPatterns}{$host_io->{Type}}) {
-		while ($$bufRef =~ s/(.*\n)$//) { # Then look at complete lines above it 
-			my $line = $1;
-			next if $line =~ /^\n+$/; # Skip empty lines
-			debugMsg(2,"pruneBuffer-LINE: >", \$line, "<\n");
-			if ($line =~ /$Grep{SummaryPatterns}{$host_io->{Type}}/i) {
-				$tailBuffer = $line . $tailBuffer;	# A summary line; preserve it
-			}
-			last if ++$tailCount > $SummaryTailLinesLimit;
+	while ($$bufRef =~ s/(.*\n)$//) { # Then look at complete lines above it 
+		my $line = $1;
+		next if $line =~ /^\n+$/; # Skip empty lines
+		my ($cat, $pat) = classifyOutputLine({%ClassifyInitState}, $line); # No need to preserve state as going backwards
+		debugMsg(2,"pruneBuffer-LINE:\n>", \join('|', $cat, $pat, $line), "<\n");
+		if ($cat eq 'S') {
+			$tailBuffer = $line . $tailBuffer;	# A summary line; preserve it
 		}
+		last if ++$tailCount > $SummaryTailLinesLimit;
 	}
 	debugMsg(2,"=pruneBuffer-EndBuf:\n>", \$tailBuffer, "<\n");
 	return $tailBuffer;
@@ -879,6 +914,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 				$term_io->{Key} eq $Space	||
 				$term_io->{Key} eq $Return;
 		print $DeleteEchoPrompt;
+		$script_io->{PauseMessage} = undef;
 		if ($term_io->{Key} =~ /^[qQ]$/) {
 			wipeEchoBuffers($socket_io);
 		}
@@ -900,6 +936,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 				$term_io->{Key} eq $term_io->{CtrlMoreChr};
 
 		print $term_io->{DeleteMorePrompt};
+		$script_io->{PauseMessage} = undef;
 		$term_io->{PageLineCount} = $term_io->{Key} eq $Return ? 1 : $term_io->{MorePageLines}; # Set it to 1 in case of Return key; in all other cases reset it
 		if ($term_io->{Key} =~ /^[qQ]/) { # includes 'qs'
 			my $gotPrompt;
@@ -948,7 +985,10 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 	elsif ($mode->{buf_out} eq 'eb') { # ---------------> Empty Buffer mode (eb) <-------------
 		return unless length $host_io->{OutBuffer} || length $host_io->{GrepBuffer};
 		if (defined $socket_io->{PauseBuffLen}) { # If we are pausing last fragment, because of socket echo output
-			return if length $host_io->{OutBuffer} <= $socket_io->{PauseBuffLen};
+			if (length $host_io->{OutBuffer} <= $socket_io->{PauseBuffLen}) {
+				debugMsg(2,"Buffer smaller than socket PauseBuffLen\n");
+				return
+			}
 			$socket_io->{PauseBuffLen} = undef; # undef otherwise
 		}
 		#
@@ -957,7 +997,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 		BUFFER: foreach my $bufRef (\$host_io->{GrepBuffer}, \$host_io->{OutBuffer}) {
 			next BUFFER unless length $$bufRef;
 			debugMsg(2,"BufferToProcess:\n>", $bufRef, "<\n") unless defined $term_io->{DelayPrompt} && !$term_io->{DelayPromptDF};
-			if ($$bufRef =~ /^((?:.*(?:\n|$)){1,7})/) {
+			if (!$term_io->{CmdOutputLines} && $$bufRef =~ /^((?:.*(?:\n|$)){1,7})/) {
 				my $bufHead = $host_io->{FragmentCache} . $1;	# Fragment cache + 1st 7 lines of output (increased from 4 since new timestamp on VSP show commands)
 				debugMsg(2,"Buffer Head to check for errors:\n>", \$bufHead, "<\n");
 				if ( errorDetected($db, \$bufHead, 1) ) {
@@ -999,11 +1039,20 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 				my ($bohLine, $fragmentCache, $logLine, $noEmptyLineSuppress) = ($1, '', '', $term_io->{CompletLineMrkr});
 				#debugMsg(2,"bohLine = >", \$bohLine, "<\n");
 				$fragmentCache = $host_io->{FragmentCache}; # Cache this as it might get cleared in checkFragPrompt and we need it below
-				$term_io->{CompletLineMrkr} = ($bohLine =~ s/$CompleteLineMarker$//);
+				$term_io->{CompletLineMrkr} = ($bohLine =~ s/$CompleteLineMarker\z//);
+				unless (length($bohLine)) {
+					$term_io->{CompletLineMrkr} = 0;
+					next BUFFERLOOP;
+				}
 				# Only if OutBuffer is empty (so we don't even check if emptying GrepBuffer)...
 				if ( length $host_io->{OutBuffer} == 0 ) {
 					if ( checkFragPrompt($db, \$bohLine) ) {
 						# Last line is a prompt
+						if ($term_io->{BannerEmptyLine}) {
+							$term_io->{BannerEmptyLine} = 0;
+							debugMsg(2,"Banner empty line restoring on prompt:\n>", \$bohLine, "<\n");
+							printOut($script_io, "\n");
+						}
 						if (defined $script_io->{CmdLogFH}) {
 							close $script_io->{CmdLogFH};
 							$script_io->{CmdLogFH} = $script_io->{CmdLogFile} = $script_io->{CmdLogFlag} = undef;
@@ -1085,6 +1134,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 									}
 									else { # There is no data in it... so we have to make a choice..
 										print $EchoMorePrompt;
+										$script_io->{PauseMessage} = "\n" . $EchoMorePrompt;
 										$mode->{term_in_cache} = $mode->{term_in};
 										changeMode($mode, {term_in => 'rk', buf_out => 'se'}, '#HBO5');
 										$socket_io->{TieEchoBuffers}->{$socket_io->{TieEchoPartial}} = $lastLine;
@@ -1145,6 +1195,17 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 							}
 						}
 						$socket_io->{TiedSentFlag} = undef; # Clear it once prompt received
+						# Summary pattern processing
+						if ($term_io->{CountDataLines}) {
+							my $summary = "$ScriptName: Displayed Total Record Count = $term_io->{RecordsMatched}\n";
+							debugMsg(2,"ShowSumaryLine-addingLineToOutput:\n>", \$summary, "<\n");
+							$$bufRef .= $summary . $bohLine;
+							$term_io->{CountDataLines} = undef;
+							next BUFFERLOOP; # To process summary line we just added
+						}
+						if ($term_io->{CmdOutputLines}) { # If command generated some output..
+							$term_io->{LastRecordCount} = $term_io->{RecordsMatched}; # Store the value for $#
+						}
 						if ($term_io->{Mode} eq 'interact') {
 							if ($host_io->{SyncMorePaging}) {
 								$host_io->{CLI}->device_more_paging(
@@ -1207,7 +1268,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 							$socket_io->{HoldIncLines} = 0;	 # And don't hold anymore characters which will follow
 						}
 						else {
-							debugMsg(2,"SocketEcho lastline but not prompt; re-adding to buffer: >", \$bohLine, "<\n");
+							debugMsg(2,"SocketEcho lastline but not prompt; re-adding to buffer:\n>", \$bohLine, "<\n");
 							$host_io->{OutBuffer} .= $bohLine;	# Re-add prompt to buffer..
 							$host_io->{FragmentCache} =~ s/\Q$bohLine\E$//; # checkFragPrompt above will have added it, so we remove it
 							$socket_io->{PauseBuffLen} = length $host_io->{OutBuffer};
@@ -1220,98 +1281,68 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 					$host_io->{FragmentCache} = '';# unless $term_io->{CompletLineMrkr}; # We need to clear this; because checkFragPrompt does not get called for every line, but just when buffer is empty
 					my $line = $fragmentCache . $bohLine; # Pre-pend fragment cache if set
 					debugMsg(2,"Line with FragmentCache pre-pended:\n>", \$line, "<\n") if length $fragmentCache;
-					# Banner detection and formatting
-					my ($banner, $notBanner);
-					if ($line =~ /$Grep{SocketEchoBanner}/) {
-						debugMsg(2,"Socket Echo Banner detected:\n>", \$line, "<\n");
-						$term_io->{BannerDetected} = 0;
-						($term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = ('', 0);
-						$banner = 1;
-					}
-					elsif ( $line =~ /^$ScriptName: / || # Embedded acli generated summary line, treat as banner
-						(exists $Grep{BannerHardPatterns}{$host_io->{Type}} && $line =~ /$Grep{BannerHardPatterns}{$host_io->{Type}}/)) { # Hard banner processing
-						debugMsg(2,"Show Command Hard banner line: >", \$line, "<\n");
-						if ($bohLine eq $line) { # If not partially already printed
-							if ($bohLine eq $term_io->{BannerCacheLine}) { # If not partially already printed, we suppress a duplicate banner line
-								debugMsg(2,"Show Command Hard banner line suppression\n");
-								next BUFFERLOOP;
-							}
-							elsif ($term_io->{HideTimeStamps} && exists $TimeStampBanner{$host_io->{Type}} && $bohLine =~ /$TimeStampBanner{$host_io->{Type}}/) {
-								$term_io->{CompletLineMrkr} = 0 if $bohLine =~ /\n$/; # If deleting line with \n, the \n which will follow must be considered for empty line suppression
-								($bohLine, $logLine) = ('', $bohLine);
-								debugMsg(2,"Timestamp line - log only : >", \$logLine, "<\n");
-							}
+
+					# Record type processing
+					$host_io->{ClassifyState} = {%ClassifyInitState} unless defined $host_io->{ClassifyState};
+					my ($cat, $pat) = classifyOutputLine($host_io->{ClassifyState}, $line, $host_io->{Type});
+					debugMsg(2,"ClassLine:\n>", \join('|', $cat, $pat, $line), "<\n");
+					
+					if ($term_io->{BannSummFlag} && $line eq "\n") { # Banner empty line suppression
+						unless ($noEmptyLineSuppress) {
+							$term_io->{BannerEmptyLine} = 1;
+							debugMsg(2,"Show Command Banner empty line pre-suppression\n");
+							next BUFFERLOOP; # Here we are considering to suppress this empty line inside the banner (provided we hit a further banner line next)
 						}
-						$term_io->{BannerDetected} = 1;
-						($term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = ($line, 0);
-						$banner = 1;
 					}
-					elsif ($term_io->{BannerDetected}) { # Soft banner processing
-						if ( ( exists $Grep{BannerSoftPatterns}{$host_io->{Type}} && $line =~ /$Grep{BannerSoftPatterns}{$host_io->{Type}}/ )
-						      && !( exists $Grep{BannerExceptions}{$host_io->{Type}} && $line =~ /$Grep{BannerExceptions}{$host_io->{Type}}/ ) ) {
-							debugMsg(2,"Show Command Soft banner line: >", \$line, "<\n");
+					if ($cat eq 'B') { # Banner detection and formatting
+						if ($pat eq "BannSock") {
+							debugMsg(2,"Socket Echo Banner detected:\n>", \$line, "<\n");
 							($term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = ('', 0);
-							$banner = 1;
-						}
-						elsif ($line eq "\n") {
-							unless ($noEmptyLineSuppress) {
-								$term_io->{BannerEmptyLine} = 1;
-								debugMsg(2,"Show Command Banner empty line pre-suppression\n");
-								next BUFFERLOOP; # Here we are considering to suppress this empty line inside the banner (provided we hit a further banner line next)
-							}
 						}
 						else {
-							$term_io->{BannerDetected} = 0;
-							$notBanner = 1;
-							debugMsg(2,"Outside of Show Command Banner now: >", \$line, "<\n");
-							($term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = ('', 0);
+							debugMsg(2,"Show Command banner line:\n>", \$line, "<\n");
+							if ($bohLine eq $line) { # If not partially already printed
+								if ($bohLine eq $term_io->{BannerCacheLine}) { # If not partially already printed, we suppress a duplicate banner line
+									debugMsg(2,"Show Command Hard banner line suppression\n");
+									next BUFFERLOOP;
+								}
+								elsif ($term_io->{HideTimeStamps} && exists $TimeStampBanner{$host_io->{Type}} && $bohLine =~ /$TimeStampBanner{$host_io->{Type}}/) {
+									$term_io->{CompletLineMrkr} = 0 if $bohLine =~ /\n$/; # If deleting line with \n, the \n which will follow must be considered for empty line suppression
+									($bohLine, $logLine) = ('', $bohLine);
+									debugMsg(2,"Timestamp line - log only :\n>", \$logLine, "<\n");
+								}
+							}
+							$term_io->{ShowCommand} = 1;
+							$term_io->{BannSummFlag} = 1;
+							($term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = ($line, 0);
 						}
 					}
-					# A summaryPattern could also have been matched as a BannerSoftPatterns; this happens with ismd summary count
-					if (exists $Grep{SummaryPatterns}{$host_io->{Type}} && !$term_io->{RecordCountFlag} && $line =~ /($Grep{SummaryPatterns}{$host_io->{Type}})/i) { # Since we modify, we need to use $bohLine not $line...
-						my $summary = $1;
-						debugMsg(2,"ShowSumaryLine-captured:\n>", \$summary, "<\n");
-						my $nextBufferLine;
-						if ($$bufRef =~ /^(?|(.*)\n|(.+)$CompleteLineMarker$)/) {
-							$nextBufferLine = $1;
-							debugMsg(2,"ShowSumaryLine-look ahead line:\n>", \$nextBufferLine, "<\n");
-							if ($nextBufferLine =~ /($Grep{SummaryPatterns}{$host_io->{Type}})/i) {
-								debugMsg(2,"ShowSumaryLine-look ahead line is another summary count; skipping insertion\n");
-							}
-							else {
-								$nextBufferLine = undef;
-							}
-						}
-						unless ($nextBufferLine) {
-							# We no longer modify the line.. we add a new line to buffer
-							$summary = "$ScriptName: Displayed Total Record Count = $term_io->{RecordsMatched}";
-							debugMsg(2,"ShowSumaryLine-addingLineToOutput:\n>", \$summary, "<\n");
-							if ($term_io->{CompletLineMrkr}) {
-								$bohLine .= "\n";
-								$$bufRef = $summary . $$bufRef; # $bufRef should be empty, still
-							}
-							else {
-								$$bufRef = $summary . "\n" . $$bufRef;
-							}
-							$term_io->{RecordCountFlag} = 1;
-						}
-						$notBanner = 0;
+					elsif ($cat eq 'S') { # Summary pattern processing
+						# If we see a summary lijne, do as if -c switch was specified
+						$term_io->{CountDataLines} = 1;
+						$term_io->{BannSummFlag} = 1;
 					}
-					elsif (!$banner) {
-						$notBanner = 1;
+					elsif ($line ne "\n") { # Non empty line which is neither Banner nor Summary line
 						if ($term_io->{BannerEmptyLine}) { # In this case we did not hit a further banner line, so we restore the empty line
 							$bohLine = "\n" . $bohLine;
 							$term_io->{BannerEmptyLine} = 0;
 							debugMsg(2,"Show Command Banner empty line restoring:\n>", \$bohLine, "<\n");
 						}
-						$term_io->{BannerCacheLine} = '' if $term_io->{BannerCacheLine};
+						($term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = ('', 0);
+						$term_io->{BannSummFlag} = undef;
 					}
-					$term_io->{RecordsMatched}++ if $notBanner && $line =~ /\S/ && (!exists $RecordCountSkip{$host_io->{Type}} || $line !~ /$RecordCountSkip{$host_io->{Type}}/); # Count non-banner non-empty lines
-
-					if (@{$term_io->{VarCapture}}) { # We have a port list/range in the line, we capture it
-						if ( $notBanner || grep(!$_, @{$grep->{Advanced}}) ) { # Not a banner line or simple grep exists
-							variablesStoreValues($term_io, $line) unless $line =~ /$Grep{SocketEchoBanner}/ || $line =~ /^\cGError from \S*: Cannot process command /;
+					if ($cat eq 'R' || (!$term_io->{ShowCommand} && $cat eq 'D') ) {
+						$term_io->{RecordsMatched}++; # Count non-banner non-empty lines
+						debugMsg(2,"RecordsMatched cat $cat increased\n");
+					}
+					if ($cat eq 'R' || $cat eq 'D' || grep(!$_, @{$grep->{Advanced}})) { # Record/Data line or any line if simple grep
+						if (@{$term_io->{VarCapture}}) { # We have a port list/range in the line, we capture it
+							variablesStoreValues($term_io, $line) unless $pat eq "BannSock" || $line =~ /^\cGError from \S*: Cannot process command /;
 						}
+					}
+					# Trim any trailing spaces on the line
+					if ($bohLine =~ s/\s+(\n)$/$1/) {
+						debugMsg(2,"Trimming trailing white space chareacters:\n>", \$bohLine, "<\n");
 					}
 				}
 				else {
@@ -1342,6 +1373,7 @@ sub handleBufferedOutput { # Handles how ACLI releases to screen buffered output
 						$socket_io->{HoldIncLines} = 1;
 						if (!$script_io->{CmdLogOnly} && $term_io->{MorePaging} && --$term_io->{PageLineCount} <= 0) {
 							print $term_io->{LocalMorePrompt};
+							$script_io->{PauseMessage} = "\n" . $term_io->{LocalMorePrompt};
 							$mode->{term_in_cache} = $mode->{term_in};
 							changeMode($mode, {term_in => 'rk', buf_out => 'mp'}, '#HBO8');
 							last BUFFER;

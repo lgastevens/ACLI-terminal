@@ -1,0 +1,37 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+	<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+	<Title>Single and double quotes</Title>
+</HEAD>
+<BODY>
+<h1>Single and double quotes</h1>
+<p>ACLI supports both single and double quotes on embedded commands and both can be used on commands which are executed against the connected host switch, though typically most switch CLIs will only use double quotes, for instance to specify command parameters which contain spaces.</p>
+<p>There is however a difference on how ACLI handles single quotes instead of double quotes. All the various ACLI special characters (|!<> etc..) are not processed inside single or double quotes. But, if a string is enclosed in single quotes, when the command is sent to the connected device, ACLI will automatically remove the single quotes whereas if it was enclosed in double quotes then the quotes are not removed.</p>
+<p>This is useful when configuring passwords with special characters on the switch CLI, as the password can be enclosed in single quotes and the password string is then passed to the connected device without the enclosing single quotes. The alternative otherwise would be to backslash every special character in the password string which would otherwise be processed by ACLI.</p>
+<pre>
+	5520-24T-FabricEngine:1(config)#% auto-sense isis hello-auth type hmac-sha-256 key Abc_|123!
+	5520-24T-FabricEngine:1(config)#% auto-sense isis hello-auth type hmac-sha-256 key "Abc_|123!"
+	5520-24T-FabricEngine:1(config)#% auto-sense isis hello-auth type hmac-sha-256 key 'Abc_|123!'
+	5520-24T-FabricEngine:1(config)#%
+	5520-24T-FabricEngine:1(config)#% @history user-entered
+	
+	------Start of history of user entered commands------
+	auto-sense isis hello-auth type hmac-sha-256 key Abc_|123!
+	auto-sense isis hello-auth type hmac-sha-256 key "Abc_|123!"
+	auto-sense isis hello-auth type hmac-sha-256 key 'Abc_|123!'
+	@history user-entered
+	-------End of history of user entered commands-------
+	5520-24T-FabricEngine:1(config)#% @history device-sent
+	
+	------Start of history of commands sent to host------
+	auto-sense isis hello-auth type hmac-sha-256 key Abc_
+	auto-sense isis hello-auth type hmac-sha-256 key "Abc_|123!"
+	auto-sense isis hello-auth type hmac-sha-256 key Abc_|123!
+	-------End of history of commands sent to host-------
+	5520-24T-FabricEngine:1(config)#%
+</pre>
+<p>In the example above, the first command is trying to set the desired password on the device and is not using any quotes; this command falls foul of ACLI's command interpreter which cuts the command short at "Abc_" and then sets a grep string of "|123" and "!". In the second command the same password string is now enclosed in double quotes; now the "|" and "!" charactes are not processed by ACLI's interpreter, but the command is sent to the connected device with the double quotes included, which in this example will result in the passord being set with those double quotes, which is probably not what is desired. In the third and last command single quotes are used, and now when the command is sent to the connected device those single quotes are removed.</p>
+
+</BODY>
+</HTML>

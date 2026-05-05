@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-my $Version = "1.12";
+my $Version = "1.13";
 
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 # FTP, SFTP client for Extreme VOSS devices
@@ -33,6 +33,7 @@ my $Version = "1.12";
 # 1.10	- Password can now be provided on the command line together with username on -u switch
 # 1.11	- Added support and new syntax for reading in IPs from spreadsheet (as in acmd)
 # 1.12	- Changed loadHosts to work with batch files using start instead of acligui.vbs
+# 1.13	- Adjusted tabulation on syntax output
 
 
 #############################
@@ -104,13 +105,13 @@ sub printSyntax {
 	print "                   :  [<IP/hostname>]:<port> [<unused-display-name>] [# Comments]\n";
 	print " -l <user>[:<pwd>] : Use non-default credentials; password will be prompted if not provided\n";
 	print " -p <path>         : Path on device\n";
-	print " -x <spreadsheet>[:<sheetname>]!<column-label>  : Spreadsheet file (Microsoft Excel, OpenOffice, CSV)\n";
-	print "                    Spreadsheet must be a simple table where every row is a device with a number\n";
-	print "                    of parameters. The first row of the table must be a label for the column values.\n";
-	print "                    The label corresponding to the column with the switch IP/hostnames must be\n";
-	print "                    supplied in <column-label>.\n";
-	print "                    The <sheetname> is optional; if not supplied the first sheet of the spreadsheet\n";
-	print "                    will be used\n";
+	print " -x <spreadsheet> [:<sheetname>]!<column-label>  : Spreadsheet file (Microsoft Excel, OpenOffice, CSV)\n";
+	print "                     Spreadsheet must be a simple table where every row is a device with a number\n";
+	print "                     of parameters. The first row of the table must be a label for the column values.\n";
+	print "                     The label corresponding to the column with the switch IP/hostnames must be\n";
+	print "                     supplied in <column-label>.\n";
+	print "                     The <sheetname> is optional; if not supplied the first sheet of the spreadsheet\n";
+	print "                     will be used\n";
 	print " <host/IP list>    : List of hostnames or IP addresses\n";
 	print "                   : Note that valid IP lists can be written as: 192.168.10.1-10,40-45,51\n";
 	print "                   : IPv6 addresses are also supported: 2000:10::1-10 (decimal range 1-10)\n";

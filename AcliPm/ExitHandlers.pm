@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ExitHandlers;
-our $Version = "1.02";
+our $Version = "1.03";
 
 use strict;
 use warnings;
@@ -17,6 +17,7 @@ use AcliPm::GlobalConstants;
 use AcliPm::GlobalDefaults;
 use AcliPm::Print;
 use AcliPm::Socket;
+use AcliPm::ConnectDisconnect;
 
 
 sub dieHandler { # We trap die to this function
@@ -106,15 +107,16 @@ sub connectionError { # Handle connection loss to host
 			handleSocketIO($db);	# Now (we have possible quits below)
 		}
 	}
-	# Cmd Ooutput logging
+	# Cmd Output logging
 	close $script_io->{CmdLogFH} if defined $script_io->{CmdLogFH};
 	$script_io->{CmdLogFH} = $script_io->{CmdLogFile} = $script_io->{CmdLogOnly} = $script_io->{CmdLogFlag} = undef;
+
 	# Variables to reset
-	$host_io->{Login} = 0;
-	$host_io->{Connected} = 0;
+	disconnect($db, 1); # Issues seen with Win32::SerialPort blocking forever on write(); need to close, before reconnecting
+	#$host_io->{Login} = 0; $host_io->{Connected} = 0; $mode->{connect_stage} = 0; # These are reset in disconnect()
 	$host_io->{Discovery} = undef;
 	$host_io->{ConnectionError} = 1;
-	$mode->{connect_stage} = 0;
+
 	# For both ACLI mode and normal connection mode, check for SSH auth error and if so clear stored password
 	$host_io->{Password} = undef if defined $errmsg && $errmsg =~ /SSH unable to password authenticate/;
 	if ($script_io->{ConnectFailMode} == 2) { # Return to ACLI> mode
@@ -137,14 +139,15 @@ sub connectionError { # Handle connection loss to host
 			quit(1, "Connection error: $errmsg", $db);
 		}
 		elsif ($script_io->{ConnectFailMode} == 0) { # ... we offer to reconnect
-			print "\n------> Connection closed: SPACE to re-connect / Q to quit <------\n";
+			$script_io->{PauseMessage} = "\n------> Connection closed: SPACE to re-connect / Q to quit <------\n";
 			changeMode($mode, {term_in => 'qs', dev_inp => 'ds', dev_del => 'ds', dev_fct => 'ds', dev_cch => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#EH2');
 		}
 #		elsif (!defined $host_io->{Connected}) {	(bug8)
 		else { # $script_io->{ConnectFailMode} == 1
-			print "\n------> Connection failed: SPACE to re-try / Q to quit <------\n";
+			$script_io->{PauseMessage} = "\n------> Connection failed: SPACE to re-try / Q to quit <------\n";
 			changeMode($mode, {term_in => 'qs', dev_inp => 'ds', dev_del => 'ds', dev_fct => 'ds', dev_cch => 'ds', dev_out => 'ub', buf_out => 'ds'}, '#EH3');
 		}
+		print $script_io->{PauseMessage};
 	}
 	return;
 }

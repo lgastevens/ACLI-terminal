@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::ConnectDisconnect;
-our $Version = "1.06";
+our $Version = "1.07";
 
 use strict;
 use warnings;
@@ -159,6 +159,7 @@ sub connectToHost { # Connect to host
 	$host_io->{GrepBuffer} = '';
 	$host_io->{GrepCache} = '';
 	$host_io->{PacedSentChars} = '';
+	$host_io->{SendBufferDelay} = '';
 	$host_io->{UnrecogLogins} = $UnrecognizedLogins;
 	$term_io->{PageLineCount} = $term_io->{MorePageLines};
 	@{$term_io->{CharBuffer}} = (); # Empty the char buffer
@@ -170,6 +171,7 @@ sub connectToHost { # Connect to host
 	$host_io->{KeepAliveUpTime} = time + $host_io->{KeepAliveTimer}*60;	# Reset keepalive timer
 	$mode->{connect_stage} = 0;
 	$term_io->{Mode} = 'transparent';
+	$script_io->{PauseMessage} = undef;
 
 	if ($host_io->{ComPort} !~ /^(?:TELNET|SSH)$/) {
 		$host_io->{Console} = 1;

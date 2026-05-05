@@ -1,6 +1,6 @@
 #!/bin/perl
 #
-$Version = "2.3";
+$Version = "2.4";
 #
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 #
@@ -13,6 +13,7 @@ $Version = "2.3";
 # 2.1	- Now can also grep output from STDIN, so can be piped to
 # 2.2	- Switched to bsd_glob due to warnings: File::Glob::glob() will disappear in perl 5.30. Use File::Glob::bsd_glob() instead.
 # 2.3	- Using /^pat/ only works if pattern entered quoted "/^pat/"; added a debug line and updated syntax
+# 2.4	- Modified to work correctly with all types of text files whether lines end with any of CR(MAC)/CRLF(Windows)/LF(Linux)
 #
 # Syntax:
 #
@@ -88,18 +89,31 @@ sub formatPat {
 sub grepFile {
 	my ($file, $pattern, $prependFilename) = @_;
 	$prependFilename &&= $prependFilename.": ";
+	my $size = -s $file;
+	my $eol = undef;
 
 	unless ( open(FILE, $file) ) {
 		print "Cannot open file \"$file\": $!\n";
 		return;
 	}
 
+	# Section taken from detectEndOfLine() at https://stackoverflow.com/questions/3018034/how-to-read-line-by-line-a-cr-only-file-with-perl
+	for(my $i = $size; $i >= 0; --$i) {
+		seek(FILE, $i, 0) or die;
+		$_ = <FILE>;
+		$eol = substr($_, 0, 1);
+		last if ( $eol eq "\n" or $eol eq "\r" );
+	}
+	local $/ = $eol; # Set line delimeter to match what used in file
+
+	seek(FILE,0,0);  # Reset file handle to beginning of file
 	while (<FILE>) {
-		if ($opt_v) {
-			(not eval ($pattern)) && print "$prependFilename$_";
+		s/\r\n|\n|\r$//;
+    		if ($opt_v) {
+			(not eval ($pattern)) && print "$prependFilename$_\n";
 		}
 		else {
-			eval ($pattern) && print "$prependFilename$_";
+			eval ($pattern) && print "$prependFilename$_\n";
 		}
 	}
 	close FILE;

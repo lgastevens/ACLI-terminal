@@ -1,4 +1,4 @@
-$Version = 6.04
+$Version = 6.05
 
 Install instructions
 ====================
@@ -91,7 +91,7 @@ Restart the Terminal app.
 acli.pl command line options:
 ----------------------------
 iMac:~ $ acli -h
-acli.pl version 6.04
+acli.pl version 6.05
 
 Usage:
  acli.pl [-cehijkmnopqswxyz]

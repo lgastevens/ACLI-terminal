@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-our $Version = "5.13";
+our $Version = "5.14";
 our $Debug = 0;	# Bit values: 1024=printOut 512=loadAliasFile 256=tabExpand/quoteCurlyBackslashMask 128=historyDump 64=Errmode-Die 32=Errmode-Croak 16=ControlCLI(Serial) 8=ControlCLI 4=Input 2=output 1=basic
 BEGIN {	our $Sub = ''; } # Load all AcliPm modules from a subdirectory
 
@@ -412,11 +412,12 @@ sub mainLoop { # Mainloop
 		PseudoAttribs	=> {},				# Alternative attributes hash used in pseudo mode
 		PathSetSwitch	=> $args->{PathSetSwitch},	# Set if the working directory was set when script was launched
 		SockSetSwitch	=> 0,				# Set if listening sockets were defined when script was launched
-		BannerDetected	=> 1,				# Flag set true when a BannerHardPattern seen; determines when BannerSoftPatterns are processed
 		BannerCacheLine	=> '',				# Used to cache a recent banner line, either for suppressing spaces or double banner lines
 		BannerEmptyLine	=> 0,				# Flag set when we hit an empty line inside the banner which we consider suppressing
-		RecordsMatched	=> 0,				# Keeps track of the number of non-banner lines matches; used to update "x out y"
-		RecordCountFlag	=> 0,				# Flag to ensure we only print ACLI's count of records once only per command
+		BannSummFlag	=> 1,				# Flag, set when last line printed was either a banner or summary line (for empty line suppression)
+		RecordsMatched	=> 0,				# Keeps track of the number of record/data lines matches of current command
+		LastRecordCount	=> 0,				# Stores record/data lines count from previous CLI command
+		ShowCommand	=> undef,			# True for show commands; if true RecordsMatched only increased for R matches, not both R+D
 		InteractRestore	=> undef,			# Set for fast revert to interact mode with CTRL-T
 		Newline		=> $args->{Newline},		# Newline used to send commands to host; can be set to "\n", "\r"
 		VarPrompt	=> undef,			# Name of $variable we are currently prompting user for
@@ -464,6 +465,7 @@ sub mainLoop { # Mainloop
 		DictionaryFile	=> '',				# Holds filename of loaded dictionary file
 		DictSourcing	=> undef,			# Flag, set when a script is sourced from loading a dictionary file, for processing @my as dictscope
 		HlEnteredCmd	=> $Default{highlight_entered_command_flg},	# Highlight entered command
+		CountDataLines	=> undef,			# Flag, set when the -c flag is specified on commands
 	};
 	($term_io->{LocalMorePrompt} = $LocalMorePrompt) =~ s/\Q$CtrlMorePrn\E/$term_io->{CtrlMorePrn}/;
 	($term_io->{DeleteMorePrompt} = $term_io->{LocalMorePrompt}) =~ s/./\cH \cH/g;
@@ -548,7 +550,7 @@ sub mainLoop { # Mainloop
 		DualCP		=> undef,			# True if device has dual CPUs
 		Sysname		=> '',				# System name of device
 		BaseMAC		=> undef,			# Base MAC address of device
-		PreviousMAC	=> '',				# Caches MAC of previuos connection, to detemrine if var file needs reading
+		PreviousMAC	=> '',				# Caches MAC of previous connection, to determine if var file needs reading
 		CpuSlot		=> undef,			# CPU slot if connected to a PassportERS device
 		MasterCpu	=> undef,			# Whether CPU is Master CPU on PassportERS device
 		SwitchMode	=> undef,			# Switch mode if connected to a BaystackERS device
@@ -570,7 +572,7 @@ sub mainLoop { # Mainloop
 		UnrecogLogins	=> $UnrecognizedLogins,		# Holds count of unrecognized login outputs to let user interact with during login phase
 		PortUnconstrain	=> $Default{port_ranges_unconstrain_flg},	# Unconstrain processing of port ranges from actual ports on connected switch
 		DotActivityCnt	=> 0,				# Holds count of times we received just dots '.' as output, to switch to unbuffered mode
-		
+		ClassifyState	=> undef,			# Holds classifyOutputLine() state hash
 	};
 	verifySshKeys($host_io, $args->{SshKey});	# Load SSH keys
 
@@ -615,7 +617,8 @@ sub mainLoop { # Mainloop
 		GrepMultiple	=> $args->{GrepMultiple},	# Flag which is true when we have more than 1 file in above ConfigFileList
 		GrepForceType	=> $args->{FamilyType},		# Family Type set via -f switch
 		EmbCmdSpacing	=> undef,			# Allows proper spacing for embedded command output
-		PrintFlag	=> 0				# Set whenever some output is printed out
+		PrintFlag	=> 0,				# Set whenever some output is printed out
+		PauseMessage	=> undef,			# Set to current pause message, so that if screen is cleared message can be re-printed
 	};
 	my $prompt = { # Prompt storage hash
 		Match		=> undef,			# Prompt match string
@@ -651,7 +654,6 @@ sub mainLoop { # Mainloop
 		String		=> 0,		# Grep string entered in Local Term mode; flag
 		Advanced	=> [],		# Flag which is true when grep mode is euither || or !!
 		KeepBanner	=> 1,		# Whether banner lines are preserved in advanced grep ||, !!; flag
-		BannerDetected	=> [],		# Flag set true when a BannerHardPattern seen; determines when BannerSoftPatterns are processed
 		Indent		=> '',		# If indenting will hold a number of space chars to use to indent ACLI configs
 		Mode		=> [],		# Grep mode: '|'=(matching lines) or '!'=(non-matching lines); array
 		Instance	=> [],		# Whether grep string is a config instance; e.g. list of ports, vrf, etc..
@@ -682,6 +684,7 @@ sub mainLoop { # Mainloop
 		EmptyLineSupres	=> [],		# Set if an empty line was suppressed (we might yet resore it depending on what next line is)
 		NoEmptyLineLast	=> [],		# Set if last line was not empty
 		GrepStreamFile	=> undef,	# Holds the current filename of the output to process in grep, to be pre-pended to any no-null output
+		ClassifyState	=> [],		# Holds array of classifyOutputLine() state hash, for each grep string
 	};
 	my $socket_io = {
 		Tie		=> undef,		# Port name of socket used to send to; undef if not in use

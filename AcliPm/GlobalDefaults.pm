@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::GlobalDefaults;
-our $Version = "1.10";
+our $Version = "1.11";
 
 use strict;
 use warnings;
@@ -58,6 +58,7 @@ our %Default = ( # Hash of default settings; these are mostly user modifiable fr
 		BaystackERS		=> 1,
 		PassportERS		=> 1,
 		ExtremeXOS		=> 1,
+		OneOS			=> 1,
 		SLX			=> 1,
 		ISW			=> 1,
 		ISWmarvell		=> 1,
@@ -100,6 +101,7 @@ our %Default = ( # Hash of default settings; these are mostly user modifiable fr
 	socket_send_username_flg	=> 1,			# Determines whether we encode the username in socket datagrams
 	socket_allowed_source_ip_lst	=> ['127.0.0.1'],	# Array of source IPs from which sockets are accepted
 	socket_echo_mode_val		=> 1,			# Local echo in Socket tied terminal: 0 = no echo; 1 = errors only; 2 = everything
+	socket_switch_merge_flg		=> 0,			# Determines whether to merge listening sockets from var file and provided via -s switch
 	pseudo_prompt_str		=> 'PSEUDO#',		# Prompt used by Pseudo Terminal
 	source_error_detect_flg		=> 1,			# Determines whether or not we want to pause sourcing commands in case of an error
 	source_error_level_str		=> 'error',		# Determines whether we look at error messages only or error and warning messages

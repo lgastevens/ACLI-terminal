@@ -1,7 +1,7 @@
 ##############################
 # SED file for ACLI Terminal #
 ##############################
-# Version = 1.14
+# Version = 1.15
 #
 # This file is read when a new ACLI Terminal is launched and can be used to define SED (serial editor) patterns
 # It can be located in any of these directories in the following order:
@@ -128,7 +128,8 @@ category global
 #		<replacecode> replacement Perl code to execute inside s/// replace; muast be enclosed in {}
 #
 category PassportERS
-'filter acl ace\K( [a-z]+\d?)?'			{defined $1 ? $1 . " "x(9-length($1)) : " "x9}			# Nicely indent VOSS ACL config lines
+'filter acl ace\K( [a-z]+\d?)?'				{defined $1 ? $1 . " "x(9-length($1)) : " "x9}		# Nicely indent VOSS ACL config lines
+'\d+ +\K(\S+)(?= +(?:inPort|outPort|inVlan|inVsn))'	{length($1) > 10 ? substr($1, 0, 10)."~" : $1}		# Re-allign output of: show filter acl statistics
 
 
 #category global

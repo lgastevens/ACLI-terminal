@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleTerminalInput;
-our $Version = "1.10";
+our $Version = "1.11";
 
 use strict;
 use warnings;
@@ -215,10 +215,14 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 				print "\n", $ACLI_Prompt;
 				return;
 			}
+			elsif ($script_io->{PauseMessage}) {
+				print $script_io->{PauseMessage};
+				return;
+			}
 			else { # Make it as if user had hit return after clearing the screen
 				$key = $Return;
 			}
-			debugMsg(2,"=Screen clearedt !\n");
+			debugMsg(2,"=Screen cleared !\n");
 		}
 		if ($::Debug && $key eq $term_io->{CtrlDebugChr}) {
 			return Debug::run($db) if $DebugPackage;
@@ -229,6 +233,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			quit(0, undef, $db) if $key =~ /^[qQ]$/;
 			if ($key eq $Space) {
 				print "\n";
+				$script_io->{PauseMessage} = undef;
 				$script_io->{ConnectFailMode} = 1;
 				connectToHost($db) or return;
 				if ($term_io->{AutoDetect}) {
@@ -381,6 +386,7 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			$term_io->{RepeatUpTime} = time + $term_io->{RepeatDelay};
 			$term_io->{SourceNoHist} = 1;	# Disable history
 			$term_io->{YnPrompt} = 'y';
+			$term_io->{PageLineCount} = $term_io->{MorePageLines};
 			debugMsg(4,"=RepeatedCommandInjecting: /", \$command, "/\n");
 		}
 		elsif ($queue eq 'SleepCmd') {
@@ -832,8 +838,9 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 									$termbuf->{Linebuf1} = $command;	# Pre-load buffers with what we already had
 									($termbuf->{Bufback1} = $termbuf->{Linebuf1}) =~ s/./\cH/g;
 									$termbuf->{Linebuf2} = $termbuf->{Bufback2} = '';
+									($term_io->{BannSummFlag}, $term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = (1, '', 0);
 									changeMode($mode, {term_in => 'ib', dev_del => 'fl', dev_fct => 'sx', dev_out => 'bf', buf_out => 'eb'}, '#HTI11');
-									return; 
+									return;
 								}
 							}
 						}
@@ -973,12 +980,12 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 			$host_io->{SendMasterCP} = 1; # Set these defaults; they might get changed in processLocalOptions() below
 			$host_io->{SendBackupCP} = 0; # "
 			$host_io->{GrepCache} = '';
+			$host_io->{ClassifyState} = undef;
 			$term_io->{CmdOutputLines} = 0;
-			$term_io->{RecordsMatched} = $term_io->{RecordCountFlag} = 0;
-			$term_io->{BannerDetected} = 1;	# Set this for var capture processing on output
-			($term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = ('', 0);
-			$term_io->{DelayPrompt} = undef;
-			$term_io->{HLgrep} = undef;
+			$term_io->{RecordsMatched} = 0;
+			($term_io->{BannSummFlag}, $term_io->{BannerCacheLine}, $term_io->{BannerEmptyLine}) = (1, '', 0);
+			$term_io->{DelayPrompt} = $term_io->{HLgrep} = $term_io->{CountDataLines} = $term_io->{ShowCommand} = undef;
+			$socket_io->{PauseBuffLen} = undef; #(bug31)
 			if ($socket_io->{ListenEchoMode}) {
 				$socket_io->{EchoSendFlag} = 1; # Next command will be the one sent by tied socket if ListenEchoMode set
 				debugMsg(4,"=EchoSendFlag set\n");
@@ -1100,7 +1107,6 @@ sub handleTerminalInput { # Handle user or sourced input to terminal
 						}
 						changeMode($mode, {term_in => 'ps', dev_out => 'bf', buf_out => 'eb'}, '#HTI25');
 					}
-					$term_io->{BannerDetected} = 0;	# No output banner processing for embedded commands
 					undef $command;
 				}
 				return if $host_io->{ConnectionError};

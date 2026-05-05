@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleDeviceOutput;
-our $Version = "1.14";
+our $Version = "1.15";
 
 use strict;
 use warnings;
@@ -1285,20 +1285,16 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 							$$outRef =~ s/^\cH{$host_io->{BackspaceCount}} {$host_io->{BackspaceCount}} \cH{$host_io->{BackspaceCount}}\cH//
 						)
 					) || (
-						$host_io->{Type} eq 'WLAN2300' &&
-							$$outRef =~ s/^\x0d +\x0d$prompt->{Match}//	# WLAN2300
-					) || (
-						$host_io->{Type} eq 'WLAN9100' &&
-						(
-							$$outRef =~ s/^\x00?\cH{$host_io->{BackspaceCount}} {$bcntminus1,$host_io->{BackspaceCount}}\cH{$bcntminus1,$host_io->{BackspaceCount}}// || # WLAN9100 : hist<tab>
-							$$outRef =~ s/^\x00?\x0d$prompt->{Match} {$bcntminus1}\cH{$bcntminus1}// ||			# WLAN9100 : show temp<tab>
-							$$outRef =~ s/^\x00?\x0d$prompt->{Match} {$bcntminus1}\x0d$prompt->{Match}//			# WLAN9100 : show syst<tab>
-						)
-					) || (
 						$host_io->{Type} eq 'ExtremeXOS' &&
 						(
 							$$outRef =~ s/^\cH{$host_io->{BackspaceCount}}\e\[J// ||	# Extreme XOS
 							($host_io->{BackspaceCount} > 90 && $$outRef =~ s/^(?:\e\[C)+\e\[A(?:\e\[J)?//)	# Extreme XOS lines > 100 chars
+						)
+					) || (
+						$host_io->{Type} eq 'OneOS' &&
+						(
+							$$outRef =~ s/^\x08{$host_io->{BackspaceCount}}\e\[K// ||	# OneOS
+							$$outRef =~ s/^\x0d$prompt->{Match}\e\[K//
 						)
 					) || (
 						$host_io->{Type} eq 'ISW' &&
@@ -1322,6 +1318,16 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					) || (
 						$host_io->{Type} eq 'Series200' &&
 							$$outRef =~ s/^(?:\cH \cH){$host_io->{BackspaceCount}}//
+					) || (
+						$host_io->{Type} eq 'WLAN2300' &&
+							$$outRef =~ s/^\x0d +\x0d$prompt->{Match}//	# WLAN2300
+					) || (
+						$host_io->{Type} eq 'WLAN9100' &&
+						(
+							$$outRef =~ s/^\x00?\cH{$host_io->{BackspaceCount}} {$bcntminus1,$host_io->{BackspaceCount}}\cH{$bcntminus1,$host_io->{BackspaceCount}}// || # WLAN9100 : hist<tab>
+							$$outRef =~ s/^\x00?\x0d$prompt->{Match} {$bcntminus1}\cH{$bcntminus1}// ||			# WLAN9100 : show temp<tab>
+							$$outRef =~ s/^\x00?\x0d$prompt->{Match} {$bcntminus1}\x0d$prompt->{Match}//			# WLAN9100 : show syst<tab>
+						)
 					) || (
 						$host_io->{Type} eq 'Wing' &&
 						(
@@ -1636,6 +1642,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					debugMsg(2,"ObtainedShiftedExpansion-tab:>\$", $outRef, "<\n");
 					$$outRef = substr($termbuf->{TabCmdSent}, 0, index($termbuf->{TabCmdSent}, substr($$outRef, 0, 10))).$$outRef;
 				}
+				$$outRef =~ s/ {2,}$/ /; # If more than 1 trailing space, keep 1 space only
 				debugMsg(2,"RetainedExpansion-tb:>", $outRef, "<\n");
 				if (defined $termbuf->{TabBefoVar} && $$outRef =~ s/$termbuf->{TabMatchSent}/$termbuf->{TabBefoVar}/i) {
 					debugMsg(2,"RetainedExpansion-tb-after restoring vars:>", $outRef, "<\n");
@@ -1693,7 +1700,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				}
 			}
 			elsif ($mode->{dev_fct} eq 'yp') { # Automatically answer 'y' at y/n? prompts
-				if ($$outRef =~ /(.*$CmdConfirmPrompt{$host_io->{Type}})/o) {
+				if (!$term_io->{FeedInputs} && $$outRef =~ /(.*$CmdConfirmPrompt{$host_io->{Type}})/o) { # Skip this if FeedInputs exist
 					my $confirmPrompt = $1;
 					debugMsg(2,"Detected-YNPrompt:\n>", \$confirmPrompt, "<\n");
 					if ($term_io->{YnPromptForce} || $confirmPrompt !~ /(?:reset|reboot)/) {
@@ -1899,7 +1906,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 			# It will be fast track released by cache (below **) if we have a pause in reads and read nothing for $OutputCacheFastTimeout cycles
 			#
 			unless ($mode->{dev_out} eq 'ub' || $doNotCacheLastLine || $$outRef =~ /$prompt->{Match}$/) {
-				$host_io->{OutCache} = stripLastLine($outRef);				# Strip last line..
+				$host_io->{OutCache} = stripLastLine($outRef);			# Strip last line..
 				if (chomp $$outRef) {
 					$host_io->{OutCache} = "\n" . $host_io->{OutCache};	# ..and preceding \n if present
 					$$outRef .= $CompleteLineMarker;
@@ -1994,8 +2001,8 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				debugMsg(2,"==================================\nCacheTimeout:\n>", $outRef, "<\n");
 				stopSourcing($db);	# If in a run script, need to stop it
 				# If we were in the midst of Tab/Syntax/Delete pattern processing, drop to 'sh' mode; otherwise maintain same mode
-				#  .. must also preserve term_in mode if buf_out is either 'se' or 'mp' (both of which set term_in to 'rk')
-				my $newTerm_in = $mode->{dev_del} ne 'ds' || $mode->{dev_fct} ne 'ds' || $mode->{term_in} ne 'rk' ? 'sh' : $mode->{term_in};
+				#  .. must also preserve term_in mode if buf_out is either 'se' or 'mp' (both of which set term_in to 'rk'; in general, must preseve term_in if set to 'rk') (bug30)
+				my $newTerm_in = ($mode->{dev_del} ne 'ds' || $mode->{dev_fct} ne 'ds') && $mode->{term_in} ne 'rk' ? 'sh' : $mode->{term_in};
 				changeMode($mode, {term_in => $newTerm_in, dev_del => 'ds', dev_fct => 'ds'}, '#HDO40');
 				$term_io->{BackSpaceMode} = undef;
 			}

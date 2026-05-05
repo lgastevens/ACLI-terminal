@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::CommandProcessing;
-our $Version = "1.14";
+our $Version = "1.15";
 
 use strict;
 use warnings;
@@ -3994,7 +3994,7 @@ sub processControlCommand { # Process a command under ACLI Control
 		$command = '';
 	};
 	$command =~ /^trmsrv list(?: (.*))?/ && do {
-		my $pattern = eval { qr/$1/ };
+		my $pattern = eval { qr/$1/i };
 		if (!defined $pattern) {
 			print "Invalid regex pattern\n";
 		}
@@ -4138,6 +4138,7 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		my $mode = $1 || '';
 		my $var = $2 || '_';
 		$command = "\$$mode$var";
+		$command = '$#' if $command eq '$#_';
 	}
 	elsif ($embeddedCmd =~ /^\s*\%\s*$/o) { # Variable '%' show
 		$command = "\$%";
@@ -4256,11 +4257,13 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 		cmdOutput($db, "\$\$                                                  Device system name\n");
 		cmdOutput($db, "\$\@                                                  If preceding switch command generated an error, holds that error message\n");
 		cmdOutput($db, "\$\>                                                  Holds last CLI prompt from device\n");
+		cmdOutput($db, "\$\#                                                  Holds count of data records from last CLI command executed\n");
 		cmdOutput($db, "\$<number>                                           When sourcing a script with \@source or \@run, holds optional arguments\n");
 		cmdOutput($db, "\$*                                                  When sourcing a script with \@source or \@run, holds concatenated arguments\n");
 		cmdOutput($db, "\$ALL                                                Returns all ports of connected device\n");
 		cmdOutput($db, "\$1/ALL, \$2:ALL, etc..                               Returns all ports for given slot of connected device\n");
 		cmdOutput($db, "\nSwitch CLI extensions:\n\n");
+		cmdOutput($db, "<CLI command> -c                                    count output record/data lines\n");
 		cmdOutput($db, "<CLI command> -o[n]                                 while socket tied and sourcing, send command to socket with optional [n] delay\n");
 		cmdOutput($db, "<CLI command> -y                                    automatic Yes at Y/N prompts\n");
 		cmdOutput($db, "<CLI command> -n                                    automatic No at Y/N prompts\n");
@@ -4345,6 +4348,10 @@ sub processEmbeddedCommand { # Process an embedded command available as if on co
 	};
 	$command eq '$>' && do {
 		cmdOutput($db, sprintf "\$%-12s = %s\n", '>', defined $host_io->{Prompt} ? $host_io->{Prompt} : '<undefined>');
+		$command = '';
+	};
+	$command eq '$#' && do {
+		cmdOutput($db, sprintf "\$%-12s = %s\n", '#', defined $term_io->{LastRecordCount} ? $term_io->{LastRecordCount} : '<undefined>');
 		$command = '';
 	};
 	$command =~ /^\$($VarAttrib)$/o && do { # Handles also ports structure followed by [indx] or, ISW case, {key}

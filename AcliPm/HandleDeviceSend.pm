@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleDeviceSend;
-our $Version = "1.02";
+our $Version = "1.03";
 
 use strict;
 use warnings;
@@ -63,11 +63,11 @@ sub handleDeviceSend { # Handles transmission to connected device
 		$host_io->{OutputSinceSend} = 0;
 		$host_io->{KeepAliveUpTime} = time + $host_io->{KeepAliveTimer}*60;	# Reset keepalive timer
 		$host_io->{SessionUpTime} = time + $host_io->{SessionTimeout}*60;	# Reset session inactivity timer
+		if (length $host_io->{SendBufferDelay}) { # We have delayed data to send at next cycle
+			$host_io->{SendBuffer} = $host_io->{SendBufferDelay};
+			$host_io->{SendBufferDelay} = '';
+		}
 		return;
-	}
-	if (length $host_io->{SendBufferDelay}) { # We have delayed data to send at next cycle
-		$host_io->{SendBuffer} = $host_io->{SendBufferDelay};
-		$host_io->{SendBufferDelay} = '';
 	}
 
 	return if $term_io->{Mode} eq 'transparent' && !$host_io->{TranspKeepAlive};	# No timers in transparent mode if mode is unset
@@ -81,9 +81,10 @@ sub handleDeviceSend { # Handles transmission to connected device
 		return;
 	}
 	if ($host_io->{KeepAliveTimer} && time > $host_io->{KeepAliveUpTime}) { # If timer expired
+		$host_io->{KeepAliveUpTime} = time + $host_io->{KeepAliveTimer}*60;	# Reset keepalive timer
+		return if $term_io->{Mode} eq 'interact' and $mode->{term_in} ne 'tm';
 		$host_io->{CLI}->put($KeepAliveSequence);			# Send keepalive
 		return if $host_io->{ConnectionError};
-		$host_io->{KeepAliveUpTime} = time + $host_io->{KeepAliveTimer}*60;	# Reset keepalive timer
 		debugMsg(2,"KeepAliveSent!\n");
 		return if $script_io->{AcliControl} & 7;
 		$mode->{term_in_cache} = $mode->{term_in};
