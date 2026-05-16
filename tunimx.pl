@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-my $Version = "1.7";
+my $Version = "1.8";
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 # VSP as a L1 matrix using Transparent UNI on port pairs
 
@@ -24,6 +24,8 @@ my $Version = "1.7";
 #	  the portid of other switches which are not being updated, this was resulting in orphaned
 #	  connections as the I-SID record became corrupted on reload
 # 1.7	- Mirroring data output now can cope with mirror ports set to unused ports
+# 1.8	- Mirroring data output now handles case where multiple in-ports are mirrored from the
+#	  same switch in the same mirroring instance
 
 # Todo...
 # - show ISID mirror offset in output
@@ -660,6 +662,60 @@ sub incrementChangesCount { # Increment changes version number on selected TuniM
 	return 1;
 }
 
+sub generatePortList { # Takes an unordered port list/range, and produces an ordered list (with no ranges & no duplicates); reduced version of same function from acli.pl
+	my $inlist = shift;
+	my (@ports, @sortedPorts);
+	my $sep = '/';
+
+	my $processPort = sub { # Used by generatePortList to process adding a port to the list based on certain checks
+		my $port = shift;
+		unless (grep(/^$port$/, @ports)) {
+			push(@ports, $port);
+		}
+	};
+
+	$inlist = [ split(',', $inlist) ] unless ref($inlist) eq 'ARRAY';
+	debugMsg(1,"-> generatePortList input = ", \join(';', @$inlist), "\n");
+
+	foreach my $element (@$inlist) { # Slot based processing
+		if ($element =~ /^(\d{1,3})[\/:](\d{1,2})$/) { # slotX/portY
+			my ($slot, $port) = ($1, $2);
+			&$processPort("$slot$sep$port");
+		}
+		elsif ($element =~ /^(\d{1,3})[\/:](\d{1,2})[\/:](\d{1,2})$/) { # slotX/portY/channelZ
+			my ($slot, $port, $chan) = ($1, $2, $3);
+			&$processPort("$slot$sep$port$sep$chan");
+		}
+		elsif ( $element =~ /^(\d{1,3})[\/:](\d{1,2})-(\d{1,2})[\/:](\d{1,2})$/ ) { # slotN/portX-slotM/portY
+			my ($slotN, $portX, $slotM, $portY) = ($1, $2, $3, $4);
+			if ($slotN == $slotM) {
+				my $slot = $slotN;
+				for my $port ($portX .. $portY) {
+					&$processPort("$slot$sep$port");
+				}
+			}
+		}
+		elsif ( $element =~ /^(\d{1,3})[\/:](\d{1,2})[\/:](\d{1,2})-(\d{1,2})[\/:](\d{1,2})[\/:](\d{1,2})$/ ) { # slotN/portX/channelV-slotM/portY/channelW
+			my ($slotN, $portX, $chanV, $slotM, $portY, $chanW) = ($1, $2, $3, $4, $5, $6);
+			if ($slotN == $slotM && $portX == $portY) {
+				my $slot = $slotN;
+				my $port = $portX;
+				for my $chan ($chanV .. $chanW) {
+					&$processPort("$slot$sep$port$sep$chan");
+				}
+			}
+		}
+		else {
+			debugMsg(1,"-> generatePortList unrecognized element : >", \$element, "<\n");
+			return (); # we have an unrecognized port format; drastic exit, but at least we catch it
+		}
+	}
+
+	@sortedPorts = sort by_slotPort @ports;
+	debugMsg(1,"-> generatePortList output = ", \join(',', @sortedPorts), "\n");
+	return @sortedPorts;
+}
+
 sub acquireMirroringData { # Extract mirroring info
 	my ($muxHash, $cli) = @_;
 
@@ -685,21 +741,25 @@ sub acquireMirroringData { # Extract mirroring info
 	bulkDo($cli, 'cmd', ['show mirror-by-port']) or return;
 	foreach my $node (keys %$cli) {
 		my $output = ($cli->{$node}->cmd_poll)[1];
-		while ($output =~ /^\d+\s+((?:\d+\/)?\d+\/\d+)\s+(?:((?:\d+\/)?\d+\/\d+)\s+-|(\d+)\s+\d+)\s+(true|false)\s+(rx|tx|both)/mg) {
-			# $1 & $2 could in theory be more than 1 port... but we'll assume not!
-			my ($inportid, $outportid, $isid, $enabled, $mode) = (mapRealPortId($muxHash, $node, $1), $2, $3, $4, $5);
+		while ($output =~ /^\d+\s+(\d[\d\/,-]+\d)\s+(?:((?:\d+\/)?\d+\/\d+)\s+-|(\d+)\s+\d+)\s+(true|false)\s+(rx|tx|both)/mg) {
+			# $1 can be more than 1 port, this is now handled
+			# but $2 we will assume is only ever 1 port, for now...
+			my ($inportidRange, $outportid, $isid, $enabled, $mode) = ($1, $2, $3, $4, $5);
 			$outportid = mapRealPortId($muxHash, $node, $outportid) if defined $outportid;
-			if (defined $outportid) {
-				debugMsg(1, "acquireMirroringData() - $node in-port $inportid out-port $outportid enable $enabled mode $mode\n");
-				$muxHash->{mirror}->{switch}->{$node}->{mirror}->{$inportid}->{enabled} = $enabled eq 'true' ? 'ena' : 'dis';
-				$muxHash->{mirror}->{switch}->{$node}->{mirror}->{$inportid}->{mode} = $mode eq 'both' ? 'rxtx' : $mode;
-				$muxHash->{mirror}->{switch}->{$node}->{monitor}->{$outportid} = 1;
-			}
-			elsif (defined $isid) {
-				debugMsg(1, "acquireMirroringData() - $node in-port $inportid isid $isid enable $enabled mode $mode\n");
-				$muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$inportid}->{enabled} = $enabled eq 'true' ? 'ena' : 'dis';
-				$muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$inportid}->{mode} = $mode eq 'both' ? 'rxtx' : $mode;
-				$muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$inportid}->{switch} = $node;
+			for my $inportidReal (generatePortList($inportidRange)) {
+				my $inportid = mapRealPortId($muxHash, $node, $inportidReal);
+				if (defined $outportid) {
+					debugMsg(1, "acquireMirroringData() - $node in-port $inportid out-port $outportid enable $enabled mode $mode\n");
+					$muxHash->{mirror}->{switch}->{$node}->{mirror}->{$inportid}->{enabled} = $enabled eq 'true' ? 'ena' : 'dis';
+					$muxHash->{mirror}->{switch}->{$node}->{mirror}->{$inportid}->{mode} = $mode eq 'both' ? 'rxtx' : $mode;
+					$muxHash->{mirror}->{switch}->{$node}->{monitor}->{$outportid} = 1;
+				}
+				elsif (defined $isid) {
+					debugMsg(1, "acquireMirroringData() - $node in-port $inportid isid $isid enable $enabled mode $mode\n");
+					$muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$inportid}->{enabled} = $enabled eq 'true' ? 'ena' : 'dis';
+					$muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$inportid}->{mode} = $mode eq 'both' ? 'rxtx' : $mode;
+					$muxHash->{mirror}->{isid}->{$isid}->{mirror}->{$inportid}->{switch} = $node;
+				}
 			}
 		}
 	}

@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::HandleDeviceOutput;
-our $Version = "1.15";
+our $Version = "1.16";
 
 use strict;
 use warnings;
@@ -1215,12 +1215,11 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 					}
 					elsif ($mode->{dev_del} eq 'bt' || $mode->{dev_del} eq 'bx') {
 						$host_io->{BackspaceCount} += length $1;	# Increase length of expected backspaces by as many chars
-						if ($mode->{dev_del} eq 'bt') { # Only for post tab processing
-							print $1;					# Append to screen
-							$termbuf->{Linebuf1} .= $1;			# Append to linebuffer
-							($termbuf->{Bufback1} = $termbuf->{Linebuf1}) =~ s/./\cH/g;	# We update local term buffers
-							debugMsg(2,"PostAdjustingTabExpansion-extra:>", \$termbuf->{Linebuf1}, "<\n");
-						}
+						# We need this both for post tab and post syntax processing
+						print $1;					# Append to screen
+						$termbuf->{Linebuf1} .= $1;			# Append to linebuffer
+						($termbuf->{Bufback1} = $termbuf->{Linebuf1}) =~ s/./\cH/g;	# We update local term buffers
+						debugMsg(2,"PostAdjusting-extra:>", \$termbuf->{Linebuf1}, "<\n");
 					}
 				}
 				elsif ($mode->{dev_del} eq 'bt' && $$outRef =~ s/^(\cH+)([^\x00\x0d\n\cH\e\s][^\x00\x0d\n\cH\e]*\s?)(\cH)/$3/) { # must match a non-space as 1st char after \cH
@@ -1288,7 +1287,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 						$host_io->{Type} eq 'ExtremeXOS' &&
 						(
 							$$outRef =~ s/^\cH{$host_io->{BackspaceCount}}\e\[J// ||	# Extreme XOS
-							($host_io->{BackspaceCount} > 90 && $$outRef =~ s/^(?:\e\[C)+\e\[A(?:\e\[J)?//)	# Extreme XOS lines > 100 chars
+							$$outRef =~ s/^(?:\e\[C)+\e\[A(?:\e\[J)?//	# Extreme XOS larger lines > 100 chars (also seen on serial port > 50)
 						)
 					) || (
 						$host_io->{Type} eq 'OneOS' &&
@@ -1909,7 +1908,7 @@ sub handleDeviceOutput { # Handles reception of output from connectyed device
 				$host_io->{OutCache} = stripLastLine($outRef);			# Strip last line..
 				if (chomp $$outRef) {
 					$host_io->{OutCache} = "\n" . $host_io->{OutCache};	# ..and preceding \n if present
-					$$outRef .= $CompleteLineMarker;
+					$$outRef .= $CompleteLineMarker if length($$outRef);
 				}
 				debugMsg(2,"Interact-lastline-and-preceding-newline-ontoFastCache:\n>", \$host_io->{OutCache}, "<\n");
 				($host_io->{CacheTimeout}, $host_io->{CacheTimeoutDF}) = (Time::HiRes::time + $OutputCacheFastTimeout, 1); # Reset to use cache fast timer
