@@ -1438,3 +1438,5 @@ Revision history for acli.pl
 	  @if/@elsif statements without having to be [] enclosed
 	* "show running-config -b" or alias cfg on BaystackERS was no longer removing banner/comment lines from output;
 	  this was introduced in 6.05 with new classification of lines which was not trained on unfiltered config output
+6.05_003
+	* VLAN Grep of show running-config on VOSS was failing to show "ip rsmlt ipv6-peer-addr" lines for VLAN

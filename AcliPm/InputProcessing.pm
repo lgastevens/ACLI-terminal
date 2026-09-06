@@ -1,6 +1,6 @@
 # ACLI sub-module
 package AcliPm::InputProcessing;
-our $Version = "1.15";
+our $Version = "1.16";
 
 use strict;
 use warnings;
@@ -478,7 +478,7 @@ sub prepGrepStructure { # Process grep string and setup grep structure according
 					elsif ($grepString =~ /^vlan$/i) {
 						$grepString .= ' '; # Add space so it gets updated in s/// below
 					}
-					$grepString =~ s/^vlan /(?:(?:vlan(?:-id)?|vid ?) (?:(?:[\\w\\-]+ (?:remove|tag )?)?(?:[,\\d\\-]+?[,\\-])?)?|ip rsmlt peer-address [\\d\\.]+ [\\d\\w:]+ )/i;
+					$grepString =~ s/^vlan /(?:(?:vlan(?:-id)?|vid ?) (?:(?:[\\w\\-]+ (?:remove|tag )?)?(?:[,\\d\\-]+?[,\\-])?)?|ip rsmlt (?:peer-address|ipv6-peer-addr) [\\w\\.\\:]+ [\\w:]+ )/i;
 				}
 			}
 			push(@{$grep->{RangeList}}, $vlanListRef);

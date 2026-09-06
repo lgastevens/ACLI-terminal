@@ -1,6 +1,6 @@
 # acli.pl alias file
 #
-$Version = 1.69
+$Version = 1.70
 #
 # This file was edited with Tab = 8 space characters; set to same on your editor for better viewing
 #
@@ -950,7 +950,7 @@ vln [$vid]
 	{family_type} eq 'SecureRouter'							= show bridge vlan [$vid]
 	{family_type} eq 'WLAN9100'							= show vlan [$vid]
 	{is_xos}									= show vlan !\(.\)
-	{is_isw_marvell}								= show vlan status
+	{is_isw_marvell}								= show vlan
 	{is_isw}									= do show vlan brief
 	{is_slx}									= do show vlan brief
 vlni [$ports]
@@ -1201,6 +1201,14 @@ fai [$portmlt]
 	{family_type} eq 'PassportERS'							= show fa interface [port $portmlt]
 	{is_xos}									= show fabric attach ports [$portmlt]
 	{is_isw}									= do show fa interface [$portmlt]
+faia [$portmlt]
+	~:"Show Fabric Attach port authentication"
+	{family_type} eq 'BaystackERS'							= show fa interface [$portmlt]
+	{family_type} eq 'PassportERS' && $portmlt =~ /^\d+$/				= show fa interface mlt $portmlt
+	{family_type} eq 'PassportERS'							= show fa interface [port $portmlt]
+	{is_xos} && $portmlt								= show fabric attach ports [$portmlt] authentication
+	{is_xos}									= show fabric attach ports all authentication
+	{is_isw}									= do show fa interface [$portmlt]
 fae [$ports]
 	~:"Show Fabric Attach discovered neighbours"
 	{family_type} eq 'BaystackERS'							= show fa elements [$ports]!!Legend,[A-Z]= *[A-Z]
@@ -1232,6 +1240,10 @@ faa [$ports]
 #
 # L3 commands
 #
+dhc
+	~:"Show DHCP Client state"
+	{is_voss}									= show mgmt dhcp-client
+	{is_xos}									= show dhcp-client state
 mgi
 	~:"Show VOSS segmented mgmt interfaces"
 	{is_voss}									= show mgmt interface
@@ -1693,8 +1705,12 @@ eptb
 	{is_voss}				= show endpoint-tracking bindings
 
 #
-# XIQ / EP1 commands
+# ZTP / XIQ / EP1 commands
 #
+ztp
+	~:"Show ZTP+ Agent status"
+	{is_voss}				= show application auto-provision
+	{is_xos}				= show auto-provision
 iq
 	~:"Show IQ Agent status"
 	{is_voss}				= show application iqagent
@@ -1949,7 +1965,7 @@ tuni $ports [$isid_name]
 										; 	   no lldp status
 										; 	   no shutdown
 										; 	exit
-										; 	@if $isid_name
+										; 	@if "$isid_name"
 										; 		i-sid name $tuni_isid $isid_name
 										; 	@endif
 										; 	@echo off output on

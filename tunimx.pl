@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-my $Version = "1.8";
+my $Version = "1.9";
 # Written by Ludovico Stevens (lstevens@extremenetworks.com)
 # VSP as a L1 matrix using Transparent UNI on port pairs
 
@@ -26,6 +26,8 @@ my $Version = "1.8";
 # 1.7	- Mirroring data output now can cope with mirror ports set to unused ports
 # 1.8	- Mirroring data output now handles case where multiple in-ports are mirrored from the
 #	  same switch in the same mirroring instance
+# 1.9	- Script was allowing same input port more than once for P and M connection types
+#	- Dump data structure option D now defaults to path %HOMEPATH%/Downloads/
 
 # Todo...
 # - show ISID mirror offset in output
@@ -79,6 +81,7 @@ my $PageLines = 23;
 my $MorePrompt = "-- More (SPACE) / Quit (Q) --";
 my $DonePrompt = "-- Done (SPACE) --";
 my $TuniMxDump = "muxHash.dump";
+my $TuniMxDumpPath = $ENV{'HOMEPATH'}.'/Downloads/';
 my %InfoLine = ( # Formatting of how tunimx records will be displayed
 	# Status/poe fields are normally 4/5 characters, but with ANSI clouring, need to add 9+9=18 to that; hence 22/23
 	'oob_connection'		=> "%8s: %30s (%9s) %-22s <-> OOB Network\n",
@@ -852,6 +855,10 @@ sub selectPorts{ # Input selection of end-points
 		my $matchPortids = searchEndPoint($muxHash, $endPoint);
 		if (@$matchPortids) {
 			if (scalar @$matchPortids == 1) {
+				if ( grep {$_ eq $matchPortids->[0]} @portids ) {
+					print "Selection port was already entered\n";
+					return;
+				}
 				push(@portids, $matchPortids->[0]);
 			}
 			else {
@@ -2050,9 +2057,9 @@ MAIN:{
 			next LOOP;
 		};
 		$key eq 'W' && do { # Dump data structure
-			printf "\n($key) - Optional path and/or filename to use [default = %s]: ", File::Spec->rel2abs(cwd . '/' . $TuniMxDump);
+			printf "\n($key) - Optional path and/or filename to use [default = %s]: ", File::Spec->rel2abs($TuniMxDumpPath . $TuniMxDump);
 			chomp(my $path = <STDIN>);
-			$path = File::Spec->rel2abs(cwd . '/' . $TuniMxDump) unless $path;
+			$path = File::Spec->rel2abs($TuniMxDumpPath . $TuniMxDump) unless $path;
 			open(DUMP, '>', $path) or do {
 				print "Unable to open file $path : $!\n";
 				next LOOP;
